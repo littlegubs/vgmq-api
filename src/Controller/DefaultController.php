@@ -15,7 +15,7 @@ class DefaultController
      *     response=200,
      *     description="Returns the rewards of an user",
      * )
-     * @SWG\Tag(name="cool ")
+     * @SWG\Tag(name="cool")
      */
     public function index()
     {
