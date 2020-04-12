@@ -19,6 +19,12 @@ class RegistrationController extends AbstractController
 {
     /**
      * @Route("/register", name="register", methods={"POST"})
+     * @param Request $request
+     * @param UserPasswordEncoderInterface $encoder
+     * @param ValidatorInterface $validator
+     * @param JWTTokenManagerInterface $JWTTokenManager
+     * @param RefreshTokenManagerInterface $refreshTokenManager
+     * @return JsonResponse
      */
     public function register(
         Request $request,
