@@ -3,10 +3,13 @@
 namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @ORM\Entity(repositoryClass="App\Repository\UserRepository")
+ * @ORM\Table(name="users")
  */
 class User implements UserInterface
 {
@@ -41,10 +44,31 @@ class User implements UserInterface
     private ?string $plainPassword;
 
     /**
-     * @var bool
      * @ORM\Column(type="boolean")
      */
     private bool $enabled = false;
+
+    /**
+     * @ORM\Column(type="string", nullable=true)
+     */
+    private ?string $igdbUsername;
+
+    /**
+     * @ORM\Column(type="datetime", nullable=true)
+     */
+    private ?\DateTime $gameListUpdatedAt;
+
+    /**
+     * @var Game[] | ArrayCollection
+     * @ORM\ManyToMany(targetEntity="Game", inversedBy="users")
+     * @ORM\JoinTable(name="users_games")
+     */
+    private Collection $games;
+
+    public function __construct()
+    {
+        $this->games = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -70,7 +94,7 @@ class User implements UserInterface
      */
     public function getUsername(): string
     {
-        return (string)$this->username;
+        return (string) $this->username;
     }
 
     public function setUsername($username): self
@@ -104,7 +128,7 @@ class User implements UserInterface
      */
     public function getPassword(): string
     {
-        return (string)$this->password;
+        return (string) $this->password;
     }
 
     public function setPassword(string $password): self
@@ -124,11 +148,13 @@ class User implements UserInterface
 
     /**
      * @param string $plainPassword
+     *
      * @return $this
      */
     public function setPlainPassword($plainPassword)
     {
         $this->plainPassword = $plainPassword;
+
         return $this;
     }
 
@@ -157,6 +183,43 @@ class User implements UserInterface
     public function setEnabled(bool $enabled): self
     {
         $this->enabled = $enabled;
+
+        return $this;
+    }
+
+    public function getIgdbUsername(): ?string
+    {
+        return $this->igdbUsername;
+    }
+
+    public function setIgdbUsername(?string $igdbUsername): User
+    {
+        $this->igdbUsername = $igdbUsername;
+
+        return $this;
+    }
+
+    public function getGameListUpdatedAt(): ?\DateTime
+    {
+        return $this->gameListUpdatedAt;
+    }
+
+    public function setGameListUpdatedAt(?\DateTime $gameListUpdatedAt): User
+    {
+        $this->gameListUpdatedAt = $gameListUpdatedAt;
+
+        return $this;
+    }
+
+    public function getGames(): Collection
+    {
+        return $this->games;
+    }
+
+    public function setGames(Collection $games): User
+    {
+        $this->games = $games;
+
         return $this;
     }
 }

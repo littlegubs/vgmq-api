@@ -1,5 +1,5 @@
 api_login_check:
-  path: /login_check
+  path: /login
   methods: [POST]
 
 gesdinet_jwt_refresh_token:

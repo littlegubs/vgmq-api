@@ -4,6 +4,46 @@ nelmio_api_doc:
             title: vgmq-api
             description: ~
             version: 0.0.0
+        paths:
+            /login:
+                post:
+                    tags:
+                        - Login
+                    description: Login into the api.
+                    produces:
+                        - application/json
+                    parameters:
+                        -   name: user
+                            description: User to login
+                            in: body
+                            required: true
+                            schema:
+                                type: object
+                                properties:
+                                    username:
+                                        type: string
+                                    password:
+                                        type: string
+                    responses:
+                        '200':
+                            description: Login successful
+                            schema:
+                                type: object
+                                properties:
+                                    token:
+                                        type: string
+                                    refresh_token:
+                                        type: string
+                        '401':
+                            description: Login incorrect
+                            schema:
+                                type: object
+                                properties:
+                                    code:
+                                        type: integer
+                                    message:
+                                        type: string
+
     areas: # to filter documented areas
         path_patterns:
             - ^/(?!(($)|(_.)))
