@@ -1,6 +1,6 @@
 # vgmq-api
 
-Angular project : [VGMQ](https://github.com/MWAlexisL/vgmq)
+Angular 9 project : [VGMQ](https://github.com/MWAlexisL/vgmq)
 
 ### Install projet with Docker
 
