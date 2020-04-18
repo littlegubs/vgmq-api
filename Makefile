@@ -18,5 +18,5 @@ restart:
 clean:
 	@docker system prune --volumes --force
 
-shell-in-php:
+bash:
 	@docker-compose exec php bash

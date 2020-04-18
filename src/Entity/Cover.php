@@ -45,7 +45,7 @@ class Cover
 
     /**
      * @var Game
-     * @ORM\OneToOne(targetEntity="Game")
+     * @ORM\OneToOne(targetEntity="Game", mappedBy="cover")
      */
     private Game $game;
 
@@ -57,17 +57,6 @@ class Cover
         return $this->id;
     }
 
-    /**
-     * @param int $id
-     *
-     * @return $this
-     */
-    public function setId($id)
-    {
-        $this->id = $id;
-
-        return $this;
-    }
 
     public function getIgdbId(): int
     {
@@ -77,6 +66,13 @@ class Cover
     public function getImageId(): string
     {
         return $this->imageId;
+    }
+
+    public function setIgdbId(int $igdbId): Cover
+    {
+        $this->igdbId = $igdbId;
+
+        return $this;
     }
 
     public function setImageId(string $imageId): self

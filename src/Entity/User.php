@@ -211,12 +211,12 @@ class User implements UserInterface
         return $this;
     }
 
-    public function getGames(): Collection
+    public function getGames()
     {
         return $this->games;
     }
 
-    public function setGames(Collection $games): User
+    public function setGames($games): User
     {
         $this->games = $games;
 
