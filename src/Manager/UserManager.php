@@ -7,6 +7,7 @@ use App\Entity\Game;
 use App\Client\IgdbClient;
 use App\Exception\IgdbApiLimitExceeded;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpClient\HttpClient;
 use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
