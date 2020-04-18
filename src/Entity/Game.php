@@ -82,11 +82,35 @@ class Game
      */
     private Collection $users;
 
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\Game", inversedBy="children")
+     * @ORM\JoinColumn(onDelete="SET NULL")
+     */
+    private ?Game $parent;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Game", mappedBy="parent")
+     */
+    private Collection $children;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\Game", inversedBy="childrenVersion")
+     * @ORM\JoinColumn(onDelete="SET NULL")
+     */
+    private ?Game $parentVersion;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Game", mappedBy="parentVersion")
+     */
+    private Collection $childrenVersion;
+
     public function __construct()
     {
         $this->alternativeNames = new ArrayCollection();
         $this->videos = new ArrayCollection();
         $this->users = new ArrayCollection();
+        $this->children = new ArrayCollection();
+        $this->childrenVersion = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -226,6 +250,54 @@ class Game
     public function setUrl(string $url): Game
     {
         $this->url = $url;
+
+        return $this;
+    }
+
+    public function getParent(): ?Game
+    {
+        return $this->parent;
+    }
+
+    public function setParent(?Game $parent): Game
+    {
+        $this->parent = $parent;
+
+        return $this;
+    }
+
+    public function getChildren(): Collection
+    {
+        return $this->children;
+    }
+
+    public function setChildren($children): Game
+    {
+        $this->children = $children;
+
+        return $this;
+    }
+
+    public function getParentVersion(): ?Game
+    {
+        return $this->parentVersion;
+    }
+
+    public function setParentVersion(?Game $parentVersion): Game
+    {
+        $this->parentVersion = $parentVersion;
+
+        return $this;
+    }
+
+    public function getChildrenVersion(): Collection
+    {
+        return $this->childrenVersion;
+    }
+
+    public function setChildrenVersion($childrenVersion): Game
+    {
+        $this->childrenVersion = $childrenVersion;
 
         return $this;
     }
