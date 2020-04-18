@@ -33,7 +33,7 @@ class Video
 
     /**
      * @var string
-     * @ORM\Column(type="string")
+     * @ORM\Column(type="string", nullable=true)
      */
     private string $duration;
 
@@ -49,5 +49,68 @@ class Video
      */
     private Game $game;
 
+    public function getId(): ?string
+    {
+        return $this->id;
+    }
 
+    public function getIgdbId(): ?int
+    {
+        return $this->igdbId;
+    }
+
+    public function setIgdbId(?int $igdbId): Video
+    {
+        $this->igdbId = $igdbId;
+
+        return $this;
+    }
+
+    public function getVideoId(): ?string
+    {
+        return $this->videoId;
+    }
+
+    public function setVideoId(?string $videoId): Video
+    {
+        $this->videoId = $videoId;
+
+        return $this;
+    }
+
+    public function getDuration(): ?string
+    {
+        return $this->duration;
+    }
+
+    public function setDuration(string $duration): Video
+    {
+        $this->duration = $duration;
+
+        return $this;
+    }
+
+    public function getPath(): ?string
+    {
+        return $this->path;
+    }
+
+    public function setPath(string $path): Video
+    {
+        $this->path = $path;
+
+        return $this;
+    }
+
+    public function getGame(): ?Game
+    {
+        return $this->game;
+    }
+
+    public function setGame(Game $game): Video
+    {
+        $this->game = $game;
+
+        return $this;
+    }
 }

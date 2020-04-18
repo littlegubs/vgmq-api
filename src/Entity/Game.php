@@ -46,6 +46,12 @@ class Game
     private string $slug;
 
     /**
+     * @var string
+     * @ORM\Column(type="string")
+     */
+    private string $url;
+
+    /**
      * @var bool
      * @ORM\Column(type="boolean")
      */
@@ -53,25 +59,26 @@ class Game
 
     /**
      * @var AlternativeName[] | ArrayCollection
-     * @ORM\OneToMany(targetEntity="AlternativeName", mappedBy="game")
+     * @ORM\OneToMany(targetEntity="AlternativeName", mappedBy="game", cascade={"persist", "remove"})
      */
     private Collection $alternativeNames;
 
     /**
      * @var Cover|null
-     * @ORM\OneToOne(targetEntity="Cover")
+     * @ORM\OneToOne(targetEntity="Cover", cascade={"persist", "remove"}, inversedBy="game")
+     * @ORM\JoinColumn(onDelete="SET NULL")
      */
     private ?Cover $cover;
 
     /**
      * @var Video[] | ArrayCollection
-     * @ORM\OneToMany(targetEntity="Video", mappedBy="game")
+     * @ORM\OneToMany(targetEntity="Video", mappedBy="game", cascade={"persist", "remove"})
      */
     private Collection $videos;
 
     /**
      * @var User[] | ArrayCollection
-     * @ORM\OneToMany(targetEntity="User", mappedBy="games")
+     * @ORM\ManyToMany(targetEntity="User", mappedBy="games")
      */
     private Collection $users;
 
@@ -198,6 +205,27 @@ class Game
     public function setUsers(Collection $users): Game
     {
         $this->users = $users;
+
+        return $this;
+    }
+
+    public function addUser(User $user): Game
+    {
+        if (!$this->users->contains($user)) {
+            $this->users->add($user);
+        }
+
+        return $this;
+    }
+
+    public function getUrl(): ?string
+    {
+        return $this->url;
+    }
+
+    public function setUrl(string $url): Game
+    {
+        $this->url = $url;
 
         return $this;
     }

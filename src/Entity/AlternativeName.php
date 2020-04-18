@@ -48,6 +48,18 @@ class AlternativeName
         return $this->id;
     }
 
+    public function getIgdbId(): ?int
+    {
+        return $this->igdbId;
+    }
+
+    public function setIgdbId(int $igdbId): AlternativeName
+    {
+        $this->igdbId = $igdbId;
+
+        return $this;
+    }
+
     public function getName(): string
     {
         return $this->name;
