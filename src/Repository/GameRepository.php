@@ -19,11 +19,18 @@ class GameRepository extends EntityRepository
         return $qb->getQuery()->getResult();
     }
 
-    public function getAll()
+    public function getAll(bool $count = false)
     {
-        return $this->createQueryBuilder('g')
-            ->select('g.igdbId')
-            ->getQuery()->getResult();
+        $qb = $this->createQueryBuilder('g');
+        if ($count) {
+            $qb->select('COUNT(DISTINCT g.id)');
+
+            return $qb->getQuery()->getSingleScalarResult();
+        }
+        $qb
+            ->select('g.igdbId');
+
+        return $qb->getQuery()->getResult();
     }
 
     public function getByIgdbIds(array $igdbIds)

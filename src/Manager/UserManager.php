@@ -55,14 +55,19 @@ class UserManager
         if (empty($privateListJson)) {
             throw new NotFoundHttpException();
         }
+
         $listedGames = current($privateListJson)['listed_games'];
         // add new games to database
         $games = $this->em->getRepository(Game::class)->getAll();
         $gamesToFetch = array_diff($listedGames, array_column($games, 'igdbId'));
 
-        $arrayChunk = array_chunk($gamesToFetch, 500);
-        foreach ($arrayChunk as $key => $chunk) {
-            $this->gameManager->fetchGames($games, $chunk, $key);
+        $arrayChunks = array_chunk($gamesToFetch, 500);
+        // if user has more than 5000 games to add
+        $arrayChunksChunks = array_chunk($arrayChunks, 10);
+        foreach ($arrayChunksChunks as $arrayChunk) {
+            foreach ($arrayChunk as $key => $chunk) {
+                $this->gameManager->fetchGames($chunk, $key);
+            }
         }
 
         $this->em->flush();
