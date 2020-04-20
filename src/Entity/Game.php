@@ -23,7 +23,7 @@ class Game
 
     /**
      * @var int
-     * @ORM\Column(type="integer")
+     * @ORM\Column(type="integer", unique=true)
      */
     private int $igdbId;
 

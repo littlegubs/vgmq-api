@@ -12,3 +12,7 @@ App\Entity\User:
           max: 20
     plainPassword:
       - NotBlank: ~
+
+App\Entity\Game:
+  constraints:
+    - Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity: igdbId

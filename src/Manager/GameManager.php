@@ -11,41 +11,67 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 use Doctrine\Common\Collections\ArrayCollection;
 use App\Exception\IgdbApiLimitExceededDuringProcess;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class GameManager
 {
     private EntityManagerInterface $em;
     private IgdbApiStatusManager $igdbApiStatusManager;
+    private ValidatorInterface $validator;
+    private bool $fromCommand = false;
 
-    public function __construct(EntityManagerInterface $em, IgdbApiStatusManager $igdbApiStatusManager)
-    {
+    public function __construct(
+        EntityManagerInterface $em,
+        IgdbApiStatusManager $igdbApiStatusManager,
+        ValidatorInterface $validator
+    ) {
         $this->em = $em;
         $this->igdbApiStatusManager = $igdbApiStatusManager;
+        $this->validator = $validator;
     }
 
-    public function fetchGames(array $games, ?array $data, ?int $key = null): void
+    public function setFromCommand(bool $fromCommand): void
+    {
+        $this->fromCommand = $fromCommand;
+    }
+
+    public function fetchGames(?array $data, ?int $key = null): bool
     {
         if (!$this->igdbApiStatusManager->fetchAllowed()) {
             throw new IgdbApiLimitExceededDuringProcess();
         }
 
+        $games = [];
+        if ($this->fromCommand) {
+            $gamesCount = $this->em->getRepository(Game::class)->getAll(true);
+            //if we have more than 30 000 games, stops the command and avoid being banned by IGDB
+            if ($gamesCount > 30000) {
+                return false;
+            }
+            $games = $this->em->getRepository(Game::class)->getAll();
+        }
+
+        // games to not fetch until IGDB fixes them
+        $buggedIgdbIds = [10942, 105413];
+
+        $gamesToNotFetch = array_merge(array_column($games, 'igdbId'), $buggedIgdbIds);
+
         $body = 'fields category, parent_game, url, category,alternative_names.name, cover.*, first_release_date, version_parent, name, slug, videos.video_id;
-                sort popularity desc;';
+                sort popularity desc; limit 500;';
 
         if (null !== $key) {
+            $body .= 'offset '.($key * 500).';';
             if (null !== $data) {
-                $body .= 'where first_release_date != null & id = ('.implode(', ', $data).')';
+                $body .= 'where first_release_date != null & id = ('.implode(', ', $data).') ';
             } else {
                 // if command
                 $body .= 'where first_release_date != null ';
-                if (!empty($games)) {
-                    $body .= '& id != ('.implode(', ', array_column($games, 'igdbId')).')';
-                }
             }
-            $body .= ';limit 500; offset '.($key * 500).';';
         } else {
-            $body .= 'where id = ('.implode(', ', $data).');';
+            $body .= 'where first_release_date != null & id = ('.implode(', ', $data).') ';
         }
+
+        $body .= !empty($gamesToNotFetch) ? '& id != ('.implode(', ', $gamesToNotFetch).');' : ';';
 
         $client = HttpClient::create();
         $response = $client->request('GET', 'https://api-v3.igdb.com/games', [
@@ -64,36 +90,48 @@ class GameManager
         }
 
         $gamesJson = $response->toArray();
+
+        if (empty($gamesJson)) {
+            return false;
+        }
+
         $parentGames = array_column($gamesJson, 'parent_game', 'id');
+        $parentGames = array_unique($parentGames);
         $parentGames = array_diff($parentGames, array_column($games, 'igdbId'));
+
         // prevent from adding a parent game which has the same id has this game
         $parentGames = array_filter($parentGames, function ($value, $key) {
             return $key !== $value;
         }, ARRAY_FILTER_USE_BOTH);
 
         if (!empty($parentGames)) {
-            $this->fetchGames($games, $parentGames);
+            $this->fetchGames($parentGames);
         }
 
         $versionParents = array_column($gamesJson, 'version_parent', 'id');
+        $versionParents = array_unique($versionParents);
         $versionParents = array_diff($versionParents, array_column($games, 'igdbId'));
+
         // prevent from adding a parent game which has the same id has this game
         $versionParents = array_filter($versionParents, function ($value, $key) {
             return $key !== $value;
         }, ARRAY_FILTER_USE_BOTH);
 
         if (!empty($versionParents)) {
-            $this->fetchGames($games, $versionParents);
+            $this->fetchGames($versionParents);
         }
-        $this->em->flush();
+
         foreach ($gamesJson as $gameJson) {
             $this->addGame($gameJson);
         }
+
+        return true;
     }
 
     private function addGame(array $data): void
     {
         if (null === $data['category'] || !in_array($data['category'], [1, 6], true)) {
+
             $date = new \DateTime();
             $date->setTimestamp($data['first_release_date']);
 
@@ -105,12 +143,12 @@ class GameManager
                 ->setFirstReleaseDate($date)
                 ->setUrl($data['url']);
 
-            if (isset($data['cover'])) {
+            if (isset($data['cover']) && is_array($data['cover'])) {
                 $cover = new Cover();
                 $cover
                     ->setIgdbId($data['cover']['id'])
-                    ->setHeight($data['cover']['height'])
-                    ->setWidth($data['cover']['width'])
+                    ->setHeight($data['cover']['height'] ?? null)
+                    ->setWidth($data['cover']['width'] ?? null)
                     ->setImageId($data['cover']['image_id'])
                     ->setGame($game);
 
@@ -187,7 +225,15 @@ class GameManager
             $game
                 ->setAlternativeNames($alternativeNames)
                 ->setVideos($videos);
-            $this->em->persist($game);
+
+            if (count($this->validator->validate($game)) === 0) {
+                $this->em->persist($game);
+                $this->em->flush();
+                $this->em->clear(AlternativeName::class);
+                $this->em->clear(Video::class);
+                $this->em->clear(Cover::class);
+                $this->em->clear(Game::class);
+            }
         }
     }
 }
