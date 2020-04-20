@@ -44,11 +44,11 @@ class UserController extends AbstractController
         } catch (NotFoundHttpException $httpException) {
             return new JsonResponse("No 'played' IGDB list found with username '".$igdbUsername."'", 404);
         } catch (IgdbApiLimitExceeded $exception) {
-            return new JsonResponse('Syncing game list has been disabled, try again later !', 500);
+            return new JsonResponse('Syncing game list has been disabled, try again later !', 503);
         } catch (IgdbApiLimitExceededDuringProcess $exception) {
-            return new JsonResponse('We lost connection with IGDB, some of your games may not have been synced', 500);
+            return new JsonResponse('We lost connection with IGDB, some of your games may not have been synced', 503);
         } catch (IgdbApiBadStatusCode $exception) {
-            return new JsonResponse('An error occurred', 500);
+            return new JsonResponse('An error occurred', 502);
         } catch (\Exception $exception) {
             return new JsonResponse('An error occurred', 500);
         }
