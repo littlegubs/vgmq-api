@@ -5,10 +5,9 @@ namespace App\Manager;
 use App\Entity\Game;
 use App\Entity\Cover;
 use App\Entity\Video;
+use App\Client\IgdbClient;
 use App\Entity\AlternativeName;
-use App\Exception\IgdbApiBadStatusCode;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpClient\HttpClient;
 use Doctrine\Common\Collections\ArrayCollection;
 use App\Exception\IgdbApiLimitExceededDuringProcess;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -18,25 +17,33 @@ class GameManager
     private EntityManagerInterface $em;
     private IgdbApiStatusManager $igdbApiStatusManager;
     private ValidatorInterface $validator;
+    private IgdbClient $igdbClient;
     private bool $fromCommand = false;
 
     public function __construct(
         EntityManagerInterface $em,
         IgdbApiStatusManager $igdbApiStatusManager,
-        ValidatorInterface $validator
+        ValidatorInterface $validator,
+        IgdbClient $igdbClient
     ) {
         $this->em = $em;
         $this->igdbApiStatusManager = $igdbApiStatusManager;
         $this->validator = $validator;
+        $this->igdbClient = $igdbClient;
     }
 
-    public function setFromCommand(bool $fromCommand): void
-    {
+    public
+    function setFromCommand(
+        bool $fromCommand
+    ): void {
         $this->fromCommand = $fromCommand;
     }
 
-    public function fetchGames(?array $data, ?int $key = null): bool
-    {
+    public
+    function fetchGames(
+        ?array $data,
+        ?int $key = null
+    ): bool {
         if (!$this->igdbApiStatusManager->fetchAllowed()) {
             throw new IgdbApiLimitExceededDuringProcess();
         }
@@ -73,23 +80,7 @@ class GameManager
 
         $body .= !empty($gamesToNotFetch) ? '& id != ('.implode(', ', $gamesToNotFetch).');' : ';';
 
-        $client = HttpClient::create();
-        $response = $client->request('GET', 'https://api-v3.igdb.com/games', [
-            'headers' => [
-                'user-key' => $_ENV['IGDB_USER_KEY'],
-                'Content-Type' => 'text/plain',
-            ],
-            'body' => $body,
-        ]);
-
-        $this->igdbApiStatusManager->addToCurrentValue();
-
-        $statusCode = $response->getStatusCode();
-        if (200 !== $statusCode) {
-            throw new IgdbApiBadStatusCode();
-        }
-
-        $gamesJson = $response->toArray();
+        $gamesJson = $this->igdbClient->execute('games', $body);
 
         if (empty($gamesJson)) {
             return false;
@@ -128,8 +119,10 @@ class GameManager
         return true;
     }
 
-    private function addGame(array $data): void
-    {
+    private
+    function addGame(
+        array $data
+    ): void {
         if (null === $data['category'] || !in_array($data['category'], [1, 6], true)) {
 
             $date = new \DateTime();

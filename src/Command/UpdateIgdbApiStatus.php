@@ -2,9 +2,9 @@
 
 namespace App\Command;
 
+use App\Client\IgdbClient;
 use App\Entity\IgdbApiStatus;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -13,24 +13,20 @@ class UpdateIgdbApiStatus extends Command
 {
     protected static $defaultName = 'app:igdb:api-status';
     private EntityManagerInterface $entityManager;
+    private IgdbClient $igdbClient;
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager, IgdbClient $igdbClient)
     {
         $this->entityManager = $entityManager;
+        $this->igdbClient = $igdbClient;
         parent::__construct();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
 
-        $client = HttpClient::create();
-        $response = $client->request('GET', 'https://api-v3.igdb.com/api_status', [
-            'headers' => [
-                'user-key' => $_ENV['IGDB_USER_KEY'],
-            ],
-        ]);
+        $data = $this->igdbClient->execute('api_status', null, false);
 
-        $data = $response->toArray();
         if (empty($data)) {
             return;
         }
