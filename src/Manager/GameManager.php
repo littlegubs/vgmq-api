@@ -39,8 +39,11 @@ class GameManager
         $this->fromCommand = $fromCommand;
     }
 
-    public function fetchGames(?array $data, ?int $key = null): bool
-    {
+    public
+    function fetchGames(
+        ?array $data,
+        ?int $key = null
+    ): bool {
         if (!$this->igdbApiStatusManager->fetchAllowed()) {
             throw new IgdbApiLimitExceededDuringProcess();
         }
@@ -116,8 +119,10 @@ class GameManager
         return true;
     }
 
-    private function addGame(array $data): void
-    {
+    private
+    function addGame(
+        array $data
+    ): void {
         if (null === $data['category'] || !in_array($data['category'], [1, 6], true)) {
 
             $date = new \DateTime();
