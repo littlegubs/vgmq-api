@@ -32,13 +32,18 @@ class GameManager
         $this->igdbClient = $igdbClient;
     }
 
-    public function setFromCommand(bool $fromCommand): void
-    {
+    public
+    function setFromCommand(
+        bool $fromCommand
+    ): void {
         $this->fromCommand = $fromCommand;
     }
 
-    public function fetchGames(?array $data, ?int $key = null): bool
-    {
+    public
+    function fetchGames(
+        ?array $data,
+        ?int $key = null
+    ): bool {
         if (!$this->igdbApiStatusManager->fetchAllowed()) {
             throw new IgdbApiLimitExceededDuringProcess();
         }
