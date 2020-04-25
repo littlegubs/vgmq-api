@@ -4,10 +4,9 @@ namespace App\Manager;
 
 use App\Entity\User;
 use App\Entity\Game;
+use App\Client\IgdbClient;
 use App\Exception\IgdbApiLimitExceeded;
-use App\Exception\IgdbApiBadStatusCode;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpClient\HttpClient;
 use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -17,15 +16,18 @@ class UserManager
     private EntityManagerInterface $em;
     private GameManager $gameManager;
     private IgdbApiStatusManager $igdbApiStatusManager;
+    private IgdbClient $igdbClient;
 
     public function __construct(
         EntityManagerInterface $em,
         GameManager $gameManager,
-        IgdbApiStatusManager $igdbApiStatusManager
+        IgdbApiStatusManager $igdbApiStatusManager,
+        IgdbClient $igdbClient
     ) {
         $this->em = $em;
         $this->gameManager = $gameManager;
         $this->igdbApiStatusManager = $igdbApiStatusManager;
+        $this->igdbClient = $igdbClient;
     }
 
     public function updateGameList(User $user, string $igdbUsername): void
@@ -34,23 +36,7 @@ class UserManager
             throw new IgdbApiLimitExceeded();
         }
 
-        $client = HttpClient::create();
-        $response = $client->request('GET', 'https://api-v3.igdb.com/private/lists', [
-            'headers' => [
-                'user-key' => $_ENV['IGDB_USER_KEY'],
-                'Content-Type' => 'text/plain',
-            ],
-            'body' => 'fields listed_games; where url = *"'.$igdbUsername.'"* & slug = "played";',
-        ]);
-
-        $this->igdbApiStatusManager->addToCurrentValue();
-
-        $statusCode = $response->getStatusCode();
-        if (200 !== $statusCode) {
-            throw new IgdbApiBadStatusCode();
-        }
-
-        $privateListJson = $response->toArray();
+        $privateListJson = $this->igdbClient->execute('private/lists', 'fields listed_games; where url = *"'.$igdbUsername.'"* & slug = "played";');
 
         if (empty($privateListJson)) {
             throw new NotFoundHttpException();
