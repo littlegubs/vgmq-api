@@ -32,18 +32,13 @@ class GameManager
         $this->igdbClient = $igdbClient;
     }
 
-    public
-    function setFromCommand(
-        bool $fromCommand
-    ): void {
+    public function setFromCommand(bool $fromCommand): void
+    {
         $this->fromCommand = $fromCommand;
     }
 
-    public
-    function fetchGames(
-        ?array $data,
-        ?int $key = null
-    ): bool {
+    public function fetchGames(?array $data, ?int $key = null): bool
+    {
         if (!$this->igdbApiStatusManager->fetchAllowed()) {
             throw new IgdbApiLimitExceededDuringProcess();
         }
@@ -132,8 +127,8 @@ class GameManager
             $game
                 ->setIgdbId($data['id'])
                 ->setName($data['name'])
-                ->setSlug($data['slug'])
                 ->setFirstReleaseDate($date)
+                ->setSlug($game->getName().' ('.$game->getFirstReleaseDate()->format('Y').')')
                 ->setUrl($data['url']);
 
             if (isset($data['cover']) && is_array($data['cover'])) {

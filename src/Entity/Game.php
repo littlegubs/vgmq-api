@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
+use Gedmo\Mapping\Annotation as Gedmo;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\ArrayCollection;
 
@@ -41,6 +42,7 @@ class Game
 
     /**
      * @var string
+     * @Gedmo\Slug(fields={"name"})
      * @ORM\Column(type="string")
      */
     private string $slug;
@@ -104,6 +106,11 @@ class Game
      */
     private Collection $childrenVersion;
 
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\GameMusic", mappedBy="game")
+     */
+    private Collection $gameMusics;
+
     public function __construct()
     {
         $this->alternativeNames = new ArrayCollection();
@@ -111,6 +118,7 @@ class Game
         $this->users = new ArrayCollection();
         $this->children = new ArrayCollection();
         $this->childrenVersion = new ArrayCollection();
+        $this->gameMusics = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -298,6 +306,18 @@ class Game
     public function setChildrenVersion($childrenVersion): Game
     {
         $this->childrenVersion = $childrenVersion;
+
+        return $this;
+    }
+
+    public function getGameMusics(): ?Collection
+    {
+        return $this->gameMusics;
+    }
+
+    public function setGameMusics(Collection $gameMusics): Game
+    {
+        $this->gameMusics = $gameMusics;
 
         return $this;
     }
