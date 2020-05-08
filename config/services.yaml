@@ -33,3 +33,19 @@ services:
     App\EventListener\FileListener:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    app.event.jwt_authentication_success_listener:
+        class: App\EventListener\JWTAuthenticationSuccessListener
+        arguments:
+            $tokenLifetime: '%env(JWT_TTL)%'
+        tags:
+            tag_1:
+                name: kernel.event_listener
+                event: lexik_jwt_authentication.on_authentication_success
+                method: onAuthenticationSuccess
+
+    App\TokenExtractor\CookieTokenExtractor:
+        decorates: 'lexik_jwt_authentication.extractor.cookie_extractor'
+        parent: 'lexik_jwt_authentication.extractor.cookie_extractor'
+        autowire: true
+        autoconfigure: false

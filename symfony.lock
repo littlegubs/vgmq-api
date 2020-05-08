@@ -102,9 +102,6 @@
     "gedmo/doctrine-extensions": {
         "version": "v2.4.39"
     },
-    "gesdinet/jwt-refresh-token-bundle": {
-        "version": "v0.9.1"
-    },
     "james-heinrich/getid3": {
         "version": "v1.9.19"
     },

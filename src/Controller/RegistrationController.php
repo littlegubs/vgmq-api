@@ -14,24 +14,24 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 use Symfony\Component\Validator\ConstraintViolation;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Security\Http\Authentication\AuthenticationSuccessHandler;
 
 class RegistrationController extends AbstractController
 {
     /**
      * @Route("/register", name="register", methods={"POST"})
-     * @param Request $request
+     * @param Request                      $request
      * @param UserPasswordEncoderInterface $encoder
-     * @param ValidatorInterface $validator
-     * @param JWTTokenManagerInterface $JWTTokenManager
-     * @param RefreshTokenManagerInterface $refreshTokenManager
+     * @param ValidatorInterface           $validator
+     * @param AuthenticationSuccessHandler $authenticationSuccessHandler
+     *
      * @return JsonResponse
      */
     public function register(
         Request $request,
         UserPasswordEncoderInterface $encoder,
         ValidatorInterface $validator,
-        JWTTokenManagerInterface $JWTTokenManager,
-        RefreshTokenManagerInterface $refreshTokenManager
+        AuthenticationSuccessHandler $authenticationSuccessHandler
     ) {
         $em = $this->getDoctrine()->getManager();
 
@@ -73,17 +73,8 @@ class RegistrationController extends AbstractController
 
             $valid = new DateTime('now');
             $valid->add(new DateInterval('P1M'));
-            $refreshToken = $refreshTokenManager->create();
-            $refreshToken->setUsername($user->getUsername());
-            $refreshToken->setRefreshToken();
-            $refreshToken->setValid($valid);
 
-            $refreshTokenManager->save($refreshToken);
-
-            return new JsonResponse([
-                'token' => $JWTTokenManager->create($user),
-                'refresh_token' => $refreshToken->getRefreshToken(),
-            ], 201);
+            return $authenticationSuccessHandler->handleAuthenticationSuccess($user);
         } catch (\Exception $exception) {
             return new JsonResponse('An error occurred', 500);
         }
