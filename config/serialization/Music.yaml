@@ -1,0 +1,12 @@
+App\Entity\Music:
+    attributes:
+        title:
+            groups: ['admin_game_get']
+        artist:
+            groups: ['admin_game_get']
+        duration:
+            groups: ['admin_game_get']
+        guessAccuracy:
+            groups: ['admin_game_get']
+        playNumber:
+            groups: ['admin_game_get']
