@@ -4,9 +4,9 @@ controllers:
     prefix:   /
 
 admin:
-    resource: "../src/Controller/Admin/"
-    type:     annotation
-    prefix:   /admin
+    resource: ../../src/Controller/Admin
+    type: annotation
+    prefix: /admin
 
 kernel:
     resource: ../../src/Kernel.php
