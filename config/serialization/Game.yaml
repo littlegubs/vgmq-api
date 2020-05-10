@@ -1,0 +1,16 @@
+App\Entity\Game:
+    attributes:
+        firstReleaseDate:
+            groups: ['admin_game_search', 'admin_game_get']
+        name:
+            groups: ['admin_game_search', 'admin_game_get']
+        slug:
+            groups: ['admin_game_search', 'admin_game_get']
+        alternativeNames:
+            groups: ['admin_game_get']
+        cover:
+            groups: ['admin_game_search', 'admin_game_get']
+        enabled:
+            groups: ['admin_game_search', 'admin_game_get']
+        gameMusics:
+            groups: ['admin_game_get']
