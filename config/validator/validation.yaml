@@ -1,18 +1,24 @@
 App\Entity\User:
-  constraints:
-    - Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity: email
-    - Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity: username
-  properties:
-    email:
-      - NotBlank: ~
-      - Email: ~
-    username:
-      - NotBlank: ~
-      - Length:
-          max: 20
-    plainPassword:
-      - NotBlank: ~
+    constraints:
+        -   Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity: email
+        -   Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity: username
+    properties:
+        email:
+            -   NotBlank: ~
+            -   Email: ~
+        username:
+            -   NotBlank: ~
+            -   Length:
+                    max: 20
+        plainPassword:
+            -   NotBlank: ~
 
 App\Entity\Game:
-  constraints:
-    - Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity: igdbId
+    constraints:
+        -   Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity: igdbId
+
+
+App\Entity\Music:
+    properties:
+        title:
+            -   NotBlank: ~

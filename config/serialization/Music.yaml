@@ -1,12 +1,14 @@
 App\Entity\Music:
     attributes:
+        id:
+            groups: ['admin_game_get', 'admin_music_patch']
         title:
-            groups: ['admin_game_get']
+            groups: ['admin_game_get', 'admin_music_patch']
         artist:
-            groups: ['admin_game_get']
+            groups: ['admin_game_get', 'admin_music_patch']
         duration:
-            groups: ['admin_game_get']
+            groups: ['admin_game_get', 'admin_music_patch']
         guessAccuracy:
-            groups: ['admin_game_get']
+            groups: ['admin_game_get', 'admin_music_patch']
         playNumber:
-            groups: ['admin_game_get']
+            groups: ['admin_game_get', 'admin_music_patch']

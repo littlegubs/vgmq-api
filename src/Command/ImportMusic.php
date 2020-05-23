@@ -21,13 +21,11 @@ class ImportMusic extends Command
     protected static $defaultName = 'app:music:import';
     private EntityManagerInterface $entityManager;
     private UploadableManager $uploadableManager;
-    private string $projectDir;
 
-    public function __construct(EntityManagerInterface $entityManager, UploadableManager $uploadableManager, $projectDir)
+    public function __construct(EntityManagerInterface $entityManager, UploadableManager $uploadableManager)
     {
         $this->entityManager = $entityManager;
         $this->uploadableManager = $uploadableManager;
-        $this->projectDir = $projectDir;
         parent::__construct();
     }
 
