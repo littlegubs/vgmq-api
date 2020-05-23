@@ -1,4 +1,6 @@
 App\Entity\GameMusic:
     attributes:
+        id:
+            groups: ['admin_game_get']
         music:
             groups: ['admin_game_get']

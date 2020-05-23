@@ -22,7 +22,7 @@ class Music
     /**
      * @ORM\Column(type="string")
      */
-    private string $title;
+    private ?string $title;
 
     /**
      * @ORM\Column(type="string", nullable=true)
@@ -35,9 +35,9 @@ class Music
     private float $duration;
 
     /**
-     * @ORM\Column(type="float")
+     * @ORM\Column(type="float", nullable=true)
      */
-    private float $guessAccuracy = 0;
+    private ?float $guessAccuracy = null;
 
     /**
      * @ORM\Column(type="integer")
@@ -70,7 +70,7 @@ class Music
         return $this->title;
     }
 
-    public function setTitle(string $title): Music
+    public function setTitle(?string $title): Music
     {
         $this->title = $title;
 
