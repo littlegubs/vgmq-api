@@ -35,7 +35,7 @@ class GameController extends AbstractController
     }
 
     /**
-     * @Route("/", name="admin_game_search", methods={"GET"})
+     * @Route("", name="admin_game_search", methods={"GET"})
      */
     public function search(Request $request)
     {
