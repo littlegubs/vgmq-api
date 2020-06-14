@@ -45,6 +45,16 @@ class Music
     private int $playNumber = 0;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
+     */
+    private ?string $awsUrl;
+
+    /**
+     * @ORM\Column(type="string", nullable=true)
+     */
+    private ?string $awsKey;
+
+    /**
      * @ORM\OneToOne(targetEntity="File", cascade={"remove"})
      */
     private File $file;
@@ -121,6 +131,30 @@ class Music
     public function setPlayNumber(int $playNumber): Music
     {
         $this->playNumber = $playNumber;
+
+        return $this;
+    }
+
+    public function getAwsUrl(): ?string
+    {
+        return $this->awsUrl;
+    }
+
+    public function setAwsUrl(?string $awsUrl): Music
+    {
+        $this->awsUrl = $awsUrl;
+
+        return $this;
+    }
+
+    public function getAwsKey(): ?string
+    {
+        return $this->awsKey;
+    }
+
+    public function setAwsKey(?string $awsKey): Music
+    {
+        $this->awsKey = $awsKey;
 
         return $this;
     }

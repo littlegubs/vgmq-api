@@ -26,14 +26,6 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
-    App\Manager\MusicManager:
-        arguments:
-            $projectDir: '%kernel.project_dir%'
-
-    App\EventListener\FileListener:
-        arguments:
-            $projectDir: '%kernel.project_dir%'
-
     app.event.jwt_authentication_success_listener:
         class: App\EventListener\JWTAuthenticationSuccessListener
         arguments:
