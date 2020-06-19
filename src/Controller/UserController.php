@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Exception\IgdbApiLimitExceededDuringProcess;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Lexik\Bundle\JWTAuthenticationBundle\Security\Http\Authentication\AuthenticationSuccessHandler;
 
 class UserController extends AbstractController
 {
@@ -24,25 +25,28 @@ class UserController extends AbstractController
     /**
      * @Route("/update-game-list", name="user_update_game_list", methods={"POST"})
      */
-    public function updateGameList(Request $request)
-    {
+    public function updateGameList(
+        Request $request,
+        AuthenticationSuccessHandler $authenticationSuccessHandler
+    ): JsonResponse {
         $user = $this->getUser();
 
         $content = json_decode($request->getContent(), true);
-        $igdbUsername = $content['igdbUsername'] ?? null;
+        $IGDBUsername = $content['IGDBUsername'] ?? null;
 
-        if (null === $igdbUsername) {
+        if (null === $IGDBUsername) {
             return new JsonResponse(['errors' => [
-                'username cannot be empty !',
+                'IGDBUsername field missing !',
             ]], 400);
         }
 
         try {
-            $this->userManager->updateGameList($user, $igdbUsername);
+            $this->userManager->updateGameList($user, $IGDBUsername);
 
-            return new JsonResponse(null, 201);
+            // send jwt cookie with updated payload
+            return $authenticationSuccessHandler->handleAuthenticationSuccess($user);
         } catch (NotFoundHttpException $httpException) {
-            return new JsonResponse("No 'played' IGDB list found with username '".$igdbUsername."'", 404);
+            return new JsonResponse("No 'played' IGDB list found with username '".$IGDBUsername."'", 404);
         } catch (IgdbApiLimitExceeded $exception) {
             return new JsonResponse('Syncing game list has been disabled, try again later !', 503);
         } catch (IgdbApiLimitExceededDuringProcess $exception) {
