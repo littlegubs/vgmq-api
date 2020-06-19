@@ -32,7 +32,7 @@ class RegistrationController extends AbstractController
         UserPasswordEncoderInterface $encoder,
         ValidatorInterface $validator,
         AuthenticationSuccessHandler $authenticationSuccessHandler
-    ) {
+    ): ?JsonResponse {
         $em = $this->getDoctrine()->getManager();
 
         $data = json_decode($request->getContent(), true);
