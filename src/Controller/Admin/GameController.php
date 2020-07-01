@@ -4,11 +4,9 @@ namespace App\Controller\Admin;
 
 use App\Entity\Game;
 use App\Form\MusicFilesType;
-use App\Form\MusicCsvType;
 use App\Manager\MusicManager;
-use App\Model\MusicUploadForm;
-use Symfony\Component\Form\FormInterface;
 use App\Controller\Traits\HandleErrorTrait;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -16,7 +14,6 @@ use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 
 /**
  * @Route("/games")
@@ -37,15 +34,19 @@ class GameController extends AbstractController
     /**
      * @Route("", name="admin_game_search", methods={"GET"})
      */
-    public function search(Request $request)
+    public function search(Request $request): JsonResponse
     {
-        $om = $this->getDoctrine()->getManager();
+        $om = $this->getDoctrine();
 
         $query = $request->get('query', '');
-        $games = $om->getRepository(Game::class)->search($query);
+        $showDisabled = $request->get('showDisabled', false);
+        $gamesQuery = $om->getRepository(Game::class)->querySearch($query, $showDisabled);
+
+        $paginator = new Paginator($gamesQuery);
 
         $data = [];
-        $data['data'] = $this->normalizer->normalize($games, 'json', ['groups' => 'admin_game_search']);
+        $data['data'] = $this->normalizer->normalize($paginator, 'json', ['groups' => 'admin_game_search']);
+        $data['count'] = $paginator->count();
 
         //TODO add total count
 
@@ -66,6 +67,23 @@ class GameController extends AbstractController
         }
 
         return new JsonResponse($this->serializer->serialize($game, 'json', ['groups' => 'admin_game_get']), 200, [], true);
+    }
+
+    /**
+     * @Route("/{slug}/toggle", name="admin_game_toggle", methods={"PATCH"})
+     */
+    public function toggle(Game $game): JsonResponse
+    {
+        $om = $this->getDoctrine()->getManager();
+        try {
+            $game->setEnabled(!$game->isEnabled());
+            $om->persist($game);
+            $om->flush();
+        } catch (\Exception $exception) {
+            return new JsonResponse('An error occured', 500);
+        }
+
+        return new JsonResponse($this->serializer->serialize($game, 'json', ['groups' => 'admin_game_get']), 201, [], true);
     }
 
     /**
@@ -100,6 +118,5 @@ class GameController extends AbstractController
 
         return new JsonResponse(null, 400);
     }
-
 
 }

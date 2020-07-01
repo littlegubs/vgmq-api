@@ -41,22 +41,30 @@ class GameRepository extends EntityRepository
         return $qb->getQuery()->getResult();
     }
 
-    public function search(string $query = '')
+    public function querySearch(string $query = '', bool $showDisabled = false)
     {
         $qb = $this->createQueryBuilder('g');
         $qb->leftJoin('g.alternativeNames', 'an');
+
         if (!empty($query)) {
             $qb->andWhere($qb->expr()->orX(
                 $qb->expr()->like('g.name', ':query'),
-                $qb->expr()->like('an.name', ':query')
+                $qb->expr()->andX(
+                    $qb->expr()->like('an.name', ':query'),
+                    $qb->expr()->eq('an.enabled', true)
+                )
             ))
                 ->setParameter('query', '%'.$query.'%');
+        }
+
+        if (!$showDisabled) {
+            $qb->andWhere($qb->expr()->eq('g.enabled', true));
         }
 
         $qb
             ->groupBy('g.id')
             ->setMaxResults(50);
 
-        return $qb->getQuery()->getResult();
+        return $qb;
     }
 }
