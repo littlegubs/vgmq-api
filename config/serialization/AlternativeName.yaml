@@ -1,5 +1,7 @@
 App\Entity\AlternativeName:
     attributes:
+        id:
+            groups: ['admin_game_get']
         name:
             groups: ['admin_game_get']
         enabled:
