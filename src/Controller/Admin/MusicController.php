@@ -24,8 +24,8 @@ class MusicController extends AbstractController
      */
     public function patch($id, Request $request, SerializerInterface $serializer): JsonResponse
     {
-        $om = $this->getDoctrine()->getManager();
-        $music = $om->getRepository(Music::class)->find($id);
+        $em = $this->getDoctrine()->getManager();
+        $music = $em->getRepository(Music::class)->find($id);
         if (null === $music) {
             throw new NotFoundHttpException();
         }
@@ -34,7 +34,7 @@ class MusicController extends AbstractController
         $form->submit(json_decode($request->getContent(), true));
         if ($form->isValid()) {
             try {
-                $om->flush();
+                $em->flush();
 
                 return new JsonResponse($serializer->serialize($music, 'json', ['groups' => ['admin_music_patch']]), 200, [], true);
             } catch (\Exception $exception) {

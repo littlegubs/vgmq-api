@@ -18,11 +18,10 @@ class AlternativeNameController extends AbstractController
      */
     public function toggle(AlternativeName $alternativeName): JsonResponse
     {
-        $om = $this->getDoctrine()->getManager();
+        $em = $this->getDoctrine()->getManager();
         try {
             $alternativeName->setEnabled(!$alternativeName->isEnabled());
-            $om->persist($alternativeName);
-            $om->flush();
+            $em->flush();
         } catch (\Exception $exception) {
             return new JsonResponse('An error occured', 500);
         }
