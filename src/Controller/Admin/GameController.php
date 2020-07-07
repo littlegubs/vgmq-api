@@ -36,19 +36,17 @@ class GameController extends AbstractController
      */
     public function search(Request $request): JsonResponse
     {
-        $om = $this->getDoctrine();
+        $em = $this->getDoctrine();
 
         $query = $request->get('query', '');
         $showDisabled = $request->get('showDisabled', false);
-        $gamesQuery = $om->getRepository(Game::class)->querySearch($query, $showDisabled);
+        $gamesQuery = $em->getRepository(Game::class)->querySearch($query, $showDisabled);
 
         $paginator = new Paginator($gamesQuery);
 
         $data = [];
         $data['data'] = $this->normalizer->normalize($paginator, 'json', ['groups' => 'admin_game_search']);
         $data['count'] = $paginator->count();
-
-        //TODO add total count
 
         return new JsonResponse($data);
     }
@@ -58,8 +56,8 @@ class GameController extends AbstractController
      */
     public function get($slug)
     {
-        $om = $this->getDoctrine()->getManager();
-        $game = $om->getRepository(Game::class)->findOneBy([
+        $em = $this->getDoctrine()->getManager();
+        $game = $em->getRepository(Game::class)->findOneBy([
             'slug' => $slug,
         ]);
         if (null === $game) {
@@ -74,11 +72,10 @@ class GameController extends AbstractController
      */
     public function toggle(Game $game): JsonResponse
     {
-        $om = $this->getDoctrine()->getManager();
+        $em = $this->getDoctrine()->getManager();
         try {
             $game->setEnabled(!$game->isEnabled());
-            $om->persist($game);
-            $om->flush();
+            $em->flush();
         } catch (\Exception $exception) {
             return new JsonResponse('An error occured', 500);
         }
@@ -91,9 +88,9 @@ class GameController extends AbstractController
      */
     public function musicUpload(string $slug, Request $request, MusicManager $musicManager): JsonResponse
     {
-        $om = $this->getDoctrine()->getManager();
+        $em = $this->getDoctrine()->getManager();
         /** @var Game $game */
-        $game = $om->getRepository(Game::class)->findOneBy([
+        $game = $em->getRepository(Game::class)->findOneBy([
             'slug' => $slug,
         ]);
         if (null === $game) {

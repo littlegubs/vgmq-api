@@ -25,15 +25,15 @@ class GameMusicController extends AbstractController
      */
     public function delete($id): JsonResponse
     {
-        $om = $this->getDoctrine()->getManager();
-        $gameMusic = $om->getRepository(GameMusic::class)->find($id);
+        $em = $this->getDoctrine()->getManager();
+        $gameMusic = $em->getRepository(GameMusic::class)->find($id);
         if (null === $gameMusic) {
             throw new NotFoundHttpException();
         }
 
         try {
-            $om->remove($gameMusic);
-            $om->flush();
+            $em->remove($gameMusic);
+            $em->flush();
 
             return new JsonResponse();
         } catch (\Exception $exception) {
