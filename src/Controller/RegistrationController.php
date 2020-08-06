@@ -31,6 +31,13 @@ class RegistrationController extends AbstractController
         ValidatorInterface $validator,
         AuthenticationSuccessHandler $authenticationSuccessHandler
     ): ?JsonResponse {
+
+        if (null === $request->cookies->get('pote')) {
+            return new JsonResponse([
+                'message' => 'This website is a work in progress. You are not allowed to create an account for now, please ask someone to get a limited access'
+            ], 400);
+        }
+
         $em = $this->getDoctrine()->getManager();
 
         $data = json_decode($request->getContent(), true);
