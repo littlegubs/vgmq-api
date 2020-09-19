@@ -11,6 +11,7 @@
     "gedmo/doctrine-extensions": "^2.4",
     "james-heinrich/getid3": "^1.9",
     "knplabs/doctrine-behaviors": "^2.0",
+    "lcobucci/jwt": "^3.3",
     "lexik/jwt-authentication-bundle": "^2.6",
     "nelmio/api-doc-bundle": "^3.6",
     "nelmio/cors-bundle": "^2.0",
@@ -26,6 +27,7 @@
     "symfony/framework-bundle": "4.4.*",
     "symfony/http-client": "4.4.*",
     "symfony/mercure-bundle": "^0.2.3",
+    "symfony/messenger": "4.4.*",
     "symfony/orm-pack": "^1.0",
     "symfony/security-bundle": "4.4.*",
     "symfony/serializer": "4.4.*",
@@ -33,6 +35,7 @@
     "symfony/twig-bundle": "4.4.*",
     "symfony/twig-pack": "^1.0",
     "symfony/validator": "4.4.*",
+    "symfony/web-link": "4.4.*",
     "symfony/yaml": "4.4.*"
   },
   "require-dev": {

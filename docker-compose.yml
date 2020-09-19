@@ -50,15 +50,14 @@ services:
     container_name: vgmq-api-mercure
     environment:
       # You should definitely change all these values in production
-      - JWT_KEY=YourSecretKey
+      - JWT_KEY=!ChangeMe!
       - DEMO=1
-      # only for dev
-      - ALLOW_ANONYMOUS=1
+      - SUBSCRIPTIONS=1
       - HEARTBEAT_INTERVAL=30s
       - ADDR=:3000
        # only for dev
-      - CORS_ALLOWED_ORIGINS=*
-      - PUBLISH_ALLOWED_ORIGINS=http://localhost:3000
+      - CORS_ALLOWED_ORIGINS=http://localhost:4200
+      - PUBLISH_ALLOWED_ORIGINS=http://localhost
     ports:
       - "3000:3000"
     networks:

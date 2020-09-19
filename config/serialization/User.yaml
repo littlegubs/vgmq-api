@@ -1,0 +1,4 @@
+App\Entity\User:
+    attributes:
+        username:
+            groups: ['lobby_user']

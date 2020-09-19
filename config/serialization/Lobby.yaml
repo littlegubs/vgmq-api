@@ -1,0 +1,12 @@
+App\Entity\Lobby:
+    attributes:
+        code:
+            groups: ['lobby_user']
+        name:
+            groups: ['lobby_user']
+        password:
+            groups: [ 'lobby_user' ]
+        status:
+            groups: [ 'lobby_user' ]
+        lobbyUsers:
+            groups: [ 'lobby_user' ]

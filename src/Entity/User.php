@@ -65,6 +65,11 @@ class User implements UserInterface
      */
     private Collection $games;
 
+    /**
+     * @ORM\OneToOne(targetEntity="App\Entity\LobbyUser", mappedBy="user", cascade={"remove"})
+     */
+    private ?LobbyUser $currentLobby;
+
     public function __construct()
     {
         $this->games = new ArrayCollection();
@@ -219,6 +224,18 @@ class User implements UserInterface
     public function setGames($games): User
     {
         $this->games = $games;
+
+        return $this;
+    }
+
+    public function getCurrentLobby(): ?LobbyUser
+    {
+        return $this->currentLobby;
+    }
+
+    public function setCurrentLobby(?LobbyUser $currentLobby): self
+    {
+        $this->currentLobby = $currentLobby;
 
         return $this;
     }

@@ -22,3 +22,8 @@ App\Entity\Music:
     properties:
         title:
             -   NotBlank: ~
+
+App\Entity\Lobby:
+    properties:
+        name:
+            -   NotBlank: ~
