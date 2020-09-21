@@ -97,6 +97,11 @@ class Lobby
         return $this;
     }
 
+    public function hasPassword(): ?bool
+    {
+        return $this->password !== null;
+    }
+
     public function getLobbyUsers(): Collection
     {
         return $this->lobbyUsers;

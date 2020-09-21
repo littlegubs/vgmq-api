@@ -46,9 +46,11 @@ class LobbyController extends AbstractController
     /**
      * @Route("/", name="lobby_list", methods={"GET"})
      */
-    public function list()
+    public function list(): JsonResponse
     {
-        return new JsonResponse();
+        $lobbies = $this->getDoctrine()->getRepository(Lobby::class)->findAll();
+
+        return new JsonResponse($this->serializer->serialize($lobbies, 'json', ['groups' => ['lobby_user']]), 200, [], true);
     }
 
     /**
@@ -123,7 +125,7 @@ class LobbyController extends AbstractController
     }
 
     /**
-     * @Route("/{code}/join", name="lobby_join", methods={"GET"})
+     * @Route("/{code}/join", name="lobby_join", methods={"GET", "POST"})
      */
     public function join(Lobby $lobby, Request $request): JsonResponse
     {
@@ -132,7 +134,6 @@ class LobbyController extends AbstractController
         $lobbyUser = $em->getRepository(LobbyUser::class)->findOneBy([
             'lobby' => $lobby,
             'user' => $user,
-            'role' => LobbyUser::TYPE_HOST,
         ]);
 
         if (null === $lobbyUser) {
@@ -142,7 +143,7 @@ class LobbyController extends AbstractController
                 }
 
                 if ($lobby->getPassword() !== $password) {
-                    return new JsonResponse(null, 401);
+                    return new JsonResponse('Incorrect password', 401);
                 }
             }
             // TODO let the HttpClientEventSource handle active users when released in Symfony 5.2 (November 2020) or wait mercure to handle websub events (ETA end of 2020)
@@ -185,7 +186,7 @@ class LobbyController extends AbstractController
             }
 
             if ($lobby->getPassword() !== $password) {
-                return new JsonResponse(null, 401);
+                return new JsonResponse('Incorrect password', 401);
             }
         }
 
@@ -212,6 +213,24 @@ class LobbyController extends AbstractController
     }
 
     /**
+     * @Route("/{code}/play", name="lobby_play", methods={"GET"})
+     */
+    public function play(Lobby $lobby)
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $em = $this->getDoctrine()->getManager();
+        $lobbyUser = $em->getRepository(LobbyUser::class)->findOneBy([
+            'lobby' => $lobby,
+            'user' => $user,
+            'role' => LobbyUser::TYPE_HOST,
+        ]);
+        if (null === $lobbyUser) {
+            throw $this->createAccessDeniedException();
+        }
+    }
+
+    /**
      * @Route("/tg", name="yoyo")
      */
     public function tg(MessageBusInterface $bus, Request $request)
@@ -225,7 +244,6 @@ class LobbyController extends AbstractController
     {
         $token = (new Builder())
             ->withClaim('mercure', [
-                'publish' => [$this->generateUrl('lobby_update', ['code' => $lobby->getCode()], UrlGeneratorInterface::ABSOLUTE_URL)],
                 'subscribe' => [$this->generateUrl('lobby_update', ['code' => $lobby->getCode()], UrlGeneratorInterface::ABSOLUTE_URL)],
             ])
             ->getToken(new Sha256(), new Key($this->mercureJwtKey));

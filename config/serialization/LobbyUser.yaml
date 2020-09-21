@@ -1,6 +1,6 @@
 App\Entity\LobbyUser:
     attributes:
         user:
-            groups: ['lobby_user']
+            groups: ['lobby_user', 'lobby_list']
         role:
-            groups: ['lobby_user']
+            groups: ['lobby_user', 'lobby_list']

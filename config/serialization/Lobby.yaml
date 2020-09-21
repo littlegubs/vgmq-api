@@ -1,12 +1,14 @@
 App\Entity\Lobby:
     attributes:
         code:
-            groups: ['lobby_user']
+            groups: ['lobby_user', 'lobby_list']
         name:
-            groups: ['lobby_user']
+            groups: ['lobby_user', 'lobby_list']
         password:
             groups: [ 'lobby_user' ]
+        hasPassword:
+            groups: ['lobby_user', 'lobby_list']
         status:
-            groups: [ 'lobby_user' ]
+            groups: [ 'lobby_user', 'lobby_list' ]
         lobbyUsers:
-            groups: [ 'lobby_user' ]
+            groups: [ 'lobby_user', 'lobby_list' ]
