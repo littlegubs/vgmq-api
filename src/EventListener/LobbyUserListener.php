@@ -44,7 +44,7 @@ final class LobbyUserListener implements EventSubscriber
         $em = $args->getEntityManager();
         if ($entity instanceof LobbyUser) {
             $lobby = $entity->getLobby();
-            if (0 === $lobby->getLobbyUsers()->count()) {
+            if (0 === $lobby->getUsers()->count()) {
                 $em->remove($lobby);
                 $em->flush();
             }

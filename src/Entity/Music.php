@@ -7,7 +7,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\ArrayCollection;
 
 /**
- * @ORM\Entity()
+ * @ORM\Entity(repositoryClass="App\Repository\MusicRepository")
  * @ORM\Table(name="musics")
  */
 class Music
@@ -63,11 +63,17 @@ class Music
      * @var GameMusic[] | ArrayCollection
      * @ORM\OneToMany(targetEntity="App\Entity\GameMusic", mappedBy="music", cascade={"remove"})
      */
-    private Collection $gamesMusic;
+    private Collection $games;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\LobbyMusic", mappedBy="music")
+     */
+    private Collection $lobbies;
 
     public function __construct()
     {
-        $this->gamesMusic = new ArrayCollection();
+        $this->games = new ArrayCollection();
+        $this->lobbies = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -171,14 +177,26 @@ class Music
         return $this;
     }
 
-    public function getGamesMusic(): Collection
+    public function getGames(): Collection
     {
-        return $this->gamesMusic;
+        return $this->games;
     }
 
-    public function setGamesMusic(Collection $gamesMusic): Music
+    public function setGames(Collection $games): Music
     {
-        $this->gamesMusic = $gamesMusic;
+        $this->games = $games;
+
+        return $this;
+    }
+
+    public function getLobbies(): Collection
+    {
+        return $this->lobbies;
+    }
+
+    public function setLobbies(Collection $lobbies): self
+    {
+        $this->lobbies = $lobbies;
 
         return $this;
     }

@@ -3,12 +3,14 @@ App\Entity\Music:
         id:
             groups: ['admin_game_get', 'admin_music_patch']
         title:
-            groups: ['admin_game_get', 'admin_music_patch']
+            groups: ['admin_game_get', 'admin_music_patch', 'lobby_answer_reveal']
         artist:
-            groups: ['admin_game_get', 'admin_music_patch']
+            groups: ['admin_game_get', 'admin_music_patch', 'lobby_answer_reveal']
         duration:
             groups: ['admin_game_get', 'admin_music_patch']
         guessAccuracy:
             groups: ['admin_game_get', 'admin_music_patch']
         playNumber:
             groups: ['admin_game_get', 'admin_music_patch']
+        awsUrl:
+            groups: ['lobby_user']

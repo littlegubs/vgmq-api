@@ -8,14 +8,14 @@ use Doctrine\Common\Collections\ArrayCollection;
 /**
  * Class Cover
  *
- * @ORM\Entity()
+ * @ORM\Entity(repositoryClass="App\Repository\LobbyUserRepository")
  * @ORM\Table(name="lobbies_users")
  */
 class LobbyUser
 {
-    public const TYPE_HOST = 'host';
-    public const TYPE_PLAYER = 'player';
-    public const TYPE_SPECTATOR = 'spectator';
+    public const ROLE_HOST = 'host';
+    public const ROLE_PLAYER = 'player';
+    public const ROLE_SPECTATOR = 'spectator';
 
     /**
      * @ORM\Id()
@@ -30,7 +30,17 @@ class LobbyUser
     private string $role;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Lobby", inversedBy="lobbyUsers", cascade={"persist"})
+     * @ORM\Column(type="string", nullable=true)
+     */
+    private ?string $answer;
+
+    /**
+     * @ORM\Column(type="datetime", nullable=true)
+     */
+    private ?\DateTime $answerDateTime;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\Lobby", inversedBy="users", cascade={"persist"})
      */
     private Lobby $lobby;
 
@@ -57,6 +67,35 @@ class LobbyUser
         $this->role = $role;
 
         return $this;
+    }
+
+    public function getAnswer(): ?string
+    {
+        return $this->answer;
+    }
+
+    public function setAnswer(?string $answer): self
+    {
+        $this->answer = $answer;
+
+        return $this;
+    }
+
+    public function getAnswerDateTime(): ?\DateTime
+    {
+        return $this->answerDateTime;
+    }
+
+    public function setAnswerDateTime(?\DateTime $answerDateTime): self
+    {
+        $this->answerDateTime = $answerDateTime;
+
+        return $this;
+    }
+
+    public function answered(): ?bool
+    {
+        return $this->answer !== null;
     }
 
     public function getLobby(): ?Lobby

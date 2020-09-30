@@ -1,0 +1,10 @@
+App\Entity\LobbyMusic:
+    attributes:
+        position:
+            groups: ['lobby_user', 'lobby_list']
+        expectedAnswer:
+            groups: ['lobby_answer_reveal']
+        music:
+            groups: [ 'lobby_user' ]
+        startAt:
+            groups: [ 'lobby_user' ]

@@ -15,7 +15,10 @@ use Doctrine\Common\Collections\ArrayCollection;
 class Lobby
 {
     public const STATUS_WAITING = 'waiting';
+    public const STATUS_LOADING = 'loading';
     public const STATUS_PLAYING = 'playing';
+    public const STATUS_PLAYING_MUSIC = 'playing_music';
+    public const STATUS_ANSWER_REVEAL = 'answer_reveal';
 
     /**
      * @ORM\Id()
@@ -45,12 +48,41 @@ class Lobby
     private string $status = self::STATUS_WAITING;
 
     /**
+     * @ORM\Column(type="integer")
+     */
+    private int $guessTime = 20;
+
+    /**
+     * @ORM\Column(type="integer")
+     */
+    private int $musicNumber = 10;
+
+    /**
+     * @ORM\Column(type="boolean")
+     */
+    private bool $allowDuplicates = false;
+
+    /**
+     * @ORM\OneToOne(targetEntity="App\Entity\LobbyMusic", cascade={"remove"})
+     * @ORM\JoinColumn(onDelete="CASCADE")
+     */
+    private ?LobbyMusic $currentMusic = null;
+
+    /**
      * @ORM\OneToMany(targetEntity="App\Entity\LobbyUser", mappedBy="lobby", cascade={"remove"})
      */
-    private Collection $lobbyUsers;
+    private Collection $users;
 
-    public function __construct() {
-        $this->lobbyUsers = new ArrayCollection();
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\LobbyMusic", mappedBy="lobby", cascade={"persist", "remove"}, orphanRemoval=true)
+     * @ORM\OrderBy({"position" = "ASC"})
+     */
+    private ?Collection $musics;
+
+    public function __construct()
+    {
+        $this->users = new ArrayCollection();
+        $this->musics = new ArrayCollection();
     }
 
     /**
@@ -102,23 +134,23 @@ class Lobby
         return $this->password !== null;
     }
 
-    public function getLobbyUsers(): Collection
+    public function getUsers(): Collection
     {
-        return $this->lobbyUsers;
+        return $this->users;
     }
 
-    public function addLobbyUser(LobbyUser $lobbyUsers): self
+    public function addUser(LobbyUser $lobbyUsers): self
     {
-        if (!$this->lobbyUsers->contains($lobbyUsers)) {
-            $this->lobbyUsers->add($lobbyUsers);
+        if (!$this->users->contains($lobbyUsers)) {
+            $this->users->add($lobbyUsers);
         }
 
         return $this;
     }
 
-    public function setLobbyUsers(Collection $lobbyUsers): self
+    public function setUsers(Collection $users): self
     {
-        $this->lobbyUsers = $lobbyUsers;
+        $this->users = $users;
 
         return $this;
     }
@@ -134,4 +166,70 @@ class Lobby
 
         return $this;
     }
+
+    public function getGuessTime(): ?int
+    {
+        return $this->guessTime;
+    }
+
+    public function setGuessTime(int $guessTime): self
+    {
+        $this->guessTime = $guessTime;
+
+        return $this;
+    }
+
+    public function getMusicNumber(): ?int
+    {
+        return $this->musicNumber;
+    }
+
+    public function setMusicNumber(int $musicNumber): self
+    {
+        $this->musicNumber = $musicNumber;
+
+        return $this;
+    }
+
+    public function allowDuplicates(): ?bool
+    {
+        return $this->allowDuplicates;
+    }
+
+    public function setAllowDuplicates(bool $allowDuplicates): self
+    {
+        $this->allowDuplicates = $allowDuplicates;
+
+        return $this;
+    }
+
+    public function getMusics(): ?Collection
+    {
+        return $this->musics;
+    }
+
+    public function setMusics(?Collection $musics): self
+    {
+        $this->musics = $musics;
+
+        return $this;
+    }
+
+    public function countMusics(): int
+    {
+        return $this->musics->count();
+    }
+
+    public function  getCurrentMusic(): ?LobbyMusic
+    {
+        return $this->currentMusic;
+    }
+
+    public function setCurrentMusic(?LobbyMusic $currentMusic): self
+    {
+        $this->currentMusic = $currentMusic;
+
+        return $this;
+    }
+
 }

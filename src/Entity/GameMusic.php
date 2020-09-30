@@ -18,12 +18,12 @@ class GameMusic
     private int $id;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Game", inversedBy="gameMusics")
+     * @ORM\ManyToOne(targetEntity="App\Entity\Game", inversedBy="musics")
      */
     private Game $game;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Music", inversedBy="gamesMusic", cascade={"persist"})
+     * @ORM\ManyToOne(targetEntity="App\Entity\Music", inversedBy="games", cascade={"persist"})
      */
     private Music $music;
 

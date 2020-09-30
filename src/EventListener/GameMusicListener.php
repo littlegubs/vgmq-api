@@ -24,7 +24,7 @@ final class GameMusicListener implements EventSubscriber
         $em = $args->getEntityManager();
         if ($entity instanceof GameMusic) {
             $music = $entity->getMusic();
-            if (0 === $music->getGamesMusic()->count()) {
+            if (0 === $music->getGames()->count()) {
                 $em->remove($music);
                 $em->flush();
             }

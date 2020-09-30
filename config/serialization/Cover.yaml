@@ -1,4 +1,4 @@
 App\Entity\Cover:
     attributes:
         imageId:
-            groups: ['admin_game_search', 'admin_game_get']
+            groups: ['admin_game_search', 'admin_game_get', 'lobby_answer_reveal']

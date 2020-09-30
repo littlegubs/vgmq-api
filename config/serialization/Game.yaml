@@ -3,14 +3,14 @@ App\Entity\Game:
         firstReleaseDate:
             groups: ['admin_game_search', 'admin_game_get']
         name:
-            groups: ['admin_game_search', 'admin_game_get']
+            groups: ['admin_game_search', 'admin_game_get', 'lobby_answer_reveal']
         slug:
             groups: ['admin_game_search', 'admin_game_get']
         alternativeNames:
             groups: ['admin_game_get']
         cover:
-            groups: ['admin_game_search', 'admin_game_get']
+            groups: ['admin_game_search', 'admin_game_get', 'lobby_answer_reveal']
         enabled:
             groups: ['admin_game_search', 'admin_game_get']
-        gameMusics:
+        musics:
             groups: ['admin_game_get']

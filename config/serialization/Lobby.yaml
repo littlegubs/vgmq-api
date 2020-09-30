@@ -10,5 +10,9 @@ App\Entity\Lobby:
             groups: ['lobby_user', 'lobby_list']
         status:
             groups: [ 'lobby_user', 'lobby_list' ]
-        lobbyUsers:
+        users:
+            groups: [ 'lobby_user', 'lobby_list' ]
+        countMusics:
+            groups: [ 'lobby_user', 'lobby_list' ]
+        currentMusic:
             groups: [ 'lobby_user', 'lobby_list' ]

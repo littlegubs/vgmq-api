@@ -74,13 +74,13 @@ class LobbyController extends AbstractController
             $lobbyUser = (new LobbyUser())
                 ->setLobby($lobby)
                 ->setUser($user)
-                ->setRole(LobbyUser::TYPE_HOST);
+                ->setRole(LobbyUser::ROLE_HOST);
 
             $em = $this->getDoctrine()->getManager();
             $em->persist($lobbyUser);
             $em->flush();
         } catch (\Exception $exception) {
-            return new JsonResponse('An error occured', 500);
+            return new JsonResponse($exception->getMessage(), 500);
         }
 
         return new JsonResponse($this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user']]), 200, [], true);
@@ -102,7 +102,7 @@ class LobbyController extends AbstractController
         $lobbyUser = $em->getRepository(LobbyUser::class)->findOneBy([
             'lobby' => $lobby,
             'user' => $user,
-            'role' => LobbyUser::TYPE_HOST,
+            'role' => LobbyUser::ROLE_HOST,
         ]);
         if (null === $lobbyUser) {
             throw $this->createAccessDeniedException();
@@ -116,7 +116,7 @@ class LobbyController extends AbstractController
 
         try {
             $em->flush();
-            $this->lobbyManager->update($lobby);
+            $this->lobbyManager->publishUpdate($lobby);
         } catch (\Exception $exception) {
             return new JsonResponse('An error occured', 500);
         }
@@ -154,13 +154,13 @@ class LobbyController extends AbstractController
                 $lobbyUser = (new LobbyUser())
                     ->setLobby($lobby)
                     ->setUser($user)
-                    ->setRole(LobbyUser::TYPE_PLAYER);
+                    ->setRole(LobbyUser::ROLE_PLAYER);
 
                 $em->persist($lobbyUser);
                 $em->flush();
-                $lobby->addLobbyUser($lobbyUser);
+                $lobby->addUser($lobbyUser);
 
-                $this->lobbyManager->userJoined($lobby);
+                $this->lobbyManager->publishUpdateLobbyUsers($lobby);
             } catch (\Exception $exception) {
                 return new JsonResponse('An error occured', 500);
             }
@@ -197,7 +197,7 @@ class LobbyController extends AbstractController
             $lobbyUser = (new LobbyUser())
                 ->setLobby($lobby)
                 ->setUser($user)
-                ->setRole(LobbyUser::TYPE_SPECTATOR);
+                ->setRole(LobbyUser::ROLE_SPECTATOR);
 
             $em = $this->getDoctrine()->getManager();
             $em->persist($lobbyUser);
@@ -215,7 +215,7 @@ class LobbyController extends AbstractController
     /**
      * @Route("/{code}/play", name="lobby_play", methods={"GET"})
      */
-    public function play(Lobby $lobby)
+    public function play(Lobby $lobby, MessageBusInterface $bus): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -223,21 +223,55 @@ class LobbyController extends AbstractController
         $lobbyUser = $em->getRepository(LobbyUser::class)->findOneBy([
             'lobby' => $lobby,
             'user' => $user,
-            'role' => LobbyUser::TYPE_HOST,
+            'role' => LobbyUser::ROLE_HOST,
         ]);
         if (null === $lobbyUser) {
             throw $this->createAccessDeniedException();
         }
+
+        try {
+            $lobby->setStatus(Lobby::STATUS_LOADING);
+            $em->flush();
+            $this->lobbyManager->publishStatusUpdate($lobby);
+            $bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_LOAD_MUSICS));
+        } catch (\Exception $exception) {
+            return new JsonResponse('An error occured', 500);
+        }
+
+        return new JsonResponse();
     }
 
     /**
-     * @Route("/tg", name="yoyo")
+     * @Route("/{code}/answer", name="lobby_answer", methods={"GET"})
      */
-    public function tg(MessageBusInterface $bus, Request $request)
+    public function answer(string $code, Request $request): Response
     {
-        $bus->dispatch(new LobbyMessage(1));
+        /** @var User $user */
+        $user = $this->getUser();
+        $em = $this->getDoctrine()->getManager();
+        $lobby = $em->getRepository(Lobby::class)->findOneBy([
+            'code' => $code,
+            'status' => Lobby::STATUS_PLAYING_MUSIC,
+        ]);
+        if (null === $lobby) {
+            throw $this->createNotFoundException();
+        }
+        $lobbyUser = $em->getRepository(LobbyUser::class)->getOnePlayerByLobbyAndUser($user, $lobby);
+        if (null === $lobbyUser) {
+            throw $this->createAccessDeniedException();
+        }
 
-        return new JsonResponse('cool');
+        try {
+            $lobbyUser
+                ->setAnswer($request->request->get('answer'))
+                ->setAnswerDateTime(new \DateTime());
+            $em->flush();
+            $this->lobbyManager->publishUpdateLobbyUsers($lobby);
+        } catch (\Exception $exception) {
+            return new JsonResponse('An error occured', 500);
+        }
+
+        return new JsonResponse();
     }
 
     private function setMercureCookie(Lobby $lobby, Response $response): Response

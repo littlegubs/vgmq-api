@@ -4,6 +4,8 @@ namespace App\Repository;
 
 use App\Entity\User;
 use Doctrine\ORM\EntityRepository;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ArrayCollection;
 use function Doctrine\ORM\QueryBuilder;
 
 class GameRepository extends EntityRepository
@@ -66,5 +68,27 @@ class GameRepository extends EntityRepository
             ->setMaxResults(50);
 
         return $qb;
+    }
+
+    public function getPlayedByUsers(Collection $users, int $limit = 10)
+    {
+        $qb = $this
+            ->createQueryBuilder('g')
+            ->leftJoin('g.users', 'u')
+            ->andWhere('u.id in (:users)')
+            ->orderBy('RAND()')
+            ->setParameter('users', $users)
+            ->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function getAllNames()
+    {
+        $qb = $this->createQueryBuilder('g')
+            ->select('g.name')
+            ->andWhere('g.enabled = 1');
+
+        return $qb->getQuery()->getResult();
     }
 }

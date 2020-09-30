@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Class AlternativeName
  *
- * @ORM\Entity()
+ * @ORM\Entity(repositoryClass="App\Repository\AlternativeNameRepository")
  * @ORM\Table(name="alternative_names")
  */
 class AlternativeName

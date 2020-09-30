@@ -109,7 +109,7 @@ class Game
     /**
      * @ORM\OneToMany(targetEntity="App\Entity\GameMusic", mappedBy="game")
      */
-    private Collection $gameMusics;
+    private Collection $musics;
 
     public function __construct()
     {
@@ -118,7 +118,7 @@ class Game
         $this->users = new ArrayCollection();
         $this->children = new ArrayCollection();
         $this->childrenVersion = new ArrayCollection();
-        $this->gameMusics = new ArrayCollection();
+        $this->musics = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -310,14 +310,14 @@ class Game
         return $this;
     }
 
-    public function getGameMusics(): ?Collection
+    public function getMusics(): ?Collection
     {
-        return $this->gameMusics;
+        return $this->musics;
     }
 
-    public function setGameMusics(Collection $gameMusics): Game
+    public function setMusics(Collection $musics): Game
     {
-        $this->gameMusics = $gameMusics;
+        $this->musics = $musics;
 
         return $this;
     }
