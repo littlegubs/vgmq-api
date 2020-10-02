@@ -68,6 +68,5 @@ class JWTAuthenticationSuccessListener
             // same-site parameter, can be 'lax' or 'strict'.
             )
         );
-        $event->setData([]);
     }
 }
