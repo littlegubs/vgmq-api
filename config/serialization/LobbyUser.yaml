@@ -4,5 +4,7 @@ App\Entity\LobbyUser:
             groups: ['lobby_user', 'lobby_list']
         role:
             groups: ['lobby_user', 'lobby_list']
+        answer:
+            groups: ['lobby_answer_reveal']
         answered:
             groups: ['lobby_user']

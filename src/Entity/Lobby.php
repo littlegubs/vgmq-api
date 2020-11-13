@@ -60,7 +60,7 @@ class Lobby
     /**
      * @ORM\Column(type="boolean")
      */
-    private bool $allowDuplicates = false;
+    private bool $allowDuplicates = true;
 
     /**
      * @ORM\OneToOne(targetEntity="App\Entity\LobbyMusic", cascade={"remove"})

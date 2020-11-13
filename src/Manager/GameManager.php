@@ -114,10 +114,18 @@ class GameManager
         return true;
     }
 
-    private
-    function addGame(
-        array $data
-    ): void {
+    public function getAllNames(): array {
+        $gameNames = $this->em->getRepository(Game::class)->getAllNames();
+        $alternativeNames = $this->em->getRepository(AlternativeName::class)->getAllNames();
+        $names = array_column(array_merge($gameNames, $alternativeNames), 'name');
+        $names = array_unique($names);
+        $names = array_map('trim', $names);
+        sort($names);
+
+        return $names;
+    }
+
+    private function addGame(array $data): void {
         if (null === $data['category'] || !in_array($data['category'], [1, 6], true)) {
 
             $date = new \DateTime();

@@ -8,6 +8,8 @@ use App\Form\LobbyType;
 use Lcobucci\JWT\Builder;
 use App\Entity\LobbyUser;
 use Lcobucci\JWT\Signer\Key;
+use App\Manager\GameManager;
+use Psr\Log\LoggerInterface;
 use App\Message\LobbyMessage;
 use App\Manager\LobbyManager;
 use Lcobucci\JWT\Signer\Hmac\Sha256;
@@ -16,6 +18,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -29,16 +32,22 @@ class LobbyController extends AbstractController
 {
     private SerializerInterface $serializer;
     private LobbyManager $lobbyManager;
+    private MessageBusInterface $bus;
+    private KernelInterface $kernel;
     private string $mercureJwtKey;
 
     public function __construct(
         SerializerInterface $serializer,
         LobbyManager $lobbyManager,
+        MessageBusInterface $bus,
+        KernelInterface $kernel,
         $mercureJwtKey
     ) {
         $this->serializer = $serializer;
         $this->lobbyManager = $lobbyManager;
+        $this->kernel = $kernel;
         $this->mercureJwtKey = $mercureJwtKey;
+        $this->bus = $bus;
     }
 
     use HandleErrorTrait;
@@ -87,7 +96,7 @@ class LobbyController extends AbstractController
     }
 
     /**
-     * @Route("/{code}", name="lobby_update", methods={"PUT"})
+     * @Route("/{code}", name="lobby_update", methods={"PUT"}, schemes={"https"})
      */
     public function update(string $code, Request $request): JsonResponse
     {
@@ -127,7 +136,7 @@ class LobbyController extends AbstractController
     /**
      * @Route("/{code}/join", name="lobby_join", methods={"GET", "POST"})
      */
-    public function join(Lobby $lobby, Request $request): JsonResponse
+    public function join(Lobby $lobby, Request $request, GameManager $gameManager, LoggerInterface $logger): JsonResponse
     {
         $user = $this->getUser();
         $em = $this->getDoctrine()->getManager();
@@ -169,6 +178,7 @@ class LobbyController extends AbstractController
         $response = new JsonResponse($this->serializer->serialize([
             'role' => $lobbyUser->getRole(),
             'lobby' => $lobby,
+            'gameNames' => $gameManager->getAllNames(),
         ], 'json', ['groups' => ['lobby_user']]), 200, [], true);
         $this->setMercureCookie($lobby, $response);
 
@@ -215,7 +225,7 @@ class LobbyController extends AbstractController
     /**
      * @Route("/{code}/play", name="lobby_play", methods={"GET"})
      */
-    public function play(Lobby $lobby, MessageBusInterface $bus): Response
+    public function play(Lobby $lobby): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -233,7 +243,7 @@ class LobbyController extends AbstractController
             $lobby->setStatus(Lobby::STATUS_LOADING);
             $em->flush();
             $this->lobbyManager->publishStatusUpdate($lobby);
-            $bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_LOAD_MUSICS));
+            $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_LOAD_MUSICS));
         } catch (\Exception $exception) {
             return new JsonResponse('An error occured', 500);
         }
@@ -242,7 +252,7 @@ class LobbyController extends AbstractController
     }
 
     /**
-     * @Route("/{code}/answer", name="lobby_answer", methods={"GET"})
+     * @Route("/{code}/answer", name="lobby_answer", methods={"POST"})
      */
     public function answer(string $code, Request $request): Response
     {
@@ -266,7 +276,7 @@ class LobbyController extends AbstractController
                 ->setAnswer($request->request->get('answer'))
                 ->setAnswerDateTime(new \DateTime());
             $em->flush();
-            $this->lobbyManager->publishUpdateLobbyUsers($lobby);
+            $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_UPDATE_LOBBY_USERS));
         } catch (\Exception $exception) {
             return new JsonResponse('An error occured', 500);
         }
@@ -281,19 +291,17 @@ class LobbyController extends AbstractController
                 'subscribe' => [$this->generateUrl('lobby_update', ['code' => $lobby->getCode()], UrlGeneratorInterface::ABSOLUTE_URL)],
             ])
             ->getToken(new Sha256(), new Key($this->mercureJwtKey));
-        $response->headers->setCookie(
-            new Cookie(
-                'mercureAuthorization',
-                $token, // cookie value
-                time() + 14400, // expiration
-                '/.well-known/mercure', // path
-                null, // domain, null means that Symfony will generate it on its own.
-                false, // secure
-                true, // httpOnly
-                false, // raw
-                'strict'// same-site parameter, can be 'lax' or 'strict'.
-            )
-        );
+
+        $secure = true;
+        $domain = 'videogamemusicquiz.com';
+        $path = '/hub/.well-known/mercure';
+        if ('dev' === $this->kernel->getEnvironment()) {
+            $secure = false;
+            $domain = null;
+            $path = '/.well-known/mercure';
+        }
+
+        $response->headers->setCookie(Cookie::create('mercureAuthorization', $token, time() + 14400, $path, $domain, $secure));
 
         return $response;
     }

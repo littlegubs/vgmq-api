@@ -16,3 +16,9 @@ App\Entity\Lobby:
             groups: [ 'lobby_user', 'lobby_list' ]
         currentMusic:
             groups: [ 'lobby_user', 'lobby_list' ]
+        guessTime:
+            groups: [ 'lobby_user', 'lobby_list' ]
+        musicNumber:
+            groups: [ 'lobby_user' ]
+        allowDuplicates:
+            groups: [ 'lobby_user' ]

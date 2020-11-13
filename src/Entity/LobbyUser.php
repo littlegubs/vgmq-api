@@ -32,12 +32,17 @@ class LobbyUser
     /**
      * @ORM\Column(type="string", nullable=true)
      */
-    private ?string $answer;
+    private ?string $answer = null;
 
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
     private ?\DateTime $answerDateTime;
+
+    /**
+     * @ORM\Column(type="integer")
+     */
+    private int $points = 0;
 
     /**
      * @ORM\ManyToOne(targetEntity="App\Entity\Lobby", inversedBy="users", cascade={"persist"})
@@ -96,6 +101,18 @@ class LobbyUser
     public function answered(): ?bool
     {
         return $this->answer !== null;
+    }
+
+    public function getPoints(): int
+    {
+        return $this->points;
+    }
+
+    public function setPoints(int $points): self
+    {
+        $this->points = $points;
+
+        return $this;
     }
 
     public function getLobby(): ?Lobby

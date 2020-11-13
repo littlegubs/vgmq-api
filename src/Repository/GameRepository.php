@@ -74,6 +74,7 @@ class GameRepository extends EntityRepository
     {
         $qb = $this
             ->createQueryBuilder('g')
+            ->join('g.musics', 'm')
             ->leftJoin('g.users', 'u')
             ->andWhere('u.id in (:users)')
             ->orderBy('RAND()')

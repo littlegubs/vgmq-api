@@ -43,7 +43,7 @@ class LobbyMusic
     private Music $music;
 
     /**
-     * @ORM\OneToOne(targetEntity="App\Entity\Game")
+     * @ORM\ManyToOne(targetEntity="App\Entity\Game")
      */
     private Game $expectedAnswer;
 

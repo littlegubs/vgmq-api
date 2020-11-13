@@ -10,16 +10,21 @@ use Lcobucci\JWT\Builder;
 use App\Entity\LobbyUser;
 use App\Entity\LobbyMusic;
 use Lcobucci\JWT\Signer\Key;
+use Psr\Log\LoggerInterface;
 use App\Message\LobbyMessage;
 use App\Entity\AlternativeName;
 use Lcobucci\JWT\Signer\Hmac\Sha256;
 use Symfony\Component\Mercure\Update;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\Envelope;
 use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Component\Mercure\PublisherInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Enqueue\MessengerAdapter\EnvelopeItem\TransportConfiguration;
+use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 
 class LobbyManager
 {
@@ -28,19 +33,22 @@ class LobbyManager
     private EntityManagerInterface $entityManager;
     private SerializerInterface $serializer;
     private MessageBusInterface $bus;
+    private GameManager $gameManager;
 
     public function __construct(
         PublisherInterface $publisher,
         UrlGeneratorInterface $router,
         EntityManagerInterface $entityManager,
         SerializerInterface $serializer,
-        MessageBusInterface $bus
+        MessageBusInterface $bus,
+        GameManager $gameManager
     ) {
         $this->publisher = $publisher;
         $this->router = $router;
         $this->entityManager = $entityManager;
         $this->serializer = $serializer;
         $this->bus = $bus;
+        $this->gameManager = $gameManager;
     }
 
     public function publishUpdate(Lobby $lobby): void
@@ -69,8 +77,17 @@ class LobbyManager
         $publisher($update);
     }
 
-    public function publishUpdateLobbyUsers(Lobby $lobby): void
+    /**
+     * @param Lobby|string $lobby
+     */
+    public function publishUpdateLobbyUsers($lobby): void
     {
+        if (!$lobby instanceof Lobby) {
+            $lobby = $this->entityManager->getRepository(Lobby::class)->findOneBy(['code' => $lobby]);
+            if (null === $lobby) {
+                return;
+            }
+        }
         $publisher = $this->publisher;
         $update = new Update(
             $this->router->generate('lobby_update', ['code' => $lobby->getCode()], UrlGeneratorInterface::ABSOLUTE_URL),
@@ -122,7 +139,7 @@ class LobbyManager
         $games = $this->entityManager->getRepository(Game::class)->getPlayedByUsers($users, $lobby->getMusicNumber());
         if ($lobby->allowDuplicates() && count($games) < $lobby->getMusicNumber()) {
             do {
-                $games[] = array_rand($games);
+                $games[] = $games[array_rand($games)];
             } while (count($games) < $lobby->getMusicNumber());
         }
 
@@ -154,14 +171,9 @@ class LobbyManager
 
         $publisher = $this->publisher;
 
-        $gameNames = $this->entityManager->getRepository(Game::class)->getAllNames();
-        $alternativeNames = $this->entityManager->getRepository(AlternativeName::class)->getAllNames();
-        $names = array_column(array_merge($gameNames, $alternativeNames), 'name');
-        $names = array_unique($names);
-        sort($names);
         $update = new Update(
             $this->router->generate('lobby_update', ['code' => $lobbyCode], UrlGeneratorInterface::ABSOLUTE_URL),
-            $this->serializer->serialize($names, 'json'),
+            $this->serializer->serialize($this->gameManager->getAllNames(), 'json'),
             true,
             null,
             'availableGameChoices'
@@ -173,7 +185,7 @@ class LobbyManager
             $this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user']]),
             true,
             null,
-            'lobbyStart'
+            'updateLobby'
         );
         $publisher($update);
         $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_PLAY_MUSIC));
@@ -185,14 +197,27 @@ class LobbyManager
         $lobby = $this->entityManager->getRepository(Lobby::class)->findOneBy(['code' => $lobbyCode]);
         if (null === $lobby) {
             $this->publishError($lobbyCode);
+            throw new UnrecoverableMessageHandlingException();
         }
 
         $lobby
-            ->setStatus(Lobby::STATUS_PLAYING_MUSIC)
-            ->setCurrentMusic($lobby->getCurrentMusic() === null ? $lobby->getMusics()->first() : $lobby->getMusics()->get(
-                $lobby->getMusics()->indexOf(static function (LobbyMusic $lobbyMusic) use ($lobby) {
-                    return $lobbyMusic->getPosition() === $lobby->getCurrentMusic()->getPosition() + 1;
-                })));
+            ->setStatus(Lobby::STATUS_PLAYING_MUSIC);
+
+        if ($lobby->getCurrentMusic() !== null) {
+            $nextLobbyMusic = $this->entityManager->getRepository(LobbyMusic::class)->findOneBy([
+                'lobby' => $lobby,
+                'position' => $lobby->getCurrentMusic()->getPosition() + 1,
+            ]);
+            $lobby->setCurrentMusic($nextLobbyMusic);
+        } else {
+            $lobby->setCurrentMusic($lobby->getMusics()->first());
+        }
+        /** @var LobbyUser $lobbyUser */
+        foreach ($lobby->getUsers() as $lobbyUser) {
+            $lobbyUser
+                ->setAnswer(null)
+                ->setAnswerDateTime(null);
+        }
 
         $this->entityManager->flush();
         $publisher = $this->publisher;
@@ -201,11 +226,33 @@ class LobbyManager
             $this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user']]),
             true,
             null,
-            'lobbyPlayMusic'
+            'updateLobby'
         );
         $publisher($update);
-//
-//        sleep(20);
-//        $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_REVEAL_ANSWER));
+        $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_REVEAL_ANSWER), [new DelayStamp($lobby->getGuessTime() * 1000)]);
+    }
+
+    public function revealAnswer(string $lobbyCode): void
+    {
+        /** @var Lobby $lobby */
+        $lobby = $this->entityManager->getRepository(Lobby::class)->findOneBy(['code' => $lobbyCode]);
+        if (null === $lobby) {
+            $this->publishError($lobbyCode);
+            throw new UnrecoverableMessageHandlingException();
+        }
+        $lobby
+            ->setStatus(Lobby::STATUS_ANSWER_REVEAL);
+        $this->entityManager->flush();
+        $publisher = $this->publisher;
+        $update = new Update(
+            $this->router->generate('lobby_update', ['code' => $lobbyCode], UrlGeneratorInterface::ABSOLUTE_URL),
+            $this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user', 'lobby_answer_reveal']]),
+            true,
+            null,
+            'updateLobby'
+        );
+        $publisher($update);
+        //TODO if last music, go to last step (aka ranking & stuff)
+        $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_PLAY_MUSIC), [new DelayStamp($lobby->getGuessTime() * 1000)]);
     }
 }

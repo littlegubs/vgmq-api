@@ -54,7 +54,7 @@ class GameController extends AbstractController
     /**
      * @Route("/{slug}", name="admin_game_get", methods={"GET"})
      */
-    public function get($slug)
+    public function show($slug)
     {
         $em = $this->getDoctrine()->getManager();
         $game = $em->getRepository(Game::class)->findOneBy([
