@@ -1,0 +1,26 @@
+{
+    "php": {
+        "version": "7.4"
+    },
+    "psr/event-dispatcher": {
+        "version": "1.0.0"
+    },
+    "symfony/amqp-messenger": {
+        "version": "v5.1.8"
+    },
+    "symfony/doctrine-messenger": {
+        "version": "v5.1.8"
+    },
+    "symfony/redis-messenger": {
+        "version": "v5.1.8"
+    },
+    "symplify/autowire-array-parameter": {
+        "version": "8.3.48"
+    },
+    "symplify/smart-file-system": {
+        "version": "8.3.48"
+    },
+    "symplify/symplify-kernel": {
+        "version": "8.3.48"
+    }
+}
