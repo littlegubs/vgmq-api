@@ -24,6 +24,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * @Route("/lobbies")
@@ -89,14 +90,14 @@ class LobbyController extends AbstractController
             $em->persist($lobbyUser);
             $em->flush();
         } catch (\Exception $exception) {
-            return new JsonResponse($exception->getMessage(), 500);
+            return new JsonResponse('An error occurred', 500);
         }
 
         return new JsonResponse($this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user']]), 200, [], true);
     }
 
     /**
-     * @Route("/{code}", name="lobby_update", methods={"PUT"}, schemes={"https"})
+     * @Route("/{code}", name="lobby_update", methods={"PUT"})
      */
     public function update(string $code, Request $request): JsonResponse
     {
@@ -127,7 +128,7 @@ class LobbyController extends AbstractController
             $em->flush();
             $this->lobbyManager->publishUpdate($lobby);
         } catch (\Exception $exception) {
-            return new JsonResponse('An error occured', 500);
+            return new JsonResponse('An error occurred', 500);
         }
 
         return new JsonResponse($this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user']]), 200, [], true);
@@ -136,7 +137,7 @@ class LobbyController extends AbstractController
     /**
      * @Route("/{code}/join", name="lobby_join", methods={"GET", "POST"})
      */
-    public function join(Lobby $lobby, Request $request, GameManager $gameManager, LoggerInterface $logger): JsonResponse
+    public function join(Lobby $lobby, Request $request, GameManager $gameManager): JsonResponse
     {
         $user = $this->getUser();
         $em = $this->getDoctrine()->getManager();
@@ -145,34 +146,38 @@ class LobbyController extends AbstractController
             'user' => $user,
         ]);
 
-        if (null === $lobbyUser) {
-            if (null !== $lobby->getPassword()) {
-                if (null === $password = $request->request->get('password')) {
-                    return new JsonResponse(null, 401);
-                }
+        try {
+            if (null === $lobbyUser) {
+                if (null !== $lobby->getPassword()) {
+                    if (null === $password = $request->request->get('password')) {
+                        return new JsonResponse(null, 401);
+                    }
 
-                if ($lobby->getPassword() !== $password) {
-                    return new JsonResponse('Incorrect password', 401);
+                    if ($lobby->getPassword() !== $password) {
+                        return new JsonResponse('Incorrect password', 401);
+                    }
                 }
-            }
-            // TODO let the HttpClientEventSource handle active users when released in Symfony 5.2 (November 2020) or wait mercure to handle websub events (ETA end of 2020)
-            /** @var User $user */
-            $user = $this->getUser();
+                // TODO let the HttpClientEventSource handle active users when released in Symfony 5.2 (November 2020) or wait mercure to handle websub events (ETA end of 2020)
+                /** @var User $user */
+                $user = $this->getUser();
 
-            try {
                 $lobbyUser = (new LobbyUser())
                     ->setLobby($lobby)
                     ->setUser($user)
-                    ->setRole(LobbyUser::ROLE_PLAYER);
+                    ->setRole(Lobby::STATUS_WAITING === $lobby->getStatus() ? LobbyUser::ROLE_PLAYER : LobbyUser::ROLE_SPECTATOR);
 
                 $em->persist($lobbyUser);
                 $em->flush();
                 $lobby->addUser($lobbyUser);
 
                 $this->lobbyManager->publishUpdateLobbyUsers($lobby);
-            } catch (\Exception $exception) {
-                return new JsonResponse('An error occured', 500);
+            } else {
+                $lobbyUser->setDisconnected(false);
+                $em->flush();
+                $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_UPDATE_LOBBY_USERS));
             }
+        } catch (\Exception $exception) {
+            return new JsonResponse('An error occurred', 500);
         }
 
         $response = new JsonResponse($this->serializer->serialize([
@@ -213,7 +218,7 @@ class LobbyController extends AbstractController
             $em->persist($lobbyUser);
             $em->flush();
         } catch (\Exception $exception) {
-            return new JsonResponse('An error occured', 500);
+            return new JsonResponse('An error occurred', 500);
         }
 
         $response = new JsonResponse($this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user']]), 200, [], true);
@@ -235,7 +240,7 @@ class LobbyController extends AbstractController
             'user' => $user,
             'role' => LobbyUser::ROLE_HOST,
         ]);
-        if (null === $lobbyUser) {
+        if (null === $lobbyUser || Lobby::STATUS_WAITING !== $lobby->getStatus()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -245,9 +250,41 @@ class LobbyController extends AbstractController
             $this->lobbyManager->publishStatusUpdate($lobby);
             $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_LOAD_MUSICS));
         } catch (\Exception $exception) {
-            return new JsonResponse('An error occured', 500);
+            return new JsonResponse('An error occurred', 500);
         }
 
+        return new JsonResponse();
+    }
+
+    /**
+     * @Route("/{code}/leave", name="lobby_leave", methods={"GET"})
+     */
+    public function leave(Lobby $lobby): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $em = $this->getDoctrine()->getManager();
+        $lobbyUser = $em->getRepository(LobbyUser::class)->findOneBy([
+            'lobby' => $lobby,
+            'user' => $user,
+        ]);
+        if (null === $lobbyUser) {
+            throw new NotFoundHttpException();
+        }
+        try {
+            if ($lobby->getStatus() === Lobby::STATUS_WAITING || $lobbyUser->getRole() === LobbyUser::ROLE_SPECTATOR) {
+                $em->remove($lobbyUser);
+            } else {
+                // give user the ability to connect back to the game
+                $lobbyUser->setDisconnected(true);
+            }
+            $em->flush();
+        } catch (\Exception $exception) {
+            return new JsonResponse('An error occurred', 500);
+        }
+
+        $response = new JsonResponse();
+        $this->setMercureCookie($lobbyUser->getLobby(), $response, true);
         return new JsonResponse();
     }
 
@@ -278,20 +315,22 @@ class LobbyController extends AbstractController
             $em->flush();
             $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_UPDATE_LOBBY_USERS));
         } catch (\Exception $exception) {
-            return new JsonResponse('An error occured', 500);
+            return new JsonResponse('An error occurred', 500);
         }
 
         return new JsonResponse();
     }
 
-    private function setMercureCookie(Lobby $lobby, Response $response): Response
+    private function setMercureCookie(Lobby $lobby, Response $response, bool $null = false): Response
     {
+        $token = null;
+        if (!$null) {
         $token = (new Builder())
             ->withClaim('mercure', [
                 'subscribe' => [$this->generateUrl('lobby_update', ['code' => $lobby->getCode()], UrlGeneratorInterface::ABSOLUTE_URL)],
             ])
             ->getToken(new Sha256(), new Key($this->mercureJwtKey));
-
+        }
         $secure = true;
         $domain = 'videogamemusicquiz.com';
         $path = '/hub/.well-known/mercure';

@@ -8,6 +8,7 @@ class LobbyMessage
     public const TASK_LOAD_MUSICS = 'load_musics';
     public const TASK_PLAY_MUSIC = 'play_music';
     public const TASK_REVEAL_ANSWER = 'reveal_answer';
+    public const TASK_FINAL_STANDING = 'final_standing';
 
     private string $lobbyCode;
     private string $task;

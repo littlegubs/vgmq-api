@@ -17,6 +17,9 @@ class LobbyUser
     public const ROLE_PLAYER = 'player';
     public const ROLE_SPECTATOR = 'spectator';
 
+    public const STATUS_CORRECT_ANSWER = 'correct_answer';
+    public const STATUS_WRONG_ANSWER = 'wrong_answer';
+
     /**
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -43,6 +46,16 @@ class LobbyUser
      * @ORM\Column(type="integer")
      */
     private int $points = 0;
+
+    /**
+     * @ORM\Column(type="string", nullable=true)
+     */
+    private ?string $status = null;
+
+    /**
+     * @ORM\Column(type="boolean")
+     */
+    private bool $disconnected = false;
 
     /**
      * @ORM\ManyToOne(targetEntity="App\Entity\Lobby", inversedBy="users", cascade={"persist"})
@@ -115,7 +128,31 @@ class LobbyUser
         return $this;
     }
 
-    public function getLobby(): ?Lobby
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(?string $status): LobbyUser
+    {
+        $this->status = $status;
+
+        return $this;
+    }
+
+    public function isDisconnected(): ?bool
+    {
+        return $this->disconnected;
+    }
+
+    public function setDisconnected(bool $disconnected): LobbyUser
+    {
+        $this->disconnected = $disconnected;
+
+        return $this;
+    }
+
+    public function getLobby(): Lobby
     {
         return $this->lobby;
     }

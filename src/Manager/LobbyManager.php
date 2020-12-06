@@ -17,13 +17,13 @@ use Lcobucci\JWT\Signer\Hmac\Sha256;
 use Symfony\Component\Mercure\Update;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Envelope;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Component\Mercure\PublisherInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Enqueue\MessengerAdapter\EnvelopeItem\TransportConfiguration;
 use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 
 class LobbyManager
@@ -242,6 +242,9 @@ class LobbyManager
         }
         $lobby
             ->setStatus(Lobby::STATUS_ANSWER_REVEAL);
+
+        $this->verifyAnswers($lobby);
+
         $this->entityManager->flush();
         $publisher = $this->publisher;
         $update = new Update(
@@ -252,7 +255,52 @@ class LobbyManager
             'updateLobby'
         );
         $publisher($update);
-        //TODO if last music, go to last step (aka ranking & stuff)
-        $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_PLAY_MUSIC), [new DelayStamp($lobby->getGuessTime() * 1000)]);
+        $nextLobbyMusic = $this->entityManager->getRepository(LobbyMusic::class)->findOneBy([
+            'lobby' => $lobby,
+            'position' => $lobby->getCurrentMusic()->getPosition() + 1,
+        ]);
+        if (null === $nextLobbyMusic) {
+            $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_FINAL_STANDING), [new DelayStamp($lobby->getGuessTime() * 1000)]);
+        } else {
+            $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_PLAY_MUSIC), [new DelayStamp($lobby->getGuessTime() * 1000)]);
+        }
+    }
+
+    public function finalStanding(string $lobbyCode)
+    {
+        /** @var Lobby $lobby */
+        $lobby = $this->entityManager->getRepository(Lobby::class)->findOneBy(['code' => $lobbyCode]);
+        if (null === $lobby) {
+            $this->publishError($lobbyCode);
+            throw new UnrecoverableMessageHandlingException();
+        }
+        $lobby
+            ->setStatus(Lobby::STATUS_ANSWER_REVEAL);
+    }
+
+    private function verifyAnswers(Lobby $lobby): void
+    {
+        $validAnswers = [
+            strtolower($lobby->getCurrentMusic()->getExpectedAnswer()->getName()),
+            $lobby->getCurrentMusic()->getExpectedAnswer()->getAlternativeNames()->map(function (
+                AlternativeName $alternativeName
+            ) {
+                return strtolower($alternativeName->getName());
+            }),
+        ];
+        $lobbyUsers = $this->entityManager->getRepository(LobbyUser::class)->findBy([
+            'disconnected' => false,
+            'lobby' => $lobby
+        ]);
+        /** @var LobbyUser $lobbyUser */
+        foreach ($lobbyUsers as $lobbyUser) {
+            if (!empty($lobbyUser->getAnswer()) && in_array(strtolower($lobbyUser->getAnswer()), $validAnswers, true)) {
+                $lobbyUser
+                    ->setStatus(LobbyUser::STATUS_CORRECT_ANSWER)
+                    ->setPoints($lobbyUser->getPoints() + 1);
+            } else {
+                $lobbyUser->setStatus(LobbyUser::STATUS_WRONG_ANSWER);
+            }
+        }
     }
 }

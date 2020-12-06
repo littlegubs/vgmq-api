@@ -26,4 +26,17 @@ class LobbyUserRepository extends EntityRepository
 
         return $qb->getQuery()->getOneOrNullResult();
     }
+
+    public function getConnectedExcept(Lobby $lobby, LobbyUser $exceptLobbyUser): array
+    {
+        $qb = $this->createQueryBuilder('lu')
+            ->leftJoin('lu.lobby', 'l')
+            ->andWhere('lu != :except')
+            ->andWhere('lu.disconnected = 0')
+            ->andWhere('l.id = :lobby')
+            ->setParameter('lobby', $lobby)
+            ->setParameter('except', $exceptLobbyUser);
+
+        return $qb->getQuery()->getResult();
+    }
 }

@@ -67,6 +67,7 @@ class User implements UserInterface
 
     /**
      * @ORM\OneToOne(targetEntity="App\Entity\LobbyUser", mappedBy="user", cascade={"remove"})
+     * @ORM\JoinColumn(onDelete="SET NULL")
      */
     private ?LobbyUser $currentLobby;
 

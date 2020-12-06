@@ -1,10 +1,16 @@
 App\Entity\LobbyUser:
     attributes:
         user:
-            groups: ['lobby_user', 'lobby_list']
+            groups: [ 'lobby_user', 'lobby_list' ]
         role:
-            groups: ['lobby_user', 'lobby_list']
+            groups: [ 'lobby_user', 'lobby_list' ]
         answer:
-            groups: ['lobby_answer_reveal']
+            groups: [ 'lobby_answer_reveal' ]
         answered:
-            groups: ['lobby_user']
+            groups: [ 'lobby_user' ]
+        status:
+            groups: [ 'lobby_user' ]
+        points:
+            groups: [ 'lobby_user' ]
+        disconnected:
+            groups: [ 'lobby_user' ]

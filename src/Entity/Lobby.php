@@ -19,6 +19,7 @@ class Lobby
     public const STATUS_PLAYING = 'playing';
     public const STATUS_PLAYING_MUSIC = 'playing_music';
     public const STATUS_ANSWER_REVEAL = 'answer_reveal';
+    public const STATUS_FINAL_STANDING = 'final_standing';
 
     /**
      * @ORM\Id()
