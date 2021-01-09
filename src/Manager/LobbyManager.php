@@ -266,7 +266,7 @@ class LobbyManager
         }
     }
 
-    public function finalStanding(string $lobbyCode)
+    public function finalStanding(string $lobbyCode): void
     {
         /** @var Lobby $lobby */
         $lobby = $this->entityManager->getRepository(Lobby::class)->findOneBy(['code' => $lobbyCode]);
@@ -275,7 +275,46 @@ class LobbyManager
             throw new UnrecoverableMessageHandlingException();
         }
         $lobby
-            ->setStatus(Lobby::STATUS_ANSWER_REVEAL);
+            ->setStatus(Lobby::STATUS_FINAL_STANDING);
+        $publisher = $this->publisher;
+        $update = new Update(
+            $this->router->generate('lobby_update', ['code' => $lobbyCode], UrlGeneratorInterface::ABSOLUTE_URL),
+            $this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user']]),
+            true,
+            null,
+            'updateLobby'
+        );
+        $publisher($update);
+        $this->bus->dispatch(new LobbyMessage($lobby->getCode(), LobbyMessage::TASK_RESET_LOBBY), [new DelayStamp(15000)]);
+    }
+
+    public function resetLobby(string $lobbyCode): void
+    {
+        /** @var Lobby $lobby */
+        $lobby = $this->entityManager->getRepository(Lobby::class)->findOneBy(['code' => $lobbyCode]);
+        if (null === $lobby) {
+            $this->publishError($lobbyCode);
+            throw new UnrecoverableMessageHandlingException();
+        }
+
+        if ($lobby->getStatus() !== Lobby::STATUS_WAITING) {
+            $lobby->reset();
+            /** @var LobbyMusic $lobbyMusic */
+            foreach ($lobby->getMusics() as $lobbyMusic) {
+                $this->entityManager->remove($lobbyMusic);
+            }
+
+            $this->entityManager->flush();
+            $publisher = $this->publisher;
+            $update = new Update(
+                $this->router->generate('lobby_update', ['code' => $lobbyCode], UrlGeneratorInterface::ABSOLUTE_URL),
+                $this->serializer->serialize($lobby, 'json', ['groups' => ['lobby_user']]),
+                true,
+                null,
+                'updateLobby'
+            );
+            $publisher($update);
+        }
     }
 
     private function verifyAnswers(Lobby $lobby): void
@@ -290,7 +329,7 @@ class LobbyManager
         ];
         $lobbyUsers = $this->entityManager->getRepository(LobbyUser::class)->findBy([
             'disconnected' => false,
-            'lobby' => $lobby
+            'lobby' => $lobby,
         ]);
         /** @var LobbyUser $lobbyUser */
         foreach ($lobbyUsers as $lobbyUser) {

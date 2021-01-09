@@ -25,6 +25,10 @@ class LobbyHandler implements MessageHandlerInterface
             $this->lobbyManager->revealAnswer($lobbyMessage->getLobbyCode());
         } else if ($lobbyMessage->getTask() === LobbyMessage::TASK_UPDATE_LOBBY_USERS) {
             $this->lobbyManager->publishUpdateLobbyUsers($lobbyMessage->getLobbyCode());
+        } else if ($lobbyMessage->getTask() === LobbyMessage::TASK_FINAL_STANDING) {
+            $this->lobbyManager->finalStanding($lobbyMessage->getLobbyCode());
+        } else if ($lobbyMessage->getTask() === LobbyMessage::TASK_RESET_LOBBY) {
+            $this->lobbyManager->resetLobby($lobbyMessage->getLobbyCode());
         }
     }
 }

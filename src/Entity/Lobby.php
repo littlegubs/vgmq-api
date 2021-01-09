@@ -75,7 +75,7 @@ class Lobby
     private Collection $users;
 
     /**
-     * @ORM\OneToMany(targetEntity="App\Entity\LobbyMusic", mappedBy="lobby", cascade={"persist", "remove"}, orphanRemoval=true)
+     * @ORM\OneToMany(targetEntity="App\Entity\LobbyMusic", mappedBy="lobby", cascade={"persist", "remove"})
      * @ORM\OrderBy({"position" = "ASC"})
      */
     private ?Collection $musics;
@@ -221,7 +221,7 @@ class Lobby
         return $this->musics->count();
     }
 
-    public function  getCurrentMusic(): ?LobbyMusic
+    public function getCurrentMusic(): ?LobbyMusic
     {
         return $this->currentMusic;
     }
@@ -229,6 +229,19 @@ class Lobby
     public function setCurrentMusic(?LobbyMusic $currentMusic): self
     {
         $this->currentMusic = $currentMusic;
+
+        return $this;
+    }
+
+    public function reset(): self
+    {
+        $this->setStatus(self::STATUS_WAITING)
+            ->setCurrentMusic(null);
+
+        /** @var LobbyUser $lobbyUser */
+        foreach ($this->getUsers() as $lobbyUser) {
+            $lobbyUser->reset();
+        }
 
         return $this;
     }

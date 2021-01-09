@@ -175,4 +175,14 @@ class LobbyUser
 
         return $this;
     }
+
+    public function reset(): self {
+        $this
+            ->setStatus(null)
+            ->setAnswerDateTime(null)
+            ->setAnswer(null)
+            ->setPoints(0);
+
+        return $this;
+    }
 }
