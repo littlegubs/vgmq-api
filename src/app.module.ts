@@ -11,7 +11,9 @@ import {JwtModule} from "@nestjs/jwt";
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+        isGlobal: true
+    }),
       TypeOrmModule.forRoot({
             type: 'mysql',
             host:process.env.DATABASE_HOST,
@@ -25,10 +27,6 @@ import {JwtModule} from "@nestjs/jwt";
   }),
     UsersModule,
     AuthModule,
-      PassportModule,
-      JwtModule.register({
-          secret: process.env.JWT_SECRET
-      })
   ],
   controllers: [AppController],
   providers: [AppService],

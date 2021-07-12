@@ -8,6 +8,7 @@ import {
     BaseEntity
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import {Exclude} from "class-transformer";
 
 export enum UserRole {
     ADMIN = 'admin',
@@ -38,6 +39,9 @@ export class User extends BaseEntity{
 
     @Column({ default: true })
     enabled: boolean;
+
+    @Column()
+    currentHashedRefreshToken?: string;
 
     @Column()
     @CreateDateColumn()

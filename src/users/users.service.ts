@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-
 import { User } from './user.entity';
 import { CreateUserDto } from './create-user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -26,11 +26,18 @@ export class UsersService {
         return await User.findOne(id);
     }
 
-    async findByEmail(email: string) {
+    async findByUsername(username: string) {
         return await User.findOne({
             where: {
-                email: email,
+                username: username,
             },
+        });
+    }
+
+    async setCurrentRefreshToken(refreshToken: string, userId: number) {
+        const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+        await User.update(userId, {
+            currentHashedRefreshToken
         });
     }
 }
