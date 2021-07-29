@@ -11,5 +11,7 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true
-  }
+  },
+  "emitDecoratorMetadata": true,
+  "experimentalDecorators": true
 }

@@ -1,7 +1,7 @@
 import {IsEmail, IsNotEmpty, Validate} from "class-validator";
-import {UserExistsRule} from "./unique.validator";
+import {UserExistsRule} from "../../users/unique.validator";
 
-export class CreateUserDto {
+export class AuthRegisterDto {
     @IsEmail()
     @Validate(UserExistsRule)
     email: string;

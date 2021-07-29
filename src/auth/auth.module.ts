@@ -5,8 +5,8 @@ import {UsersModule} from "../users/users.module";
 import {AuthService} from "./auth.service";
 import {JwtModule, JwtService} from "@nestjs/jwt";
 import {ConfigModule, ConfigService} from "@nestjs/config";
-import {JwtStrategy} from "./jwt.strategy";
-import {JwtRefreshTokenStrategy} from "./jwt-refresh-token.strategy";
+import {JwtStrategy} from "./strategies/jwt.strategy";
+import {JwtRefreshTokenStrategy} from "./strategies/jwt-refresh-token.strategy";
 
 @Module({
     controllers: [AuthController],

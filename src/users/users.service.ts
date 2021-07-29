@@ -1,15 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { User } from './user.entity';
-import { CreateUserDto } from './create-user.dto';
-import * as bcrypt from 'bcrypt';
+import {AuthRegisterDto} from "../auth/dto/auth-register.dto";
 
 @Injectable()
 export class UsersService {
-    async create(createUserDto: CreateUserDto) {
+    async create(createUserDto: AuthRegisterDto) {
         const user = User.create(createUserDto);
-        await user.save().catch((err) => {
-            console.log(err)
-        });
+        await user.save()
 
         delete user.password;
         return user;
@@ -31,13 +28,6 @@ export class UsersService {
             where: {
                 username: username,
             },
-        });
-    }
-
-    async setCurrentRefreshToken(refreshToken: string, userId: number) {
-        const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-        await User.update(userId, {
-            currentHashedRefreshToken
         });
     }
 }

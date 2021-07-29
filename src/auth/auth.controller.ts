@@ -1,20 +1,23 @@
 import {Body, Controller, Get, Post, Req, UseGuards} from '@nestjs/common';
 import {UsersService} from "../users/users.service";
-import {CreateUserDto} from "../users/create-user.dto";
 import {AuthService} from "./auth.service";
-import {AuthLoginDto} from "./auth-login.dto";
-import {JwtAuthGuard} from "./jwt-auth.guard";
-import {JwtRefreshGuard} from "./jwt-refresh.guard";
-import {Request} from "express";
+import {AuthLoginDto} from "./dto/auth-login.dto";
+import {JwtAuthGuard} from "./guards/jwt-auth.guard";
+import {JwtRefreshGuard} from "./guards/jwt-refresh.guard";
+import {AuthRegisterDto} from "./dto/auth-register.dto";
+import {LimitedAccessGuard} from "../limited-access/guards/limited-access.guard";
 
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly usersService: UsersService, private authService: AuthService) {}
+    constructor(private readonly usersService: UsersService, private authService: AuthService) {
+    }
 
     @Post('register')
-    register(@Body() createUserDto: CreateUserDto) {
-        return this.usersService.create(createUserDto);
+    @UseGuards(LimitedAccessGuard)
+    async register(@Body() createUserDto: AuthRegisterDto) {
+        const user = await this.usersService.create(createUserDto);
+        return this.authService.getUserTokens(user)
     }
 
     @Post('login')
@@ -25,10 +28,15 @@ export class AuthController {
     @UseGuards(JwtRefreshGuard)
     @Post('refresh')
     refresh(@Req() request) {
-        console.log(request.user)
         return {
             access_token: this.authService.getJwtAccessToken({userId: request.user.id})
         };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('logout')
+    async logout(@Req() request) {
+        await this.authService.logout(request.user)
     }
 
     @UseGuards(JwtAuthGuard)

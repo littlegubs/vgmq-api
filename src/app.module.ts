@@ -8,11 +8,18 @@ import { AuthModule } from './auth/auth.module';
 import {ConfigModule, ConfigService} from "@nestjs/config";
 import {PassportModule} from "@nestjs/passport";
 import {JwtModule} from "@nestjs/jwt";
+import { LimitedAccessModule } from './limited-access/limited-access.module';
+import * as Joi from "joi";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-        isGlobal: true
+        isGlobal: true,
+        validationSchema: Joi.object({
+            ENV: Joi.string()
+                .valid('dev', 'prod')
+                .default('dev'),
+        })
     }),
       TypeOrmModule.forRoot({
             type: 'mysql',
@@ -27,6 +34,7 @@ import {JwtModule} from "@nestjs/jwt";
   }),
     UsersModule,
     AuthModule,
+    LimitedAccessModule,
   ],
   controllers: [AppController],
   providers: [AppService],

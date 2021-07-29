@@ -40,8 +40,8 @@ export class User extends BaseEntity{
     @Column({ default: true })
     enabled: boolean;
 
-    @Column()
-    currentHashedRefreshToken?: string;
+    @Column({nullable: true})
+    currentHashedRefreshToken?: string | null;
 
     @Column()
     @CreateDateColumn()

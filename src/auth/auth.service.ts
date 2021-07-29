@@ -2,7 +2,7 @@ import {Injectable, UnauthorizedException} from '@nestjs/common';
 import {UsersService} from '../users/users.service';
 import {JwtService} from '@nestjs/jwt';
 import {ConfigService} from '@nestjs/config';
-import {AuthLoginDto} from "./auth-login.dto";
+import {AuthLoginDto} from "./dto/auth-login.dto";
 import {User} from "../users/user.entity";
 import * as bcrypt from "bcrypt";
 
@@ -30,8 +30,13 @@ export class AuthService {
 
     async login(authLoginDto: AuthLoginDto) {
         const user = await this.validateUser(authLoginDto);
+        return this.getUserTokens(user);
+    }
+
+    async getUserTokens(user: User) {
         const payload = {
-            userId: user.id,
+            username: user.username,
+            roles: user.roles
         };
         const refreshToken = this.getJwtRefreshToken(payload);
         const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
@@ -56,9 +61,8 @@ export class AuthService {
         return user;
     }
 
-    async getUserIfRefreshTokenMatches(refreshToken: string, userId: number) {
-        const user = await this.usersService.findById(userId);
-
+    async getUserIfRefreshTokenMatches(refreshToken: string, username: string) {
+        const user = await this.usersService.findByUsername(username);
         const isRefreshTokenMatching = await bcrypt.compare(
             refreshToken,
             user.currentHashedRefreshToken
@@ -67,5 +71,10 @@ export class AuthService {
         if (isRefreshTokenMatching) {
             return user;
         }
+    }
+
+    async logout(user: User) {
+        user.currentHashedRefreshToken = null
+        await User.save(user)
     }
 }
