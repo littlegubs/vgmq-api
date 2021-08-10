@@ -9,6 +9,7 @@ import {ConfigModule, ConfigService} from "@nestjs/config";
 import {PassportModule} from "@nestjs/passport";
 import {JwtModule} from "@nestjs/jwt";
 import { LimitedAccessModule } from './limited-access/limited-access.module';
+import { GamesModule } from './games/games.module';
 import * as Joi from "joi";
 
 @Module({
@@ -35,6 +36,7 @@ import * as Joi from "joi";
     UsersModule,
     AuthModule,
     LimitedAccessModule,
+    GamesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
