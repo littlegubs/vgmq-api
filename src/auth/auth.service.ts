@@ -1,80 +1,95 @@
-import {Injectable, UnauthorizedException} from '@nestjs/common';
-import {UsersService} from '../users/users.service';
-import {JwtService} from '@nestjs/jwt';
-import {ConfigService} from '@nestjs/config';
-import {AuthLoginDto} from "./dto/auth-login.dto";
-import {User} from "../users/user.entity";
-import * as bcrypt from "bcrypt";
+import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { JwtService } from '@nestjs/jwt'
+import * as bcrypt from 'bcrypt'
+
+import { User } from '../users/user.entity'
+import { UsersService } from '../users/users.service'
+import { AuthLoginDto } from './dto/auth-login.dto'
+
+enum ExpireTime {
+    Refresh = '30d',
+    Access = '1h',
+}
 
 @Injectable()
 export class AuthService {
     constructor(
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
-        private readonly configService: ConfigService
+        private readonly configService: ConfigService,
     ) {}
 
-    public getJwtAccessToken(payload: object) {
+    public getJwtAccessToken(payload: Record<string, unknown>): string {
         return this.jwtService.sign(payload, {
             secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
-            expiresIn: `1h`
-        });
+            expiresIn: ExpireTime.Access,
+        })
     }
 
-    public getJwtRefreshToken(payload: object) {
+    public getJwtRefreshToken(payload: Record<string, unknown>): string {
         return this.jwtService.sign(payload, {
             secret: this.configService.get('JWT_REFRESH_TOKEN_SECRET'),
-            expiresIn: `30d`
-        });
+            expiresIn: ExpireTime.Refresh,
+        })
     }
 
-    async login(authLoginDto: AuthLoginDto) {
-        const user = await this.validateUser(authLoginDto);
-        return this.getUserTokens(user);
+    async login(
+        authLoginDto: AuthLoginDto,
+    ): Promise<{ access_token: string; refresh_token: string }> {
+        const user = await this.validateUser(authLoginDto)
+        return this.getUserTokens(user)
     }
 
-    async getUserTokens(user: User) {
+    async getUserTokens(user: User): Promise<{ access_token: string; refresh_token: string }> {
         const payload = {
             username: user.username,
-            roles: user.roles
-        };
-        const refreshToken = this.getJwtRefreshToken(payload);
-        const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+            roles: user.roles,
+        }
+        const refreshToken = this.getJwtRefreshToken(payload)
+        const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10)
         await User.update(user.id, {
-            currentHashedRefreshToken: currentHashedRefreshToken
-        });
+            currentHashedRefreshToken: currentHashedRefreshToken,
+        })
 
         return {
             access_token: this.getJwtAccessToken(payload),
             refresh_token: refreshToken,
-        };
+        }
     }
 
     async validateUser(authLoginDto: AuthLoginDto): Promise<User> {
-        const { username, password } = authLoginDto;
+        const { username, password } = authLoginDto
 
-        const user = await this.usersService.findByUsername(username);
-        if (!(await user?.validatePassword(password))) {
-            throw new UnauthorizedException();
+        const user = await this.usersService.findByUsername(username)
+
+        if (user && (await user.validatePassword(password))) {
+            return user
         }
 
-        return user;
+        throw new UnauthorizedException()
     }
 
-    async getUserIfRefreshTokenMatches(refreshToken: string, username: string) {
-        const user = await this.usersService.findByUsername(username);
+    async getUserIfRefreshTokenMatches(
+        refreshToken: string,
+        username: string,
+    ): Promise<User | undefined> {
+        const user = await this.usersService.findByUsername(username)
+
+        if (!user) return undefined
+
         const isRefreshTokenMatching = await bcrypt.compare(
             refreshToken,
-            user.currentHashedRefreshToken
-        );
+            user.currentHashedRefreshToken || '',
+        )
 
-        if (isRefreshTokenMatching) {
-            return user;
-        }
+        return isRefreshTokenMatching ? user : undefined
     }
 
-    async logout(user: User) {
-        user.currentHashedRefreshToken = null
-        await User.save(user)
+    async logout(user: User): Promise<void> {
+        await User.save({
+            ...user,
+            currentHashedRefreshToken: null,
+        } as User)
     }
 }

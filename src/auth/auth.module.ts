@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
-import {PassportModule} from "@nestjs/passport";
-import {AuthController} from "./auth.controller";
-import {UsersModule} from "../users/users.module";
-import {AuthService} from "./auth.service";
-import {JwtModule, JwtService} from "@nestjs/jwt";
-import {ConfigModule, ConfigService} from "@nestjs/config";
-import {JwtStrategy} from "./strategies/jwt.strategy";
-import {JwtRefreshTokenStrategy} from "./strategies/jwt-refresh-token.strategy";
+import { Module } from '@nestjs/common'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { JwtModule } from '@nestjs/jwt'
+import { PassportModule } from '@nestjs/passport'
+
+import { UsersModule } from '../users/users.module'
+import { AuthController } from './auth.controller'
+import { AuthService } from './auth.service'
+import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh-token.strategy'
+import { JwtStrategy } from './strategies/jwt.strategy'
 
 @Module({
     controllers: [AuthController],
@@ -17,14 +18,14 @@ import {JwtRefreshTokenStrategy} from "./strategies/jwt-refresh-token.strategy";
         }),
         JwtModule.registerAsync({
             imports: [ConfigModule],
-            useFactory:  async () => {
+            useFactory: async () => {
                 return {
-                    secret: process.env.JWT_SECRET
+                    secret: process.env.JWT_SECRET,
                 }
-            }
+            },
         }),
-        UsersModule
+        UsersModule,
     ],
-    providers: [AuthService, ConfigService, JwtStrategy, JwtRefreshTokenStrategy]
+    providers: [AuthService, ConfigService, JwtStrategy, JwtRefreshTokenStrategy],
 })
 export class AuthModule {}

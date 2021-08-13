@@ -1,31 +1,34 @@
-import 'reflect-metadata';
-import {NestFactory} from '@nestjs/core';
-import {AppModule} from './app.module';
-import {BadRequestException, ValidationPipe} from "@nestjs/common";
-import * as cookieParser from 'cookie-parser';
-import {useContainer} from "class-validator";
+import 'reflect-metadata'
+import { BadRequestException, ValidationPipe } from '@nestjs/common'
+import { NestFactory } from '@nestjs/core'
+import { useContainer } from 'class-validator'
+import * as cookieParser from 'cookie-parser'
 
-async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
-    useContainer(app.select(AppModule), { fallbackOnErrors: true });
-    app.useGlobalPipes(new ValidationPipe({
-        exceptionFactory: errors => {
-            return new BadRequestException(
-                errors.map((error) => {
-                    return {
-                        property: error.property,
-                        errors: Object.entries(error.constraints).map(([key, value]) => value)
-                    }
-                })
-            )
-        }
-    }));
-    app.use(cookieParser());
+import { AppModule } from './app.module'
+
+async function bootstrap(): Promise<void> {
+    const app = await NestFactory.create(AppModule)
+    useContainer(app.select(AppModule), { fallbackOnErrors: true })
+    app.useGlobalPipes(
+        new ValidationPipe({
+            exceptionFactory: (errors): BadRequestException => {
+                return new BadRequestException(
+                    errors.map((error) => {
+                        return {
+                            property: error.property,
+                            errors: Object.values(error.constraints ?? []),
+                        }
+                    }),
+                )
+            },
+        }),
+    )
+    app.use(cookieParser())
     app.enableCors({
         origin: /^https?:\/\/(localhost|127\.0\.0\.1|videogamemusicquiz.com)(:[0-9]+)?$/,
-        credentials: true
+        credentials: true,
     })
-    await app.listen(3000);
+    await app.listen(3000)
 }
 
-bootstrap();
+void bootstrap()

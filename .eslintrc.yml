@@ -1,0 +1,78 @@
+root: true
+parser: '@typescript-eslint/parser'
+parserOptions:
+  project: './tsconfig.json'
+  sourceType: module
+env:
+  node: true
+  es6: true
+  mocha: true
+plugins:
+  - 'unused-imports'
+  - 'import'
+extends:
+  - 'eslint:recommended'
+  - 'plugin:@typescript-eslint/recommended'
+  - 'plugin:@typescript-eslint/recommended-requiring-type-checking'
+  - 'plugin:prettier/recommended'
+  - 'plugin:import/errors'
+  - 'plugin:import/warnings'
+  - 'plugin:import/typescript'
+ignorePatterns:
+  - 'services/*'
+settings:
+  'import/internal-regex': '^\.\.?/'
+  'import/parsers':
+    '@typescript-eslint/parser': [ .ts ]
+rules:
+  'no-console': 'warn'
+  'no-duplicate-imports': 'error'
+  'no-return-await': 'error'
+  'no-unneeded-ternary': 'error'
+  'no-unused-vars': [ 'off' ]
+  'prefer-object-spread': 'error'
+  'require-await': 'off'
+  '@typescript-eslint/explicit-function-return-type': 'error'
+  '@typescript-eslint/naming-convention':
+    [
+        'warn',
+      {
+        selector: 'default',
+        format: [ 'camelCase' ],
+        leadingUnderscore: 'forbid',
+        trailingUnderscore: 'forbid',
+      },
+      { selector: 'variable', format: [ 'camelCase', 'UPPER_CASE', 'PascalCase' ] },
+      { selector: 'property', format: [ 'camelCase', 'PascalCase' ] },
+      { selector: 'parameter', format: [ 'camelCase' ], leadingUnderscore: 'allow' },
+      { selector: 'typeLike', format: [ 'PascalCase' ] },
+      { selector: 'enumMember', format: [ 'PascalCase' ] },
+    ]
+  '@typescript-eslint/no-unsafe-assignment': 'off'
+  '@typescript-eslint/no-unsafe-call': 'warn'
+  '@typescript-eslint/no-unsafe-member-access': 'off'
+  '@typescript-eslint/no-unsafe-return': 'warn'
+  '@typescript-eslint/no-unused-vars': [ 'error', { ignoreRestSiblings: true, args: 'none' } ]
+  '@typescript-eslint/no-use-before-define': 'off'
+  '@typescript-eslint/prefer-optional-chain': 'error'
+  '@typescript-eslint/restrict-template-expressions': 'warn'
+  'import/order':
+    [
+        'error',
+      {
+        groups: [ 'builtin', 'external', [ 'internal', 'parent', 'sibling', 'index' ], 'unknown' ],
+        'newlines-between': 'always',
+        alphabetize: { order: 'asc', caseInsensitive: true },
+      },
+    ]
+  'unused-imports/no-unused-vars':
+    [
+        'warn',
+      {
+        'vars': 'all',
+        'varsIgnorePattern': '^_',
+        'args': 'after-used',
+        'argsIgnorePattern': '^_'
+      },
+    ]
+  'unused-imports/no-unused-imports': 'error'

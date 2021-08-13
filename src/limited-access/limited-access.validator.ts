@@ -1,19 +1,21 @@
-import {ValidationArguments, ValidatorConstraint, ValidatorConstraintInterface} from "class-validator";
-import {Injectable} from "@nestjs/common";
-import {ConfigService} from "@nestjs/config";
+import { Injectable } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import {
+    ValidationArguments,
+    ValidatorConstraint,
+    ValidatorConstraintInterface,
+} from 'class-validator'
 
-@ValidatorConstraint({name: 'LimitedAccess'})
+@ValidatorConstraint({ name: 'LimitedAccess' })
 @Injectable()
 export class LimitedAccessValidator implements ValidatorConstraintInterface {
+    constructor(private configService: ConfigService) {}
 
-    constructor(private configService: ConfigService) {
+    validate(value: string): boolean {
+        return value === this.configService.get('LIMITED_ACCESS_PASSWORD')
     }
 
-    validate(value: string, args) {
-        return value === this.configService.get('LIMITED_ACCESS_PASSWORD');
-    }
-
-    defaultMessage(args: ValidationArguments) {
-        return `invalid password`;
+    defaultMessage(args: ValidationArguments): string {
+        return 'invalid password'
     }
 }
