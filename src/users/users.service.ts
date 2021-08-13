@@ -1,33 +1,38 @@
-import { Injectable } from '@nestjs/common';
-import { User } from './user.entity';
-import { AuthRegisterDto } from '../auth/dto/auth-register.dto';
+import { Injectable } from '@nestjs/common'
+
+import { AuthRegisterDto } from '../auth/dto/auth-register.dto'
+import { User } from './user.entity'
 
 @Injectable()
 export class UsersService {
-  async create(createUserDto: AuthRegisterDto) {
-    const user = User.create(createUserDto);
-    await user.save();
+    async create(createUserDto: AuthRegisterDto): Promise<User> {
+        const user = User.create(createUserDto)
+        await user.save()
 
-    delete user.password;
-    return user;
-  }
+        const { password, ...userWhithoutPassword } = user
 
-  async showById(id: number): Promise<User> {
-    const user = await this.findById(id);
+        return userWhithoutPassword as User
+    }
 
-    delete user.password;
-    return user;
-  }
+    async showById(id: number): Promise<User | undefined> {
+        const user = await this.findById(id)
 
-  async findById(id: number) {
-    return await User.findOne(id);
-  }
+        if (!user) return undefined
 
-  async findByUsername(username: string) {
-    return await User.findOne({
-      where: {
-        username: username,
-      },
-    });
-  }
+        const { password, ...userWhithoutPassword } = user
+
+        return userWhithoutPassword as User
+    }
+
+    async findById(id: number): Promise<User | undefined> {
+        return User.findOne(id)
+    }
+
+    async findByUsername(username: string): Promise<User | undefined> {
+        return User.findOne({
+            where: {
+                username: username,
+            },
+        })
+    }
 }
