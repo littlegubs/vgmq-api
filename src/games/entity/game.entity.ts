@@ -18,12 +18,12 @@ import { AlternativeName } from './alternative-name.entity'
 import { Cover } from './cover.entity'
 
 @Entity()
-export class Game extends BaseEntity {
+export class Game {
     @PrimaryGeneratedColumn()
     id: number
 
     @Column({ unique: true })
-    igdbId: string
+    igdbId: number
 
     @Column()
     firstReleaseDate: Date
