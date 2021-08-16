@@ -1,20 +1,19 @@
-import { Injectable } from '@nestjs/common';
-import { Game } from '../entities/game.entity';
+import { Injectable } from '@nestjs/common'
+
+import { AlternativeName } from '../entities/alternative-name.entity'
+import { Game } from '../entities/game.entity'
 
 @Injectable()
 export class GamesService {
-  async findByName(name: string) {
-    return await Game.findOne({
-      where: {
-        name: name,
-        alternativeNames: {
-          name: name,
-        },
-      },
-    });
-  }
-
-async fetchIgdbGamesByName(name: string) {
-
-}
+    async findByName(query: string) {
+        return AlternativeName.createQueryBuilder('game')
+            .leftJoinAndSelect('alternativeName.game', 'game')
+            .where({
+                name: query,
+                game: {
+                    name: query,
+                },
+            })
+            .getMany()
+    }
 }

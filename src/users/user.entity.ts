@@ -42,7 +42,7 @@ export class User extends BaseEntity {
     @Column({ default: true })
     enabled: boolean
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     currentHashedRefreshToken?: string | null
 
     @ManyToMany(() => Game, (game) => game.users)

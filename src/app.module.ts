@@ -17,6 +17,7 @@ import { UsersModule } from './users/users.module'
             validationSchema: Joi.object({
                 ENV: Joi.string().valid('dev', 'prod').default('dev'),
             }),
+            envFilePath: ['.env.local', '.env'],
         }),
         TypeOrmModule.forRoot({
             type: 'mysql',
