@@ -15,7 +15,19 @@ export class GamesController {
     }
 
     @Get('import')
-    async importFromIgdb(@Query() query: GamesImportDto): Promise<void> {
-        await this.igdbService.importByUrl(query.url)
+    async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
+        const game = await this.igdbService.importByUrl(query.url)
+        let gamesImported = [game.name]
+        let { parent, versionParent } = game
+        while (parent) {
+            gamesImported = [...gamesImported, parent.name]
+            parent = parent.parent
+        }
+        while (versionParent) {
+            gamesImported = [...gamesImported, versionParent.name]
+            versionParent = versionParent.versionParent
+        }
+
+        return gamesImported
     }
 }

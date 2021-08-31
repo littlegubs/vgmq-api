@@ -4,19 +4,18 @@ import {
     PrimaryGeneratedColumn,
     CreateDateColumn,
     UpdateDateColumn,
-    BaseEntity,
     ManyToOne,
 } from 'typeorm'
 
 import { Game } from './game.entity'
 
 @Entity()
-export class AlternativeName extends BaseEntity {
+export class AlternativeName {
     @PrimaryGeneratedColumn()
     id: number
 
     @Column({ unique: true })
-    igdbId: string
+    igdbId: number
 
     @Column()
     name: string
@@ -24,7 +23,9 @@ export class AlternativeName extends BaseEntity {
     @Column({ default: true })
     enabled: boolean
 
-    @ManyToOne(() => Game, (game) => game.alternativeNames)
+    @ManyToOne(() => Game, (game) => game.alternativeNames, {
+        onDelete: 'CASCADE',
+    })
     game: Game
 
     @Column()

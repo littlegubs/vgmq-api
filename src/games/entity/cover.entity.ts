@@ -4,14 +4,13 @@ import {
     PrimaryGeneratedColumn,
     CreateDateColumn,
     UpdateDateColumn,
-    BaseEntity,
     OneToOne,
 } from 'typeorm'
 
 import { Game } from './game.entity'
 
 @Entity()
-export class Cover extends BaseEntity {
+export class Cover {
     @PrimaryGeneratedColumn()
     id: number
 
@@ -21,7 +20,7 @@ export class Cover extends BaseEntity {
     @Column()
     imageId: string
 
-    @OneToOne(() => Game, (game) => game.cover)
+    @OneToOne(() => Game, (game) => game.cover, { onUpdate: 'CASCADE' })
     game: Game
 
     @Column()

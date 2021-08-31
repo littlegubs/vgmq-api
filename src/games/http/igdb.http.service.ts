@@ -3,13 +3,12 @@ import { HttpException, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { AxiosResponse } from 'axios'
 import * as FormData from 'form-data'
-import { firstValueFrom, forkJoin, Observable } from 'rxjs'
+import { firstValueFrom } from 'rxjs'
 import { MoreThan } from 'typeorm'
 
 import { IgdbClient } from '../entity/igdb.entity'
 import { IgdbGame } from '../igdb.type'
 
-type xd = [...[Observable<AxiosResponse<string>>], ...Observable<AxiosResponse<null>>[]]
 @Injectable()
 export class IgdbHttpService {
     #twitchClientId?: string
@@ -68,18 +67,10 @@ export class IgdbHttpService {
     async importByUrl(url: string): Promise<AxiosResponse<IgdbGame[]>> {
         const accessToken = await this.getAccessToken()
 
-        let xdd: xd = [this.httpService.get<string>('https://api.igdb.com/v4/games')]
-        xdd = [...xdd, this.httpService.get<null>('xdd')]
-
-        forkJoin(xdd).subscribe(([xd, yo]) => {
-            xd.data
-            yo.data
-        })
-
         return firstValueFrom(
             this.httpService.post<IgdbGame[]>(
                 'https://api.igdb.com/v4/games',
-                `fields category, parent_game, url, category,alternative_names.name, cover.*, first_release_date, version_parent, name, slug, videos.video_id;
+                `fields category, parent_game.url, url, category,alternative_names.name, cover.*, first_release_date, version_parent.url, name, slug, videos.video_id;
                 sort popularity desc; 
                 limit 500; 
                 where url = "${url}";`,
