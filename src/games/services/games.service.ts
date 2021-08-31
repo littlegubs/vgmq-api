@@ -1,25 +1,31 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Brackets, Like, Repository } from 'typeorm'
 
-import { AlternativeName } from '../entity/alternative-name.entity'
+import { Game } from '../entity/game.entity'
 
 @Injectable()
 export class GamesService {
     constructor(
-        @InjectRepository(AlternativeName)
-        private alternativeNamesRepository: Repository<AlternativeName>,
+        @InjectRepository(Game)
+        private gamesRepository: Repository<Game>,
     ) {}
     async findByName(query: string) {
-        return this.alternativeNamesRepository
+        return this.gamesRepository
             .createQueryBuilder('game')
-            .leftJoinAndSelect('alternativeName.game', 'game')
-            .where({
-                name: query,
-                game: {
-                    name: query,
-                },
-            })
+            .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
+            .where(
+                new Brackets((qb) => {
+                    qb.orWhere('game.name LIKE :name').orWhere(
+                        new Brackets((qb) => {
+                            qb.andWhere('alternativeName.name LIKE :name').andWhere(
+                                'alternativeName.enabled = 1',
+                            )
+                        }),
+                    )
+                }),
+            )
+            .setParameter('name', `%${query}%`)
             .getMany()
     }
 }
