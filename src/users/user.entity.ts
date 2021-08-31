@@ -11,7 +11,7 @@ import {
     JoinTable,
 } from 'typeorm'
 
-import { Game } from '../games/entities/game.entity'
+import { Game } from '../games/entity/game.entity'
 
 export enum UserRole {
     ADMIN = 'admin',

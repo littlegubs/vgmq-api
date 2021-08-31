@@ -1,16 +1,14 @@
-import slugify from 'slugify'
 import {
     Entity,
     Column,
     PrimaryGeneratedColumn,
-    BeforeInsert,
     CreateDateColumn,
     UpdateDateColumn,
-    BaseEntity,
     OneToMany,
     OneToOne,
     ManyToMany,
     JoinColumn,
+    ManyToOne,
 } from 'typeorm'
 
 import { User } from '../../users/user.entity'
@@ -26,7 +24,10 @@ export class Game {
     igdbId: number
 
     @Column()
-    firstReleaseDate: Date
+    category: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+
+    @Column()
+    firstReleaseDate?: Date
 
     @Column()
     name: string
@@ -41,27 +42,35 @@ export class Game {
     enabled: boolean
 
     @OneToMany(() => AlternativeName, (alternativeName) => alternativeName.game, {
-        cascade: ['insert', 'remove'],
+        cascade: true,
     })
     alternativeNames: AlternativeName[]
 
     @OneToOne(() => Cover, (cover) => cover.game, {
-        cascade: ['insert', 'remove'],
+        cascade: true,
+        onUpdate: 'CASCADE',
         onDelete: 'SET NULL',
     })
     @JoinColumn()
-    cover?: Cover
+    cover?: Cover | null
 
     @ManyToMany(() => User, (user) => user.games)
     users: User[]
 
-    @OneToOne(() => Game, (game) => game.children, {
+    @ManyToOne(() => Game, (game) => game.children, {
         onDelete: 'SET NULL',
+        cascade: true,
     })
     parent?: Game
 
     @OneToMany(() => Game, (game) => game.parent)
     children: Game[]
+
+    @ManyToOne(() => Game, {
+        onDelete: 'SET NULL',
+        cascade: true,
+    })
+    versionParent?: Game
 
     @Column()
     @CreateDateColumn()
@@ -70,8 +79,4 @@ export class Game {
     @Column()
     @UpdateDateColumn()
     updatedAt: Date
-
-    @BeforeInsert() async slugifyName() {
-        this.slug = slugify(this.name)
-    }
 }
