@@ -1,7 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
+import { InjectRepository } from '@nestjs/typeorm'
 import * as bcrypt from 'bcrypt'
+import { Repository } from 'typeorm'
 
 import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
@@ -18,6 +20,8 @@ export class AuthService {
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
+        @InjectRepository(User)
+        private usersRepository: Repository<User>,
     ) {}
 
     public getJwtAccessToken(payload: Record<string, unknown>): string {
@@ -48,7 +52,7 @@ export class AuthService {
         }
         const refreshToken = this.getJwtRefreshToken(payload)
         const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10)
-        await User.update(user.id, {
+        await this.usersRepository.update(user.id, {
             currentHashedRefreshToken: currentHashedRefreshToken,
         })
 
@@ -87,7 +91,7 @@ export class AuthService {
     }
 
     async logout(user: User): Promise<void> {
-        await User.save({
+        await this.usersRepository.save({
             ...user,
             currentHashedRefreshToken: null,
         } as User)

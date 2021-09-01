@@ -17,10 +17,10 @@ export class LimitedAccessController {
     password(
         @Body() limitedAccess: LimitedAccessDto,
         @Res({ passthrough: true }) response: Response,
-    ): Response {
+    ): null {
         const date = new Date()
         date.setDate(date.getDate() + 365)
-        return response.cookie('pote', 'pote', {
+        response.cookie('pote', 'pote', {
             expires: date,
             secure: this.configService.get('ENV') !== 'dev',
             domain:
@@ -28,5 +28,7 @@ export class LimitedAccessController {
                     ? undefined
                     : this.configService.get('COOKIE_DOMAIN'),
         })
+
+        return null
     }
 }

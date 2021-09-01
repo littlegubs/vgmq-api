@@ -6,20 +6,15 @@ import {
     BeforeInsert,
     CreateDateColumn,
     UpdateDateColumn,
-    BaseEntity,
     ManyToMany,
     JoinTable,
 } from 'typeorm'
 
 import { Game } from '../games/entity/game.entity'
-
-export enum UserRole {
-    ADMIN = 'admin',
-    USER = 'user',
-}
+import { Role } from './role.enum'
 
 @Entity()
-export class User extends BaseEntity {
+export class User {
     @PrimaryGeneratedColumn()
     id: number
 
@@ -34,8 +29,8 @@ export class User extends BaseEntity {
 
     @Column({
         type: 'set',
-        enum: UserRole,
-        default: [UserRole.USER],
+        enum: Role,
+        default: [Role.User],
     })
     roles: string[]
 
