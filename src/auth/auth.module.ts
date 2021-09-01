@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
 import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh-token.strategy'
 import { JwtStrategy } from './strategies/jwt.strategy'
+import {UsersService} from "../users/users.service";
 
 @Module({
     controllers: [AuthController],
@@ -18,7 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy'
         }),
         JwtModule.registerAsync({
             imports: [ConfigModule],
-            useFactory: async () => {
+            useFactory: () => {
                 return {
                     secret: process.env.JWT_SECRET,
                 }
@@ -27,5 +28,6 @@ import { JwtStrategy } from './strategies/jwt.strategy'
         UsersModule,
     ],
     providers: [AuthService, ConfigService, JwtStrategy, JwtRefreshTokenStrategy],
+    exports: [AuthService],
 })
 export class AuthModule {}
