@@ -1,0 +1,18 @@
+services:
+  db:
+    image: mysql:latest
+    container_name: vgmq-api-db
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./.data/db:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: yoyo
+      MYSQL_DATABASE: vgmq
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: vgmq-api-phpmyadmin
+    ports:
+      - '8080:80'
+    depends_on:
+      - db
