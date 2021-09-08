@@ -14,22 +14,19 @@ import { User } from './user.entity'
 export class UserExistsRule implements ValidatorConstraintInterface {
     constructor(
         @InjectRepository(User)
-        private usersRepository: Repository<User>,
+        private userRepository: Repository<User>,
     ) {}
 
     async validate(value: string, args: ValidationArguments): Promise<boolean> {
         const { property } = args
-        try {
-            await this.usersRepository.findOneOrFail({
+        return this.userRepository
+            .findOneOrFail({
                 where: {
                     [property]: value,
                 },
             })
-        } catch (e) {
-            return true
-        }
-
-        return false
+            .then(() => false)
+            .catch(() => true)
     }
 
     defaultMessage(args: ValidationArguments): string {

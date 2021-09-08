@@ -9,12 +9,12 @@ import { User } from './user.entity'
 export class UsersService {
     constructor(
         @InjectRepository(User)
-        private usersRepository: Repository<User>,
+        private userRepository: Repository<User>,
     ) {}
 
     async create(createUserDto: AuthRegisterDto): Promise<User> {
-        const user = this.usersRepository.create(createUserDto)
-        await this.usersRepository.save(user)
+        const user = this.userRepository.create(createUserDto)
+        await this.userRepository.save(user)
 
         const { password, ...userWhithoutPassword } = user
 
@@ -22,7 +22,7 @@ export class UsersService {
     }
 
     async findByUsername(username: string): Promise<User | undefined> {
-        return this.usersRepository.findOne({
+        return this.userRepository.findOne({
             where: {
                 username: username,
             },
