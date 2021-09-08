@@ -3,6 +3,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    NotFoundException,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import axios, { AxiosError } from 'axios'

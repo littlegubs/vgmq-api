@@ -8,7 +8,6 @@ import { AppModule } from './app.module'
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule)
-    useContainer(app.select(AppModule), { fallbackOnErrors: true })
     app.useGlobalPipes(
         new ValidationPipe({
             exceptionFactory: (errors): BadRequestException => {
@@ -23,6 +22,7 @@ async function bootstrap(): Promise<void> {
             },
         }),
     )
+    useContainer(app.select(AppModule), { fallbackOnErrors: true })
     app.use(cookieParser())
     app.enableCors({
         origin: /^https?:\/\/(localhost|127\.0\.0\.1|videogamemusicquiz.com)(:[0-9]+)?$/,
