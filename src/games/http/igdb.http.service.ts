@@ -2,7 +2,6 @@ import { HttpService } from '@nestjs/axios'
 import { HttpException, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { AxiosResponse } from 'axios'
-import * as FormData from 'form-data'
 import { firstValueFrom } from 'rxjs'
 import { MoreThan } from 'typeorm'
 
@@ -33,18 +32,14 @@ export class IgdbHttpService {
         if (this.#twitchClientId === undefined || this.#twitchClientSecret === undefined) {
             throw new HttpException('missing twitch client properties', 500)
         }
-        const formData = new FormData()
-        formData.append('client_id', this.#twitchClientId)
-        formData.append('client_secret', this.#twitchClientSecret)
-        formData.append('grant_type', 'client_credentials')
+
         return new Promise<string>((resolve) => {
             this.httpService
                 .post<{ access_token: string; expires_in: number; token_type: 'bearer' }>(
-                    'https://id.twitch.tv/oauth2/token',
-                    formData,
-                    {
-                        headers: formData.getHeaders(),
-                    },
+                    `https://id.twitch.tv/oauth2/token?client_id=${
+                        this.#twitchClientId
+                    }&client_secret=${this.#twitchClientSecret}&grant_type=client_credentials`,
+                    null,
                 )
                 .subscribe({
                     next: async (res) => {
