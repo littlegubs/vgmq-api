@@ -1,49 +1,51 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { getRepositoryToken } from '@nestjs/typeorm'
+import { useContainer } from 'class-validator'
 import * as request from 'supertest'
 
 import { AuthController } from '../src/auth/auth.controller'
 import { AuthService } from '../src/auth/auth.service'
 import { LimitedAccessGuard } from '../src/limited-access/guards/limited-access.guard'
-import { User } from '../src/users/user.entity'
+import { UserExistsRule } from '../src/users/unique.validator'
 import { UsersService } from '../src/users/users.service'
-import {UserExistsRule} from "../src/users/unique.validator";
 
 describe('AuthController (e2e)', () => {
     let app: INestApplication
-    // let userExistsRule: UserExistsRule
-    const authService = { getUserTokens: () => ({ accessToken: 'test', refreshToken: 'yoyo' }) }
-    const usersService = { create: (): { username: string } => ({ username: 'test' }) }
-    const userExistsRule = { validate: (username: string) => username === 'userAlreadyExists' }
-    const userRepository = { findOneOrFail: () => ['x'] }
-    const limitedAccessGuard = {
-        canActivate: (): boolean => true,
-    }
+    let userExistsRule: UserExistsRule
 
     beforeAll(async () => {
         const moduleFixture = await Test.createTestingModule({
             controllers: [AuthController],
             providers: [
-                UsersService,
                 {
-                    provide: getRepositoryToken(User),
-                    useValue: userRepository,
+                    provide: UsersService,
+                    useValue: { create: (): { username: string } => ({ username: 'test' }) },
                 },
                 {
                     provide: AuthService,
-                    useValue: authService,
+                    useValue: {
+                        getUserTokens: () => ({ accessToken: 'test', refreshToken: 'yoyo' }),
+                    },
+                },
+                {
+                    provide: UserExistsRule,
+                    useValue: {
+                        validate: async (value: string): Promise<boolean> => Promise.resolve(true),
+                    },
                 },
             ],
         })
             .overrideGuard(LimitedAccessGuard)
-            .useValue(limitedAccessGuard)
+            .useValue({
+                canActivate: (): boolean => true,
+            })
             .compile()
 
         app = moduleFixture.createNestApplication()
+        useContainer(app, { fallbackOnErrors: true })
         app.useGlobalPipes(new ValidationPipe())
 
-        // userExistsRule = moduleFixture.get(UserExistsRule)
+        userExistsRule = moduleFixture.get(UserExistsRule)
 
         await app.init()
     })
@@ -58,11 +60,11 @@ describe('AuthController (e2e)', () => {
                 .expect(400)
         })
         it('should return 400 if user already exists', () => {
-            // jest.spyOn(userExistsRule, 'validate').mockImplementation(() => Promise.resolve(true))
+            jest.spyOn(userExistsRule, 'validate').mockImplementation(() => Promise.resolve(false))
             return request(app.getHttpServer())
                 .post('/auth/register')
                 .send({
-                    email: 'yoyo@yoyo.fr',
+                    email: 'email@exists.com',
                     username: 'alreadyExists',
                     password: 'xd',
                 })
