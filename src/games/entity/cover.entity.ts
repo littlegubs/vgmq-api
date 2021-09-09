@@ -20,7 +20,7 @@ export class Cover {
     @Column()
     imageId: string
 
-    @OneToOne(() => Game, (game) => game.cover, { onUpdate: 'CASCADE' })
+    @OneToOne(() => Game, (game) => game.cover, { onDelete: 'CASCADE' })
     game: Game
 
     @Column()
