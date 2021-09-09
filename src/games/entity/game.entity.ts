@@ -48,7 +48,6 @@ export class Game {
 
     @OneToOne(() => Cover, (cover) => cover.game, {
         cascade: true,
-        onUpdate: 'CASCADE',
         onDelete: 'SET NULL',
     })
     @JoinColumn()
