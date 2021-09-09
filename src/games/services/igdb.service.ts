@@ -33,7 +33,7 @@ export class IgdbService {
             .then(async (res) => {
                 const igdbGame = res.data[0]
 
-                if (!igdbGame) throw new BadRequestException('the game was not found')
+                if (!igdbGame) throw new NotFoundException('the game was not found')
                 if (!igdbGame.first_release_date)
                     throw new BadRequestException('the game has no release date')
 
@@ -51,97 +51,23 @@ export class IgdbService {
                     slug: igdbGame.slug,
                     firstReleaseDate: DateTime.fromSeconds(igdbGame.first_release_date).toISO(),
                 })
+                const cover = await this.getCover(game, igdbGame.cover, oldGame?.cover)
+                game = { ...game, ...(cover ? { cover } : undefined) }
 
-                const igdbCover = igdbGame.cover
-                if (igdbCover !== undefined) {
-                    if (oldGame?.cover) {
-                        await this.coversRepository.update(igdbCover.id, {
-                            ...game.cover,
-                            imageId: igdbCover.image_id,
-                        })
-                    } else {
-                        game = {
-                            ...game,
-                            cover: await this.coversRepository.save(
-                                this.coversRepository.create({
-                                    igdbId: igdbCover.id,
-                                    imageId: igdbCover.image_id,
-                                    game: game,
-                                }),
-                            ),
-                        }
-                    }
-                } else if (oldGame?.cover) await this.coversRepository.remove(oldGame.cover)
+                const [parent, versionParent] = await Promise.all([
+                    this.getParent(igdbGame.parent_game),
+                    this.getParent(igdbGame.version_parent),
+                ])
 
-                if (igdbGame.parent_game !== undefined) {
-                    try {
-                        game = { ...game, parent: await this.importByUrl(igdbGame.parent_game.url) }
-                    } catch (error) {
-                        // maybe log this, but shouldn't throw
-                    }
-                }
-                if (igdbGame.version_parent !== undefined) {
-                    try {
-                        game = {
-                            ...game,
-                            versionParent: await this.importByUrl(igdbGame.version_parent.url),
-                        }
-                    } catch (error) {
-                        // maybe log this, but shouldn't throw
-                    }
-                } else {
-                    game = {
-                        ...game,
-                        versionParent: undefined,
-                    }
+                game = {
+                    ...game,
+                    parent,
+                    versionParent,
                 }
 
-                game = oldGame
-                    ? await this.gamesRepository.update(oldGame.id, game).then(
-                          async () =>
-                              (await this.gamesRepository.findOne({
-                                  where: {
-                                      id: oldGame.id,
-                                  },
-                                  relations: ['parent', 'versionParent'],
-                              }))!,
-                      )
-                    : await this.gamesRepository.save(game)
+                game = await this.updateOrCreateGame(game, oldGame)
 
-                const igdbAlternativeNames = igdbGame.alternative_names
-                if (igdbAlternativeNames !== undefined && igdbAlternativeNames?.length > 0) {
-                    if (oldGame) {
-                        const alternativeNamesToRemove = oldGame.alternativeNames.filter(
-                            (oldAlternativeName) =>
-                                !igdbAlternativeNames
-                                    .map((igdbAlternativeName) => igdbAlternativeName.id)
-                                    .includes(oldAlternativeName.igdbId),
-                        )
-                        await this.alternativeNamesRepository.remove(alternativeNamesToRemove)
-                    }
-
-                    for (const alternativeName of igdbAlternativeNames) {
-                        const oldAlternativeName = await this.alternativeNamesRepository.findOne({
-                            where: { igdbId: alternativeName.id },
-                        })
-
-                        if (oldAlternativeName) {
-                            await this.alternativeNamesRepository.update(oldAlternativeName.id, {
-                                ...oldAlternativeName,
-                                name: alternativeName.name,
-                                game: game,
-                            })
-                        } else {
-                            await this.alternativeNamesRepository.save(
-                                this.alternativeNamesRepository.create({
-                                    igdbId: alternativeName.id,
-                                    name: alternativeName.name,
-                                    game: game,
-                                }),
-                            )
-                        }
-                    }
-                }
+                await this.handleAlternativeNames(game, igdbGame.alternative_names, oldGame)
 
                 return game
             })
@@ -156,5 +82,84 @@ export class IgdbService {
                 }
                 throw new InternalServerErrorException()
             })
+    }
+
+    getParent(parent?: { id: number; url: string }): Promise<Game | undefined> | undefined {
+        return parent ? this.importByUrl(parent.url).catch(() => undefined) : undefined
+    }
+
+    async getCover(
+        game: Game,
+        igdbCover?: {
+            id: number
+            image_id: string
+        },
+        oldGameCover?: Cover | null,
+    ): Promise<Cover | undefined> {
+        if (igdbCover) {
+            if (oldGameCover) {
+                await this.coversRepository.update(igdbCover.id, {
+                    ...game.cover,
+                    imageId: igdbCover.image_id,
+                })
+            } else {
+                return this.coversRepository.save({
+                    igdbId: igdbCover.id,
+                    imageId: igdbCover.image_id,
+                    game,
+                })
+            }
+        } else if (oldGameCover) await this.coversRepository.remove(oldGameCover)
+    }
+    updateOrCreateGame(game: Game, oldGame?: Game): Promise<Game> {
+        return oldGame
+            ? this.gamesRepository.update(oldGame.id, game).then(async () => {
+                  return (await this.gamesRepository.findOne({
+                      where: {
+                          id: oldGame.id,
+                      },
+                      relations: ['parent', 'versionParent'],
+                  }))!
+              })
+            : this.gamesRepository.save(game)
+    }
+    async handleAlternativeNames(
+        game: Game,
+        igdbAlternativeNames?: Array<{
+            id: number
+            name: string
+        }>,
+        oldGame?: Game,
+    ): Promise<void> {
+        if (Array.isArray(igdbAlternativeNames) && igdbAlternativeNames.length > 0) {
+            if (oldGame) {
+                const alternativeNamesToRemove = oldGame.alternativeNames.filter(
+                    (oldAlternativeName) =>
+                        !igdbAlternativeNames
+                            .map((igdbAlternativeName) => igdbAlternativeName.id)
+                            .includes(oldAlternativeName.igdbId),
+                )
+                await this.alternativeNamesRepository.remove(alternativeNamesToRemove)
+            }
+            for (const alternativeName of igdbAlternativeNames) {
+                const oldAlternativeName = await this.alternativeNamesRepository.findOne({
+                    where: { igdbId: alternativeName.id },
+                })
+
+                if (oldAlternativeName) {
+                    await this.alternativeNamesRepository.update(oldAlternativeName.id, {
+                        ...oldAlternativeName,
+                        name: alternativeName.name,
+                        game: game,
+                    })
+                } else {
+                    await this.alternativeNamesRepository.save({
+                        igdbId: alternativeName.id,
+                        name: alternativeName.name,
+                        game: game,
+                    })
+                }
+            }
+        }
     }
 }
