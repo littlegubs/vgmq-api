@@ -86,7 +86,6 @@ export class AuthService {
             refreshToken,
             user.currentHashedRefreshToken || '',
         )
-
         return isRefreshTokenMatching ? user : undefined
     }
 
@@ -94,6 +93,6 @@ export class AuthService {
         await this.usersRepository.save({
             ...user,
             currentHashedRefreshToken: null,
-        } as User)
+        })
     }
 }

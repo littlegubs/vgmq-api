@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport'
 import { Request } from 'express'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 
+import { User } from '../../users/user.entity'
 import { AuthService } from '../auth.service'
 
 @Injectable()
@@ -19,8 +20,7 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-ref
         })
     }
 
-    async validate(request: Request, payload: { username: string }) {
-        console.log(request.body.refresh_token)
+    async validate(request: Request, payload: { username: string }): Promise<User | undefined> {
         return this.authService.getUserIfRefreshTokenMatches(
             request.body.refresh_token,
             payload.username,

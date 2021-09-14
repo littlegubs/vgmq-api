@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 
+import { UserExistsRule } from '../users/unique.validator'
 import { UsersModule } from '../users/users.module'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
@@ -26,7 +27,7 @@ import { JwtStrategy } from './strategies/jwt.strategy'
         }),
         UsersModule,
     ],
-    providers: [AuthService, ConfigService, JwtStrategy, JwtRefreshTokenStrategy],
+    providers: [AuthService, ConfigService, JwtStrategy, JwtRefreshTokenStrategy, UserExistsRule],
     exports: [AuthService],
 })
 export class AuthModule {}
