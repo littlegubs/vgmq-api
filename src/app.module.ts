@@ -9,7 +9,6 @@ import { AuthModule } from './auth/auth.module'
 import { GamesModule } from './games/games.module'
 import { LimitedAccessModule } from './limited-access/limited-access.module'
 import { UsersModule } from './users/users.module'
-import { ValidatorModule } from './validator/validator.module'
 
 @Module({
     imports: [
@@ -35,7 +34,6 @@ import { ValidatorModule } from './validator/validator.module'
         AuthModule,
         LimitedAccessModule,
         GamesModule,
-        ValidatorModule,
     ],
     controllers: [AppController],
     providers: [AppService],

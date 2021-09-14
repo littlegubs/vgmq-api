@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common'
 import { Request } from 'express'
 
 import { LimitedAccessGuard } from '../limited-access/guards/limited-access.guard'
@@ -24,6 +24,7 @@ export class AuthController {
     }
 
     @Post('login')
+    @HttpCode(200)
     async login(
         @Body() authLoginDto: AuthLoginDto,
     ): Promise<{ access_token: string; refresh_token: string }> {
@@ -32,10 +33,11 @@ export class AuthController {
 
     @UseGuards(JwtRefreshGuard)
     @Post('refresh')
+    @HttpCode(200)
     refresh(@Req() request: Request): { access_token: string } {
         return {
             access_token: this.authService.getJwtAccessToken({
-                userId: (request.user as User).id,
+                userId: (<User>request.user).id,
             }),
         }
     }
