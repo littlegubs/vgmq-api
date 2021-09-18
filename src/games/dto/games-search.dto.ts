@@ -1,6 +1,10 @@
-import { IsNotEmpty } from 'class-validator'
+import { IsDefined } from 'class-validator'
 
 export class GamesSearchDto {
-    @IsNotEmpty()
+    @IsDefined()
     query: string
+
+    limit = 50
+
+    page = 1
 }

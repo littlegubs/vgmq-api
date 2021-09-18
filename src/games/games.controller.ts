@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common'
+import {Controller, Get, HttpCode, HttpStatus, Query, UseGuards} from '@nestjs/common'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { Role } from '../users/role.enum'
@@ -11,17 +11,22 @@ import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
 
 @Controller('games')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class GamesController {
     constructor(private gamesService: GamesService, private igdbService: IgdbService) {}
 
     @Get('')
-    get(@Query() query: GamesSearchDto): Promise<Game[]> {
-        return this.gamesService.findByName(query.query)
+    get(@Query() query: GamesSearchDto): Promise<{ data: Game[]; count: number }> {
+        return this.gamesService
+            .findByName(query.query, query.limit, query.page)
+            .then(([data, count]) => {
+                return { data, count }
+            })
     }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(Role.Admin)
     @Get('import')
+    @HttpCode(201)
     async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
         const game = await this.igdbService.importByUrl(query.url)
         let gamesImported = [game.name]

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Brackets, Like, Repository } from 'typeorm'
+import { Brackets, Repository } from 'typeorm'
 
 import { Game } from '../entity/game.entity'
 
@@ -10,7 +10,7 @@ export class GamesService {
         @InjectRepository(Game)
         private gamesRepository: Repository<Game>,
     ) {}
-    async findByName(query: string) {
+    async findByName(query: string, limit = 50, page = 1): Promise<[Game[], number]> {
         return this.gamesRepository
             .createQueryBuilder('game')
             .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
@@ -26,6 +26,8 @@ export class GamesService {
                 }),
             )
             .setParameter('name', `%${query}%`)
-            .getMany()
+            .take(limit)
+            .skip((page - 1) * limit)
+            .getManyAndCount()
     }
 }
