@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common'
+import {Body, Controller, Get, HttpCode, Post, Req, Res} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
 
@@ -14,6 +14,7 @@ export class LimitedAccessController {
     }
 
     @Post('password')
+    @HttpCode(200)
     password(
         @Body() limitedAccess: LimitedAccessDto,
         @Res({ passthrough: true }) response: Response,
