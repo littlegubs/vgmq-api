@@ -4,7 +4,6 @@ import {
     INestApplication,
     InternalServerErrorException,
     NotFoundException,
-    ValidationPipe,
 } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule, JwtService } from '@nestjs/jwt'
@@ -13,6 +12,7 @@ import { useContainer } from 'class-validator'
 import * as request from 'supertest'
 
 import { JwtStrategy } from '../src/auth/strategies/jwt.strategy'
+import { exceptionPipe } from '../src/exception.pipe'
 import { Game } from '../src/games/entity/game.entity'
 import { GamesController } from '../src/games/games.controller'
 import { GamesService } from '../src/games/services/games.service'
@@ -77,20 +77,7 @@ describe('GamesController (e2e)', () => {
 
         app = moduleFixture.createNestApplication()
         useContainer(app, { fallbackOnErrors: true })
-        app.useGlobalPipes(
-            new ValidationPipe({
-                exceptionFactory: (errors): BadRequestException => {
-                    return new BadRequestException(
-                        errors.map((error) => {
-                            return {
-                                property: error.property,
-                                errors: Object.values(error.constraints ?? []),
-                            }
-                        }),
-                    )
-                },
-            }),
-        )
+        app.useGlobalPipes(exceptionPipe)
         jwtService = moduleFixture.get(JwtService)
         configService = moduleFixture.get(ConfigService)
         jwtStrategy = moduleFixture.get(JwtStrategy)

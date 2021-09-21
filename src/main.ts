@@ -1,27 +1,14 @@
 import 'reflect-metadata'
-import { BadRequestException, ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { useContainer } from 'class-validator'
 import * as cookieParser from 'cookie-parser'
 
 import { AppModule } from './app.module'
+import { exceptionPipe } from './exception.pipe'
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule)
-    app.useGlobalPipes(
-        new ValidationPipe({
-            exceptionFactory: (errors): BadRequestException => {
-                return new BadRequestException(
-                    errors.map((error) => {
-                        return {
-                            property: error.property,
-                            errors: Object.values(error.constraints ?? []),
-                        }
-                    }),
-                )
-            },
-        }),
-    )
+    app.useGlobalPipes(exceptionPipe)
     useContainer(app.select(AppModule), { fallbackOnErrors: true })
     app.use(cookieParser())
     app.enableCors({

@@ -1,9 +1,4 @@
-import {
-    BadRequestException,
-    INestApplication,
-    UnauthorizedException,
-    ValidationPipe,
-} from '@nestjs/common'
+import { INestApplication, UnauthorizedException } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule, JwtService } from '@nestjs/jwt'
 import { Test } from '@nestjs/testing'
@@ -16,6 +11,7 @@ import { AuthController } from '../src/auth/auth.controller'
 import { AuthService } from '../src/auth/auth.service'
 import { JwtRefreshTokenStrategy } from '../src/auth/strategies/jwt-refresh-token.strategy'
 import { JwtStrategy } from '../src/auth/strategies/jwt.strategy'
+import { exceptionPipe } from '../src/exception.pipe'
 import { UserExistsRule } from '../src/users/unique.validator'
 import { User } from '../src/users/user.entity'
 import { UsersService } from '../src/users/users.service'
@@ -78,20 +74,8 @@ describe('AuthController (e2e)', () => {
         app = moduleFixture.createNestApplication()
         useContainer(app, { fallbackOnErrors: true })
         app.use(cookieParser())
-        app.useGlobalPipes(
-            new ValidationPipe({
-                exceptionFactory: (errors): BadRequestException => {
-                    return new BadRequestException(
-                        errors.map((error) => {
-                            return {
-                                property: error.property,
-                                errors: Object.values(error.constraints ?? []),
-                            }
-                        }),
-                    )
-                },
-            }),
-        )
+        app.useGlobalPipes(exceptionPipe)
+
         userExistsRule = moduleFixture.get(UserExistsRule)
         jwtRefreshTokenStrategy = moduleFixture.get(JwtRefreshTokenStrategy)
         jwtStrategy = moduleFixture.get(JwtStrategy)
