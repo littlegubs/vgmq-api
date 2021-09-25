@@ -18,7 +18,7 @@ export class AuthController {
     @UseGuards(LimitedAccessGuard)
     async register(
         @Body() createUserDto: AuthRegisterDto,
-    ): Promise<{ access_token: string; refresh_token: string }> {
+    ): Promise<{ accessToken: string; refreshToken: string }> {
         const user = await this.usersService.create(createUserDto)
         return this.authService.getUserTokens(user)
     }
@@ -27,18 +27,16 @@ export class AuthController {
     @HttpCode(200)
     async login(
         @Body() authLoginDto: AuthLoginDto,
-    ): Promise<{ access_token: string; refresh_token: string }> {
+    ): Promise<{ accessToken: string; refreshToken: string }> {
         return this.authService.login(authLoginDto)
     }
 
     @UseGuards(JwtRefreshGuard)
     @Post('refresh')
     @HttpCode(200)
-    refresh(@Req() request: Request): { access_token: string } {
+    refresh(@Req() request: Request): { accessToken: string } {
         return {
-            access_token: this.authService.getJwtAccessToken({
-                userId: (<User>request.user).id,
-            }),
+            accessToken: this.authService.getJwtAccessToken(<User>request.user),
         }
     }
 

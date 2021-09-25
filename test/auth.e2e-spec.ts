@@ -187,10 +187,7 @@ describe('AuthController (e2e)', () => {
                     username: 'usernameOk',
                     password: 'passwordNotOk',
                 })
-                .expect(401, {
-                    statusCode: 401,
-                    message: 'Unauthorized',
-                })
+                .expect(401, { statusCode: 401, message: 'wrong password', error: 'Unauthorized' })
         })
         it('should return 200 and same content as authService.login()', () => {
             return request(app.getHttpServer())
@@ -224,7 +221,7 @@ describe('AuthController (e2e)', () => {
             return request(app.getHttpServer())
                 .post('/auth/refresh')
                 .send({
-                    refresh_token: 'yoyo',
+                    refreshToken: 'yoyo',
                 })
                 .expect(401, {
                     statusCode: 401,
@@ -238,7 +235,7 @@ describe('AuthController (e2e)', () => {
             return request(app.getHttpServer())
                 .post('/auth/refresh')
                 .send({
-                    refresh_token: refreshToken,
+                    refreshToken: refreshToken,
                 })
                 .expect(401, {
                     statusCode: 401,
@@ -252,10 +249,10 @@ describe('AuthController (e2e)', () => {
             return request(app.getHttpServer())
                 .post('/auth/refresh')
                 .send({
-                    refresh_token: refreshToken,
+                    refreshToken: refreshToken,
                 })
                 .expect(200, {
-                    access_token: authService.getJwtAccessToken(),
+                    accessToken: authService.getJwtAccessToken(),
                 })
         })
     })
