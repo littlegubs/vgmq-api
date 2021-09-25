@@ -14,6 +14,7 @@ export class GamesService {
         return this.gamesRepository
             .createQueryBuilder('game')
             .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
+            .leftJoinAndSelect('game.cover', 'cover')
             .where(
                 new Brackets((qb) => {
                     qb.orWhere('game.name LIKE :name').orWhere(
