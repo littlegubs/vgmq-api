@@ -12,7 +12,7 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-ref
         super({
             jwtFromRequest: ExtractJwt.fromExtractors([
                 (request: Request) => {
-                    return request.body.refresh_token
+                    return request.body.refreshToken
                 },
             ]),
             secretOrKey: process.env.JWT_REFRESH_TOKEN_SECRET,
@@ -22,7 +22,7 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-ref
 
     async validate(request: Request, payload: { username: string }): Promise<User | undefined> {
         return this.authService.getUserIfRefreshTokenMatches(
-            request.body.refresh_token,
+            request.body.refreshToken,
             payload.username,
         )
     }

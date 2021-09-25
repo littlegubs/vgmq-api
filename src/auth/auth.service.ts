@@ -24,41 +24,44 @@ export class AuthService {
         private usersRepository: Repository<User>,
     ) {}
 
-    public getJwtAccessToken(payload: Record<string, unknown>): string {
-        return this.jwtService.sign(payload, {
+    public getJwtAccessToken(user: User): string {
+        return this.jwtService.sign(this.createUserPayload(user), {
             secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
             expiresIn: ExpireTime.Access,
         })
     }
 
-    public getJwtRefreshToken(payload: Record<string, unknown>): string {
-        return this.jwtService.sign(payload, {
+    public getJwtRefreshToken(user: User): string {
+        return this.jwtService.sign(this.createUserPayload(user), {
             secret: this.configService.get('JWT_REFRESH_TOKEN_SECRET'),
             expiresIn: ExpireTime.Refresh,
         })
     }
 
+    createUserPayload(user: User): { roles: string[]; username: string } {
+        return {
+            username: user.username,
+            roles: user.roles,
+        }
+    }
+
     async login(
         authLoginDto: AuthLoginDto,
-    ): Promise<{ access_token: string; refresh_token: string }> {
+    ): Promise<{ accessToken: string; refreshToken: string }> {
         const user = await this.validateUser(authLoginDto)
         return this.getUserTokens(user)
     }
 
-    async getUserTokens(user: User): Promise<{ access_token: string; refresh_token: string }> {
-        const payload = {
-            username: user.username,
-            roles: user.roles,
-        }
-        const refreshToken = this.getJwtRefreshToken(payload)
+    async getUserTokens(user: User): Promise<{ accessToken: string; refreshToken: string }> {
+        const refreshToken = this.getJwtRefreshToken(user)
         const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10)
         await this.usersRepository.update(user.id, {
             currentHashedRefreshToken: currentHashedRefreshToken,
         })
 
         return {
-            access_token: this.getJwtAccessToken(payload),
-            refresh_token: refreshToken,
+            accessToken: this.getJwtAccessToken(user),
+            refreshToken: refreshToken,
         }
     }
 
@@ -71,7 +74,7 @@ export class AuthService {
             return user
         }
 
-        throw new UnauthorizedException()
+        throw new UnauthorizedException('wrong password')
     }
 
     async getUserIfRefreshTokenMatches(
