@@ -4,7 +4,9 @@ export class GamesSearchDto {
     @IsDefined()
     query: string
 
-    limit = 50
+    showDisabled = false
 
-    page = 1
+    limit?: number
+
+    page?: number
 }

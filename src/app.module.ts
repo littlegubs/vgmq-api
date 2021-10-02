@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module'
 import { GamesModule } from './games/games.module'
 import { LimitedAccessModule } from './limited-access/limited-access.module'
 import { UsersModule } from './users/users.module'
+import { AlternativeNamesModule } from './alternative-names/alternative-names.module';
 
 @Module({
     imports: [
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module'
         AuthModule,
         LimitedAccessModule,
         GamesModule,
+        AlternativeNamesModule,
     ],
     controllers: [AppController],
     providers: [AppService],

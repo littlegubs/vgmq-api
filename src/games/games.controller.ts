@@ -1,4 +1,15 @@
-import {Controller, Get, HttpCode, HttpStatus, Query, UseGuards} from '@nestjs/common'
+import {
+    Controller,
+    Get,
+    HttpCode,
+    NotFoundException,
+    Param,
+    Patch,
+    Query,
+    UseGuards,
+} from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { Role } from '../users/role.enum'
@@ -13,12 +24,17 @@ import { IgdbService } from './services/igdb.service'
 @Controller('games')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class GamesController {
-    constructor(private gamesService: GamesService, private igdbService: IgdbService) {}
+    constructor(
+        private gamesService: GamesService,
+        private igdbService: IgdbService,
+        @InjectRepository(Game)
+        private gamesRepository: Repository<Game>,
+    ) {}
 
     @Get('')
-    get(@Query() query: GamesSearchDto): Promise<{ data: Game[]; count: number }> {
+    getAll(@Query() query: GamesSearchDto): Promise<{ data: Game[]; count: number }> {
         return this.gamesService
-            .findByName(query.query, query.limit, query.page)
+            .findByName(query.query, query.showDisabled, query.limit, query.page)
             .then(([data, count]) => {
                 return { data, count }
             })
@@ -41,5 +57,26 @@ export class GamesController {
         }
 
         return gamesImported
+    }
+
+    @Roles(Role.Admin)
+    @Get('/:slug')
+    async get(@Param('slug') slug: string): Promise<Game> {
+        const game = await this.gamesRepository.findOne({
+            relations: ['alternativeNames'],
+            where: {
+                slug,
+            },
+        })
+        if (game === undefined) {
+            throw new NotFoundException()
+        }
+        return game
+    }
+
+    @Roles(Role.Admin)
+    @Patch('/:slug/toggle')
+    async toggle(@Param('slug') slug: string): Promise<Game> {
+        return this.gamesService.toggle(slug)
     }
 }
