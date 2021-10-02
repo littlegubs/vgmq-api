@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, Repository } from 'typeorm'
 
@@ -10,8 +10,13 @@ export class GamesService {
         @InjectRepository(Game)
         private gamesRepository: Repository<Game>,
     ) {}
-    async findByName(query: string, limit = 50, page = 1): Promise<[Game[], number]> {
-        return this.gamesRepository
+    async findByName(
+        query: string,
+        showDisabled = false,
+        limit?: number | undefined,
+        page?: number | undefined,
+    ): Promise<[Game[], number]> {
+        const qb = this.gamesRepository
             .createQueryBuilder('game')
             .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
             .leftJoinAndSelect('game.cover', 'cover')
@@ -27,8 +32,29 @@ export class GamesService {
                 }),
             )
             .setParameter('name', `%${query}%`)
-            .take(limit)
-            .skip((page - 1) * limit)
-            .getManyAndCount()
+        if (!showDisabled) {
+            qb.andWhere('game.enabled = 1')
+        }
+
+        if (limit !== undefined) {
+            qb.take(limit)
+        }
+        if (limit !== undefined && page !== undefined) {
+            qb.skip((page - 1) * limit)
+        }
+        return qb.getManyAndCount()
+    }
+
+    async toggle(slug: string): Promise<Game> {
+        const game = await this.gamesRepository.findOne({
+            relations: ['alternativeNames'],
+            where: {
+                slug,
+            },
+        })
+        if (game === undefined) {
+            throw new NotFoundException()
+        }
+        return this.gamesRepository.save({ ...game, enabled: !game.enabled })
     }
 }
