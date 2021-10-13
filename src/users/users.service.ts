@@ -14,11 +14,7 @@ export class UsersService {
 
     async create(createUserDto: AuthRegisterDto): Promise<User> {
         const user = this.userRepository.create(createUserDto)
-        await this.userRepository.save(user)
-
-        const { password, ...userWhithoutPassword } = user
-
-        return userWhithoutPassword as User
+        return this.userRepository.save(user)
     }
 
     async findByUsername(username: string): Promise<User | undefined> {

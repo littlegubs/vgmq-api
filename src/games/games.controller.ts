@@ -1,13 +1,18 @@
 import {
+    BadRequestException,
     Controller,
     Get,
     HttpCode,
     NotFoundException,
     Param,
     Patch,
+    Post,
     Query,
+    UploadedFiles,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common'
+import { FilesInterceptor } from '@nestjs/platform-express'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 
@@ -63,7 +68,7 @@ export class GamesController {
     @Get('/:slug')
     async get(@Param('slug') slug: string): Promise<Game> {
         const game = await this.gamesRepository.findOne({
-            relations: ['alternativeNames'],
+            relations: ['alternativeNames', 'musics'],
             where: {
                 slug,
             },
@@ -78,5 +83,40 @@ export class GamesController {
     @Patch('/:slug/toggle')
     async toggle(@Param('slug') slug: string): Promise<Game> {
         return this.gamesService.toggle(slug)
+    }
+
+    @Roles(Role.Admin)
+    @UseInterceptors(
+        FilesInterceptor('files', 100, {
+            limits: {
+                fileSize: 52428800, // 50 MB
+            },
+            fileFilter(req, file, callback) {
+                if (
+                    !['audio/mpeg', 'audio/mp3'].includes(file.mimetype) ||
+                    !new RegExp(/.\.(mp3)$/).test(file.originalname)
+                ) {
+                    callback(new BadRequestException('File must be a valid mp3 file!'), false)
+                }
+                callback(null, true)
+            },
+        }),
+    )
+    @Post(':slug/musics')
+    async uploadMusic(
+        @Param('slug') slug: string,
+        @UploadedFiles() files: Array<Express.Multer.File>,
+    ): Promise<Game> {
+        const game = await this.gamesRepository.findOne({
+            relations: ['alternativeNames', 'musics'],
+            where: {
+                slug,
+            },
+        })
+        if (game === undefined) {
+            throw new NotFoundException()
+        }
+
+        return this.gamesService.uploadMusics(game, files)
     }
 }

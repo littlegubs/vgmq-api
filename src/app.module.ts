@@ -3,13 +3,15 @@ import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import * as Joi from 'joi'
 
+import { AlternativeNamesModule } from './alternative-names/alternative-names.module'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { AuthModule } from './auth/auth.module'
 import { GamesModule } from './games/games.module'
 import { LimitedAccessModule } from './limited-access/limited-access.module'
+import { MusicsModule } from './musics/musics.module'
+import { FileSubscriber } from './subscribers/file.subscriber'
 import { UsersModule } from './users/users.module'
-import { AlternativeNamesModule } from './alternative-names/alternative-names.module';
 
 @Module({
     imports: [
@@ -36,8 +38,9 @@ import { AlternativeNamesModule } from './alternative-names/alternative-names.mo
         LimitedAccessModule,
         GamesModule,
         AlternativeNamesModule,
+        MusicsModule,
     ],
     controllers: [AppController],
-    providers: [AppService],
+    providers: [AppService, FileSubscriber],
 })
 export class AppModule {}

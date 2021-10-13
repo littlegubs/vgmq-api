@@ -14,6 +14,7 @@ import {
 import { User } from '../../users/user.entity'
 import { AlternativeName } from './alternative-name.entity'
 import { Cover } from './cover.entity'
+import { GameToMusic } from './game-to-music.entity'
 
 @Entity()
 export class Game {
@@ -70,6 +71,9 @@ export class Game {
         cascade: true,
     })
     versionParent?: Game
+
+    @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.game)
+    musics: GameToMusic[]
 
     @Column()
     @CreateDateColumn()
