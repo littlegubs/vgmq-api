@@ -1,14 +1,27 @@
+import * as fs from 'fs'
+import * as path from 'path'
+
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import * as mm from 'music-metadata'
 import { Brackets, Repository } from 'typeorm'
 
+import { File } from '../../entity/file.entity'
+import { GameToMusic } from '../entity/game-to-music.entity'
 import { Game } from '../entity/game.entity'
+import { Music } from '../entity/music.entity'
 
 @Injectable()
 export class GamesService {
     constructor(
         @InjectRepository(Game)
-        private gamesRepository: Repository<Game>,
+        private gameRepository: Repository<Game>,
+        @InjectRepository(Music)
+        private musicRepository: Repository<Music>,
+        @InjectRepository(GameToMusic)
+        private gameToMusicRepository: Repository<GameToMusic>,
+        @InjectRepository(File)
+        private fileRepository: Repository<File>,
     ) {}
     async findByName(
         query: string,
@@ -16,7 +29,7 @@ export class GamesService {
         limit?: number | undefined,
         page?: number | undefined,
     ): Promise<[Game[], number]> {
-        const qb = this.gamesRepository
+        const qb = this.gameRepository
             .createQueryBuilder('game')
             .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
             .leftJoinAndSelect('game.cover', 'cover')
@@ -46,7 +59,7 @@ export class GamesService {
     }
 
     async toggle(slug: string): Promise<Game> {
-        const game = await this.gamesRepository.findOne({
+        const game = await this.gameRepository.findOne({
             relations: ['alternativeNames'],
             where: {
                 slug,
@@ -55,6 +68,40 @@ export class GamesService {
         if (game === undefined) {
             throw new NotFoundException()
         }
-        return this.gamesRepository.save({ ...game, enabled: !game.enabled })
+        return this.gameRepository.save({ ...game, enabled: !game.enabled })
+    }
+
+    async uploadMusics(game: Game, files: Array<Express.Multer.File>): Promise<Game> {
+        let musics: GameToMusic[] = []
+        for (const file of files) {
+            await mm.parseBuffer(file.buffer).then(async (metadata) => {
+                const dir = `./upload/${game.slug}`
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir)
+                }
+                const filePath = `${dir}/${Math.random().toString(36).substr(2, 9)}${path.extname(
+                    file.originalname,
+                )}`
+                fs.writeFileSync(filePath, file.buffer)
+                musics = [
+                    ...musics,
+                    await this.gameToMusicRepository.save({
+                        game: game,
+                        music: this.musicRepository.create({
+                            title: metadata.common.title,
+                            artist: metadata.common.artist,
+                            duration: metadata.format.duration,
+                            file: this.fileRepository.create({
+                                path: filePath,
+                                originalFilename: file.originalname,
+                                mimeType: file.mimetype,
+                                size: file.size,
+                            }),
+                        }),
+                    }),
+                ]
+            })
+        }
+        return { ...game, musics: [...game.musics, ...musics] }
     }
 }
