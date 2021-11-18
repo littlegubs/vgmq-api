@@ -1,10 +1,10 @@
 import { IsDefined } from 'class-validator'
 
-export class GamesSearchDto {
+export class GamesSearchAdminDto {
     @IsDefined()
     query: string
 
-    filterByUser = false
+    showDisabled = false
 
     limit?: number
 

@@ -13,8 +13,8 @@ import * as request from 'supertest'
 
 import { JwtStrategy } from '../src/auth/strategies/jwt.strategy'
 import { exceptionPipe } from '../src/exception.pipe'
+import { AdminGamesController } from '../src/games/admin-games.controller'
 import { Game } from '../src/games/entity/game.entity'
-import { GamesController } from '../src/games/games.controller'
 import { GamesService } from '../src/games/services/games.service'
 import { IgdbService } from '../src/games/services/igdb.service'
 import { Role } from '../src/users/role.enum'
@@ -52,7 +52,7 @@ describe('GamesController (e2e)', () => {
                     },
                 }),
             ],
-            controllers: [GamesController],
+            controllers: [AdminGamesController],
             providers: [
                 {
                     provide: IgdbService,
