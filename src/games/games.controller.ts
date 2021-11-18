@@ -1,26 +1,11 @@
-import {
-    BadRequestException,
-    Controller,
-    Get,
-    HttpCode,
-    NotFoundException,
-    Param,
-    Patch,
-    Post,
-    Query,
-    UploadedFiles,
-    UseGuards,
-    UseInterceptors,
-} from '@nestjs/common'
-import { FilesInterceptor } from '@nestjs/platform-express'
+import { Controller, Get, NotFoundException, Param, Query, Req, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { Request } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
-import { Role } from '../users/role.enum'
-import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
-import { GamesImportDto } from './dto/games-import.dto'
+import { User } from '../users/user.entity'
 import { GamesSearchDto } from './dto/games-search.dto'
 import { Game } from './entity/game.entity'
 import { GamesService } from './services/games.service'
@@ -34,41 +19,29 @@ export class GamesController {
         private igdbService: IgdbService,
         @InjectRepository(Game)
         private gamesRepository: Repository<Game>,
+        @InjectRepository(User)
+        private userRepository: Repository<User>,
     ) {}
 
     @Get('')
-    getAll(@Query() query: GamesSearchDto): Promise<{ data: Game[]; count: number }> {
+    getAll(
+        @Query() query: GamesSearchDto,
+        @Req() request: Request,
+    ): Promise<{ data: Game[]; count: number }> {
         return this.gamesService
-            .findByName(query.query, query.showDisabled, query.limit, query.page)
+            .findByName(query.query, {
+                limit: query.limit,
+                page: query.page,
+                ...(query.filterByUser && { filterByUser: request.user as User }),
+            })
             .then(([data, count]) => {
                 return { data, count }
             })
     }
 
-    @Roles(Role.Admin)
-    @Get('import')
-    @HttpCode(201)
-    async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
-        const game = await this.igdbService.importByUrl(query.url)
-        let gamesImported = [game.name]
-        let { parent, versionParent } = game
-        while (parent) {
-            gamesImported = [...gamesImported, parent.name]
-            parent = parent.parent
-        }
-        while (versionParent) {
-            gamesImported = [...gamesImported, versionParent.name]
-            versionParent = versionParent.versionParent
-        }
-
-        return gamesImported
-    }
-
-    @Roles(Role.Admin)
-    @Get('/:slug')
-    async get(@Param('slug') slug: string): Promise<Game> {
+    @Get('/:slug/add')
+    async addToList(@Param('slug') slug: string, @Req() request: Request): Promise<void> {
         const game = await this.gamesRepository.findOne({
-            relations: ['alternativeNames', 'musics'],
             where: {
                 slug,
             },
@@ -76,47 +49,24 @@ export class GamesController {
         if (game === undefined) {
             throw new NotFoundException()
         }
-        return game
+        const user = request.user as User
+        await this.userRepository.save({ ...user, games: [...user.games, game] })
     }
 
-    @Roles(Role.Admin)
-    @Patch('/:slug/toggle')
-    async toggle(@Param('slug') slug: string): Promise<Game> {
-        return this.gamesService.toggle(slug)
-    }
-
-    @Roles(Role.Admin)
-    @UseInterceptors(
-        FilesInterceptor('files', 100, {
-            limits: {
-                fileSize: 52428800, // 50 MB
-            },
-            fileFilter(req, file, callback) {
-                if (
-                    !['audio/mpeg', 'audio/mp3'].includes(file.mimetype) ||
-                    !new RegExp(/.\.(mp3)$/).test(file.originalname)
-                ) {
-                    callback(new BadRequestException('File must be a valid mp3 file!'), false)
-                }
-                callback(null, true)
-            },
-        }),
-    )
-    @Post(':slug/musics')
-    async uploadMusic(
-        @Param('slug') slug: string,
-        @UploadedFiles() files: Array<Express.Multer.File>,
-    ): Promise<Game> {
-        const game = await this.gamesRepository.findOne({
-            relations: ['alternativeNames', 'musics'],
+    @Get('/:slug/remove')
+    async addFromList(@Param('slug') slug: string, @Req() request: Request): Promise<void> {
+        const gameToRemove = await this.gamesRepository.findOne({
             where: {
                 slug,
             },
         })
-        if (game === undefined) {
+        if (gameToRemove === undefined) {
             throw new NotFoundException()
         }
-
-        return this.gamesService.uploadMusics(game, files)
+        const user = request.user as User
+        await this.userRepository.save({
+            ...user,
+            games: user.games.filter((game) => game.id !== gameToRemove.id),
+        })
     }
 }

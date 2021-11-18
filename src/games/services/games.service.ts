@@ -7,6 +7,7 @@ import * as mm from 'music-metadata'
 import { Brackets, Repository } from 'typeorm'
 
 import { File } from '../../entity/file.entity'
+import { User } from '../../users/user.entity'
 import { GameToMusic } from '../entity/game-to-music.entity'
 import { Game } from '../entity/game.entity'
 import { Music } from '../entity/music.entity'
@@ -25,9 +26,12 @@ export class GamesService {
     ) {}
     async findByName(
         query: string,
-        showDisabled = false,
-        limit?: number | undefined,
-        page?: number | undefined,
+        options?: {
+            showDisabled?: boolean
+            filterByUser?: User
+            limit?: number
+            page?: number
+        },
     ): Promise<[Game[], number]> {
         const qb = this.gameRepository
             .createQueryBuilder('game')
@@ -45,15 +49,21 @@ export class GamesService {
                 }),
             )
             .setParameter('name', `%${query}%`)
-        if (!showDisabled) {
+        if (options?.showDisabled === false) {
             qb.andWhere('game.enabled = 1')
         }
 
-        if (limit !== undefined) {
-            qb.take(limit)
+        if (options?.filterByUser instanceof User) {
+            qb.leftJoin('game.users', 'user')
+                .andWhere('user.id = :userId')
+                .setParameter('userId', options.filterByUser.id)
         }
-        if (limit !== undefined && page !== undefined) {
-            qb.skip((page - 1) * limit)
+
+        if (options?.limit !== undefined) {
+            qb.take(options?.limit)
+        }
+        if (options?.limit !== undefined && options?.page !== undefined) {
+            qb.skip((options?.page - 1) * options?.limit)
         }
         return qb.getManyAndCount()
     }

@@ -19,6 +19,7 @@ export class UsersService {
 
     async findByUsername(username: string): Promise<User | undefined> {
         return this.userRepository.findOne({
+            relations: ['games'],
             where: {
                 username: username,
             },

@@ -3,6 +3,8 @@ import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { File } from '../entity/file.entity'
+import { User } from '../users/user.entity'
+import { AdminGamesController } from './admin-games.controller'
 import { AlternativeName } from './entity/alternative-name.entity'
 import { Cover } from './entity/cover.entity'
 import { GameToMusic } from './entity/game-to-music.entity'
@@ -17,7 +19,7 @@ import { IgdbService } from './services/igdb.service'
 import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
 
 @Module({
-    controllers: [GamesController, GameToMusicController],
+    controllers: [AdminGamesController, GamesController, GameToMusicController],
     imports: [
         TypeOrmModule.forFeature([
             Game,
@@ -27,6 +29,7 @@ import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
             GameToMusic,
             Music,
             File,
+            User,
         ]),
         HttpModule,
     ],

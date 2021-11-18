@@ -10,8 +10,9 @@ import { GameToMusic } from './entity/game-to-music.entity'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
 
-@Controller('game-to-music')
+@Controller('admin/game-to-music')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.Admin)
 export class GameToMusicController {
     constructor(
         private gamesService: GamesService,
@@ -20,7 +21,6 @@ export class GameToMusicController {
         private gameToMusicRepository: Repository<GameToMusic>,
     ) {}
 
-    @Roles(Role.Admin)
     @Delete('/:id')
     async delete(@Param('id') id: string): Promise<void> {
         const gameToMusic = await this.gameToMusicRepository.findOne(id)
