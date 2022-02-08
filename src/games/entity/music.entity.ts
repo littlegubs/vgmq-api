@@ -11,6 +11,7 @@ import {
 
 import { File } from '../../entity/file.entity'
 import { GameToMusic } from './game-to-music.entity'
+import {LobbyMusic} from "../../lobbies/entities/lobby-music.entity";
 
 @Entity()
 export class Music {
@@ -40,6 +41,9 @@ export class Music {
     @OneToOne(() => File, { eager: true, cascade: true })
     @JoinColumn()
     file: File
+
+    @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.music)
+    lobbyMusics: LobbyMusic[]
 
     @Column()
     @CreateDateColumn()

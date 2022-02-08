@@ -9,6 +9,7 @@ import { AppService } from './app.service'
 import { AuthModule } from './auth/auth.module'
 import { GamesModule } from './games/games.module'
 import { LimitedAccessModule } from './limited-access/limited-access.module'
+import { LobbyModule } from './lobbies/lobby.module'
 import { MusicsModule } from './musics/musics.module'
 import { FileSubscriber } from './subscribers/file.subscriber'
 import { UsersModule } from './users/users.module'
@@ -39,6 +40,7 @@ import { UsersModule } from './users/users.module'
         GamesModule,
         AlternativeNamesModule,
         MusicsModule,
+        LobbyModule,
     ],
     controllers: [AppController],
     providers: [AppService, FileSubscriber],

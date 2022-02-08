@@ -1,21 +1,27 @@
 import { HttpService } from '@nestjs/axios'
-import { HttpException, Injectable } from '@nestjs/common'
+import { HttpException, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { AxiosResponse } from 'axios'
 import { firstValueFrom } from 'rxjs'
 import { MoreThan } from 'typeorm'
 
 import { IgdbClient } from '../entity/igdb.entity'
 import { IgdbGame } from '../igdb.type'
+import {AxiosResponse} from "axios";
 
 @Injectable()
 export class IgdbHttpService {
-    #twitchClientId?: string
-    #twitchClientSecret?: string
+    #twitchClientId: string
+    #twitchClientSecret: string
 
     constructor(private httpService: HttpService, private configService: ConfigService) {
-        this.#twitchClientId = this.configService.get('TWITCH_CLIENT_ID')
-        this.#twitchClientSecret = this.configService.get('TWITCH_CLIENT_SECRET')
+        const twitchClientId = this.configService.get('TWITCH_CLIENT_ID')
+        const twitchClientSecret = this.configService.get('TWITCH_CLIENT_SECRET')
+
+        if (twitchClientId === undefined || twitchClientSecret === undefined) {
+            throw new InternalServerErrorException()
+        }
+        this.#twitchClientId = twitchClientId
+        this.#twitchClientSecret = twitchClientSecret
     }
 
     async getAccessToken(): Promise<string> {

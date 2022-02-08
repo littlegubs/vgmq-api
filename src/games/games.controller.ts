@@ -1,4 +1,14 @@
-import { Controller, Get, NotFoundException, Param, Query, Req, UseGuards } from '@nestjs/common'
+import {
+    ClassSerializerInterceptor,
+    Controller,
+    Get,
+    NotFoundException,
+    Param,
+    Query,
+    Req,
+    UseGuards,
+    UseInterceptors,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
 import { Repository } from 'typeorm'
@@ -23,18 +33,24 @@ export class GamesController {
         private userRepository: Repository<User>,
     ) {}
 
+    @UseInterceptors(ClassSerializerInterceptor)
     @Get('')
     getAll(
         @Query() query: GamesSearchDto,
         @Req() request: Request,
     ): Promise<{ data: Game[]; count: number }> {
+        const user = request.user as User
         return this.gamesService
             .findByName(query.query, {
                 limit: query.limit,
                 page: query.page,
-                ...(query.filterByUser && { filterByUser: request.user as User }),
+                ...(query.filterByUser && { filterByUser: user }),
             })
             .then(([data, count]) => {
+                data.forEach((game) => {
+                    console.log(game.users)
+                    game.selectedByUser = !!game.users.find((gameUser) => gameUser.id === user.id)
+                })
                 return { data, count }
             })
     }
@@ -54,7 +70,7 @@ export class GamesController {
     }
 
     @Get('/:slug/remove')
-    async addFromList(@Param('slug') slug: string, @Req() request: Request): Promise<void> {
+    async removeFromList(@Param('slug') slug: string, @Req() request: Request): Promise<void> {
         const gameToRemove = await this.gamesRepository.findOne({
             where: {
                 slug,
