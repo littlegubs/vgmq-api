@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt'
-import { Exclude } from 'class-transformer'
+import { Exclude, Expose } from 'class-transformer'
 import {
     Entity,
     Column,
@@ -19,6 +19,7 @@ export class User {
     @PrimaryGeneratedColumn()
     id: number
 
+    @Expose({ groups: ['wsLobby'] })
     @Column({ unique: true })
     username: string
 

@@ -7,8 +7,10 @@ import { UserExistsRule } from '../users/unique.validator'
 import { UsersModule } from '../users/users.module'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
+import { WsExceptionsFilter } from './exception-filter/ws.exception-filter'
 import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh-token.strategy'
 import { JwtStrategy } from './strategies/jwt.strategy'
+import { WsStrategy } from './strategies/ws.strategy'
 
 @Module({
     controllers: [AuthController],
@@ -27,7 +29,15 @@ import { JwtStrategy } from './strategies/jwt.strategy'
         }),
         UsersModule,
     ],
-    providers: [AuthService, ConfigService, JwtStrategy, JwtRefreshTokenStrategy, UserExistsRule],
+    providers: [
+        AuthService,
+        ConfigService,
+        JwtStrategy,
+        JwtRefreshTokenStrategy,
+        WsStrategy,
+        UserExistsRule,
+        WsExceptionsFilter,
+    ],
     exports: [AuthService],
 })
 export class AuthModule {}

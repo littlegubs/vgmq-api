@@ -15,6 +15,8 @@ import { User } from '../../users/user.entity'
 import { AlternativeName } from './alternative-name.entity'
 import { Cover } from './cover.entity'
 import { GameToMusic } from './game-to-music.entity'
+import {Exclude} from "class-transformer";
+import {LobbyMusic} from "../../lobbies/entities/lobby-music.entity";
 
 @Entity()
 export class Game {
@@ -54,8 +56,11 @@ export class Game {
     @JoinColumn()
     cover?: Cover | null
 
+    @Exclude()
     @ManyToMany(() => User, (user) => user.games)
     users: User[]
+
+    selectedByUser = false
 
     @ManyToOne(() => Game, (game) => game.children, {
         onDelete: 'SET NULL',

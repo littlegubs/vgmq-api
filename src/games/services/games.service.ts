@@ -37,6 +37,7 @@ export class GamesService {
             .createQueryBuilder('game')
             .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
             .leftJoinAndSelect('game.cover', 'cover')
+            .leftJoinAndSelect('game.users', 'user')
             .where(
                 new Brackets((qb) => {
                     qb.orWhere('game.name LIKE :name').orWhere(
@@ -54,9 +55,7 @@ export class GamesService {
         }
 
         if (options?.filterByUser instanceof User) {
-            qb.leftJoin('game.users', 'user')
-                .andWhere('user.id = :userId')
-                .setParameter('userId', options.filterByUser.id)
+            qb.andWhere('user.id = :userId').setParameter('userId', options.filterByUser.id)
         }
 
         if (options?.limit !== undefined) {
@@ -84,7 +83,7 @@ export class GamesService {
     async uploadMusics(game: Game, files: Array<Express.Multer.File>): Promise<Game> {
         let musics: GameToMusic[] = []
         for (const file of files) {
-            await mm.parseBuffer(file.buffer).then(async (metadata) => {
+            await mm.parseStream(file.stream).then(async (metadata) => {
                 const dir = `./upload/${game.slug}`
                 if (!fs.existsSync(dir)) {
                     fs.mkdirSync(dir)
