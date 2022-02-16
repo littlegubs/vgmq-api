@@ -1,8 +1,14 @@
+import { randomInt } from 'crypto'
+import { statSync } from 'fs'
+
+import { InjectQueue } from '@nestjs/bull'
 import {
     CACHE_MANAGER,
     ClassSerializerInterceptor,
+    forwardRef,
     Inject,
     InternalServerErrorException,
+    Logger,
     SerializeOptions,
     UseFilters,
     UseGuards,
@@ -17,6 +23,7 @@ import {
     WebSocketServer,
     WsException,
 } from '@nestjs/websockets'
+import { Queue } from 'bull'
 import { Cache } from 'cache-manager'
 import { classToClass } from 'class-transformer'
 import { Server, Socket } from 'socket.io'
@@ -30,6 +37,7 @@ import { User } from '../../users/user.entity'
 import { LobbyMusic } from '../entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from '../entities/lobby.entity'
+import { LobbyService } from '../lobby.service'
 
 export class AuthenticatedSocket extends Socket {
     user: User
@@ -45,6 +53,7 @@ export class AuthenticatedSocket extends Socket {
 export class LobbyGateway {
     @WebSocketServer()
     server: Server
+    private readonly logger = new Logger(LobbyGateway.name)
 
     constructor(
         @InjectRepository(Lobby)
@@ -56,6 +65,9 @@ export class LobbyGateway {
         @InjectRepository(LobbyMusic)
         private lobbyMusicRepository: Repository<LobbyMusic>,
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
+        @InjectQueue('lobby') private lobbyQueue: Queue,
+        @Inject(forwardRef(() => LobbyService))
+        private lobbyService: LobbyService,
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
@@ -142,11 +154,15 @@ export class LobbyGateway {
         const users = players.map((player) => player.user)
 
         // do something about duplicate (don't take from old code, it's bad)
-        const games = await this.gameRepository
-            .createQueryBuilder('game')
-            .innerJoin('game.musics', 'music')
+        const musics = await this.musicRepository
+            .createQueryBuilder('music')
+            .leftJoinAndSelect('music.file', 'f')
+            .innerJoin('music.games', 'gameToMusic')
+            .leftJoin('gameToMusic.game', 'game')
             .leftJoin('game.users', 'user')
-            .where('user.id in (:ids)')
+            .andWhere('music.duration > :guessTime')
+            .setParameter('guessTime', lobby.guessTime)
+            .andWhere('user.id in (:ids)')
             .setParameter(
                 'ids',
                 users.map((user) => user.id),
@@ -155,38 +171,37 @@ export class LobbyGateway {
             .limit(lobby.musicNumber)
             .getMany()
 
-        console.log(games)
-
         let lobbyMusics: LobbyMusic[] = []
-        for (const [index, game] of games.entries()) {
-            const music = await this.musicRepository
-                .createQueryBuilder('music')
-                .leftJoin('music.games', 'gameToMusic')
-                .leftJoin('gameToMusic.game', 'game')
-                .andWhere('game.id = :id')
-                .andWhere('music.duration > :guessTime')
-                .setParameter('id', game.id)
-                .setParameter('guessTime', lobby.guessTime)
-                .orderBy('RAND()')
-                .limit(1)
-                .getOne()
-
-            if (music !== undefined) {
-                lobbyMusics = [
-                    ...lobbyMusics,
-                    this.lobbyMusicRepository.create({
-                        lobby,
-                        music,
-                        position: index + 1,
-                    }),
-                ]
-            }
+        for (const [index, music] of musics.entries()) {
+            const stat = statSync(music.file.path)
+            let startAt = 0
+            let endAt = Math.ceil((stat.size * lobby.guessTime) / music.duration)
+            const contentLength = endAt - startAt + 1
+            endAt = randomInt(endAt, stat.size)
+            startAt = endAt - contentLength + 1
+            lobbyMusics = [
+                ...lobbyMusics,
+                this.lobbyMusicRepository.create({
+                    lobby,
+                    music,
+                    position: index + 1,
+                    startAt: startAt,
+                    endAt: endAt,
+                }),
+            ]
         }
-        console.log(lobbyMusics)
+
         if (lobbyMusics.length === 0) {
             lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Waiting })
             await this.lobbyRepository.save(lobby)
             this.sendUpdateToRoom(lobby)
+
+            return
         }
+        lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Playing })
+        await this.lobbyMusicRepository.save(lobbyMusics)
+        await this.lobbyRepository.save(lobby)
+
+        await this.lobbyQueue.add('playMusic', lobby)
     }
 }

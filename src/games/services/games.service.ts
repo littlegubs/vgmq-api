@@ -4,10 +4,11 @@ import * as path from 'path'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import * as mm from 'music-metadata'
-import { Brackets, Repository } from 'typeorm'
+import { Brackets, Like, Repository } from 'typeorm'
 
 import { File } from '../../entity/file.entity'
 import { User } from '../../users/user.entity'
+import { AlternativeName } from '../entity/alternative-name.entity'
 import { GameToMusic } from '../entity/game-to-music.entity'
 import { Game } from '../entity/game.entity'
 import { Music } from '../entity/music.entity'
@@ -23,6 +24,8 @@ export class GamesService {
         private gameToMusicRepository: Repository<GameToMusic>,
         @InjectRepository(File)
         private fileRepository: Repository<File>,
+        @InjectRepository(AlternativeName)
+        private alternativeNameRepository: Repository<AlternativeName>,
     ) {}
     async findByName(
         query: string,
@@ -83,7 +86,7 @@ export class GamesService {
     async uploadMusics(game: Game, files: Array<Express.Multer.File>): Promise<Game> {
         let musics: GameToMusic[] = []
         for (const file of files) {
-            await mm.parseStream(file.stream).then(async (metadata) => {
+            await mm.parseBuffer(file.buffer).then(async (metadata) => {
                 const dir = `./upload/${game.slug}`
                 if (!fs.existsSync(dir)) {
                     fs.mkdirSync(dir)
@@ -112,5 +115,20 @@ export class GamesService {
             })
         }
         return { ...game, musics: [...game.musics, ...musics] }
+    }
+
+    async getNamesForQuery(query: string): Promise<string[]> {
+        const gamegames = await this.gameRepository.find({
+            where: {
+                name: Like(`%${query}%`),
+            },
+        })
+        const alternativeNames = await this.alternativeNameRepository.find({
+            where: {
+                name: Like(`%${query}%`),
+            },
+        })
+
+        return [...gamegames.map((g) => g.name), ...alternativeNames.map((a) => a.name)]
     }
 }

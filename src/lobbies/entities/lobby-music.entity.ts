@@ -10,12 +10,6 @@ import {
 import { Music } from '../../games/entity/music.entity'
 import { Lobby } from './lobby.entity'
 
-export enum LobbyUserRole {
-    Host = 'host',
-    Player = 'player',
-    Spectator = 'spectator',
-}
-
 @Entity()
 export class LobbyMusic {
     @PrimaryGeneratedColumn()
@@ -26,6 +20,9 @@ export class LobbyMusic {
 
     @Column({ type: 'int' })
     startAt = 0
+
+    @Column({ type: 'int' })
+    endAt = 0
 
     @ManyToOne(() => Lobby, (lobby) => lobby.lobbyMusics, {
         onDelete: 'CASCADE',
