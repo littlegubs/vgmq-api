@@ -1,3 +1,4 @@
+import { BullModule } from '@nestjs/bull'
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
@@ -33,6 +34,12 @@ import { UsersModule } from './users/users.module'
             database: process.env.DATABASE_NAME,
             synchronize: true, // dev only
             autoLoadEntities: true,
+        }),
+        BullModule.forRoot({
+            redis: {
+                host: 'localhost',
+                port: 6379,
+            },
         }),
         UsersModule,
         AuthModule,

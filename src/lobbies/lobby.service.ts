@@ -1,4 +1,4 @@
-import { CACHE_MANAGER, Inject, Injectable, InternalServerErrorException } from '@nestjs/common'
+import {CACHE_MANAGER, forwardRef, Inject, Injectable, InternalServerErrorException} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Cache } from 'cache-manager'
 import { Repository } from 'typeorm'
@@ -21,6 +21,7 @@ export class LobbyService {
         private musicRepository: Repository<Music>,
         @InjectRepository(LobbyMusic)
         private lobbyMusicRepository: Repository<LobbyMusic>,
+        @Inject(forwardRef(() => LobbyGateway))
         private lobbyGateway: LobbyGateway,
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
     ) {}

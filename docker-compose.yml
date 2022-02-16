@@ -16,3 +16,9 @@ services:
       - '8080:80'
     depends_on:
       - db
+  redis:
+    image: redis:alpine
+    container_name: vgmq-api-redis
+    ports:
+      - '6379:6379'
+

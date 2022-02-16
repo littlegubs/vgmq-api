@@ -85,4 +85,9 @@ export class GamesController {
             games: user.games.filter((game) => game.id !== gameToRemove.id),
         })
     }
+
+    @Get('names')
+    async getNames(@Query() query: GamesSearchDto): Promise<string[]> {
+        return this.gamesService.getNamesForQuery(query.query)
+    }
 }
