@@ -1,13 +1,9 @@
-import { randomInt } from 'crypto'
-import { statSync } from 'fs'
-
 import { InjectQueue } from '@nestjs/bull'
 import {
     CACHE_MANAGER,
     ClassSerializerInterceptor,
     forwardRef,
     Inject,
-    InternalServerErrorException,
     Logger,
     SerializeOptions,
     UseFilters,
@@ -27,7 +23,7 @@ import { Queue } from 'bull'
 import { Cache } from 'cache-manager'
 import { classToClass } from 'class-transformer'
 import { Server, Socket } from 'socket.io'
-import { Repository } from 'typeorm'
+import { Not, Repository } from 'typeorm'
 
 import { WsExceptionsFilter } from '../../auth/exception-filter/ws.exception-filter'
 import { WsGuard } from '../../auth/guards/ws.guard'
@@ -64,6 +60,8 @@ export class LobbyGateway {
         private musicRepository: Repository<Music>,
         @InjectRepository(LobbyMusic)
         private lobbyMusicRepository: Repository<LobbyMusic>,
+        @InjectRepository(LobbyUser)
+        private lobbyUserRepository: Repository<LobbyUser>,
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyService))
@@ -85,35 +83,62 @@ export class LobbyGateway {
         if (lobby === undefined) {
             throw new WsException('Not found')
         }
+
+        const currentLobby = await this.lobbyUserRepository.findOne({
+            relations: ['user', 'lobby'],
+            where: {
+                user: client.user,
+            },
+        })
+        if (currentLobby !== undefined && currentLobby.lobby.code !== code) {
+            await this.lobbyRepository.remove(currentLobby.lobby)
+        }
+
         await client.join(code)
 
-        const players: LobbyUser[] | undefined = await this.cacheManager.get(`${code}_players`)
-
-        const player = new LobbyUser({
-            user: client.user,
-            role:
-                players === undefined || players.length === 0
-                    ? LobbyUserRole.Host
-                    : LobbyUserRole.Player,
+        const player = await this.lobbyUserRepository.findOne({
+            relations: ['user'],
+            where: {
+                user: client.user,
+            },
         })
-        const playerAlreadyInLobby = players?.find((p) => p.user.username === player.user.username)
-        if (playerAlreadyInLobby === undefined) {
-            await this.cacheManager.set(`${code}_players`, [...(players ? players : []), player], {
-                ttl: 3600,
+        if (player === undefined) {
+            const players = await this.lobbyUserRepository.find({
+                lobby: lobby,
             })
-        } else {
-            await this.cacheManager.set(`${code}_players`, players, {
-                ttl: 3600,
+            await this.lobbyUserRepository.save({
+                lobby: lobby,
+                user: client.user,
+                role: players.length === 0 ? LobbyUserRole.Host : LobbyUserRole.Player,
             })
         }
 
         client.emit('lobbyJoined', lobby)
+        if (lobby.status === LobbyStatuses.PlayingMusic) {
+            const lobbyMusic = await this.lobbyMusicRepository.findOne({
+                relations: ['lobby'],
+                where: {
+                    lobby: lobby,
+                    position: lobby.currentLobbyMusicPosition,
+                },
+            })
+            if (lobbyMusic !== undefined) client.emit('lobbyMusic', lobbyMusic?.id)
+        }
+
         this.server.to(code).emit(
-            'userJoined',
-            classToClass<LobbyUser[] | undefined>(await this.cacheManager.get(`${code}_players`), {
-                groups: ['wsLobby'],
-                strategy: 'excludeAll',
-            }),
+            'lobbyUsers',
+            classToClass<LobbyUser[]>(
+                await this.lobbyUserRepository.find({
+                    relations: ['user'],
+                    where: {
+                        lobby: lobby,
+                    },
+                }),
+                {
+                    groups: ['wsLobby'],
+                    strategy: 'excludeAll',
+                },
+            ),
         )
 
         return
@@ -133,75 +158,99 @@ export class LobbyGateway {
         lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Loading })
         await this.lobbyRepository.save(lobby)
         this.sendUpdateToRoom(lobby)
-        await this.loadMusics(lobby)
+        await this.lobbyService.loadMusics(lobby)
+    }
+
+    // @SubscribeMessage('disconnect')
+    // async disconnect(
+    //     @ConnectedSocket() client: AuthenticatedSocket,
+    // ): Promise<undefined> {}
+
+    @SerializeOptions({
+        strategy: 'excludeAll',
+    })
+    @SubscribeMessage('answer')
+    async answer(
+        @ConnectedSocket() client: AuthenticatedSocket,
+        @MessageBody() answer: string,
+    ): Promise<undefined> {
+        let lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: ['lobby', 'user'],
+            where: {
+                user: client.user,
+                role: Not(LobbyUserRole.Spectator),
+            },
+        })
+        const lobby = lobbyUser?.lobby
+        if (lobby === undefined || lobby.status !== LobbyStatuses.PlayingMusic) {
+            throw new WsException('Not found')
+        }
+
+        const lobbyMusic = await this.lobbyMusicRepository
+            .createQueryBuilder('lobbyMusic')
+            .innerJoinAndSelect('lobbyMusic.expectedAnswer', 'expectedAnswer')
+            .innerJoinAndSelect('expectedAnswer.alternativeNames', 'expectedAnswerAlternativeName')
+            // TODO try this to get other games names where the music also appears
+            // .innerJoinAndSelect('lobbyMusic.music', 'music')
+            // .innerJoinAndMapMany(
+            //     'music.games',
+            //     GameToMusic,
+            //     'gameToMusic',
+            //     'music.id = gameToMusic.music',
+            // )
+            // .innerJoinAndSelect('gameToMusic.game', 'game')
+            // .innerJoinAndSelect('game.alternativeNames', 'alternativeName')
+            // .andWhere('game.enabled = 1')
+            .andWhere('expectedAnswerAlternativeName.enabled = 1')
+            // .andWhere('alternativeName.enabled = 1')
+            .andWhere('lobbyMusic.lobby = :lobby')
+            .andWhere('lobbyMusic.position = :position')
+            .setParameter('lobby', lobby.id)
+            .setParameter('position', lobby.currentLobbyMusicPosition)
+            .getOneOrFail()
+
+        const validAnswers = [
+            lobbyMusic.expectedAnswer.name,
+            ...lobbyMusic.expectedAnswer.alternativeNames.map((a) => a.name),
+        ]
+
+        // lobbyMusic.music.games.forEach((gameToMusic) => {
+        //     validAnswers = [
+        //         ...validAnswers,
+        //         gameToMusic.game.name,
+        //         ...gameToMusic.game.alternativeNames.map((a) => a.name),
+        //     ]
+        // })
+
+        lobbyUser = this.lobbyUserRepository.create({
+            ...lobbyUser,
+            correctAnswer: validAnswers.includes(answer),
+        })
+        if (lobbyUser.correctAnswer) {
+            // give points with queue
+        }
+        this.server.to(lobby.code).emit(
+            'lobbyUserAnswer',
+            classToClass<LobbyUser>(lobbyUser, {
+                groups: ['wsLobby'],
+                strategy: 'excludeAll',
+            }),
+        )
+
+        return
     }
 
     sendUpdateToRoom(lobby: Lobby): void {
         this.server.to(lobby.code).emit('lobby', lobby)
     }
-    async loadMusics(lobby: Lobby): Promise<void> {
-        const players: LobbyUser[] | undefined = await this.cacheManager.get(
-            `${lobby.code}_players`,
-        )
+    sendLobbyMusicToLoad(lobbyMusic: LobbyMusic): void {
+        this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', lobbyMusic.id)
+    }
 
-        if (players === undefined || players.length === 0) {
-            lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Waiting })
-            await this.lobbyRepository.save(lobby)
-            this.sendUpdateToRoom(lobby)
-            throw new InternalServerErrorException()
-        }
-
-        const users = players.map((player) => player.user)
-
-        // do something about duplicate (don't take from old code, it's bad)
-        const musics = await this.musicRepository
-            .createQueryBuilder('music')
-            .leftJoinAndSelect('music.file', 'f')
-            .innerJoin('music.games', 'gameToMusic')
-            .leftJoin('gameToMusic.game', 'game')
-            .leftJoin('game.users', 'user')
-            .andWhere('music.duration > :guessTime')
-            .setParameter('guessTime', lobby.guessTime)
-            .andWhere('user.id in (:ids)')
-            .setParameter(
-                'ids',
-                users.map((user) => user.id),
-            )
-            .orderBy('RAND()')
-            .limit(lobby.musicNumber)
-            .getMany()
-
-        let lobbyMusics: LobbyMusic[] = []
-        for (const [index, music] of musics.entries()) {
-            const stat = statSync(music.file.path)
-            let startAt = 0
-            let endAt = Math.ceil((stat.size * lobby.guessTime) / music.duration)
-            const contentLength = endAt - startAt + 1
-            endAt = randomInt(endAt, stat.size)
-            startAt = endAt - contentLength + 1
-            lobbyMusics = [
-                ...lobbyMusics,
-                this.lobbyMusicRepository.create({
-                    lobby,
-                    music,
-                    position: index + 1,
-                    startAt: startAt,
-                    endAt: endAt,
-                }),
-            ]
-        }
-
-        if (lobbyMusics.length === 0) {
-            lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Waiting })
-            await this.lobbyRepository.save(lobby)
-            this.sendUpdateToRoom(lobby)
-
-            return
-        }
-        lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Playing })
-        await this.lobbyMusicRepository.save(lobbyMusics)
-        await this.lobbyRepository.save(lobby)
-
-        await this.lobbyQueue.add('playMusic', lobby)
+    sendLobbyClosed(lobby: Lobby, message: string): void {
+        this.server.to(lobby.code).emit('lobbyClosed', message)
+    }
+    sendAnswer(lobby: Lobby, game: Game): void {
+        this.server.to(lobby.code).emit('lobbyAnswer', game.name)
     }
 }

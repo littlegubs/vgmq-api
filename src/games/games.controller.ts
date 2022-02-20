@@ -86,7 +86,7 @@ export class GamesController {
         })
     }
 
-    @Get('names')
+    @Get('/names')
     async getNames(@Query() query: GamesSearchDto): Promise<string[]> {
         return this.gamesService.getNamesForQuery(query.query)
     }
