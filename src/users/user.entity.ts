@@ -9,9 +9,12 @@ import {
     UpdateDateColumn,
     ManyToMany,
     JoinTable,
+    OneToOne,
+    JoinColumn,
 } from 'typeorm'
 
 import { Game } from '../games/entity/game.entity'
+import { LobbyUser } from '../lobbies/entities/lobby-user.entity'
 import { Role } from './role.enum'
 
 @Entity()
@@ -46,6 +49,10 @@ export class User {
     @ManyToMany(() => Game, (game) => game.users)
     @JoinTable({ name: 'user_games' })
     games: Game[]
+
+    @OneToOne(() => LobbyUser, (lobbyUser) => lobbyUser.user, { onDelete: 'SET NULL' })
+    @JoinColumn()
+    currentLobby?: LobbyUser
 
     @Column()
     @CreateDateColumn()

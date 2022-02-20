@@ -121,11 +121,13 @@ export class GamesService {
         const gamegames = await this.gameRepository.find({
             where: {
                 name: Like(`%${query}%`),
+                enabled: true,
             },
         })
         const alternativeNames = await this.alternativeNameRepository.find({
             where: {
                 name: Like(`%${query}%`),
+                enabled: true,
             },
         })
 

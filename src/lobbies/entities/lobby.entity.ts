@@ -11,6 +11,7 @@ import {
 } from 'typeorm'
 
 import { LobbyMusic } from './lobby-music.entity'
+import {LobbyUser} from "./lobby-user.entity";
 
 export enum LobbyStatuses {
     Waiting = 'waiting',
@@ -32,9 +33,9 @@ export class Lobby {
     @Column()
     name: string
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     @Exclude()
-    password?: string
+    password: string | null
 
     @Column({
         type: 'enum',
@@ -55,6 +56,12 @@ export class Lobby {
     @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.lobby)
     lobbyMusics: LobbyMusic[]
 
+    @Column({ type: 'int', nullable: true })
+    currentLobbyMusicPosition: number | null
+
+    @OneToMany(() => LobbyUser, (lobbyUser) => lobbyUser.lobby)
+    lobbyUsers: LobbyUser[]
+
     @Column()
     @CreateDateColumn()
     createdAt: Date
@@ -64,6 +71,6 @@ export class Lobby {
     updatedAt: Date
 
     @BeforeInsert() async hashPassword(): Promise<void> {
-        this.password = this.password ? await bcrypt.hash(this.password, 8) : undefined
+        this.password = this.password ? await bcrypt.hash(this.password, 8) : null
     }
 }

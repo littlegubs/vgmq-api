@@ -1,27 +1,68 @@
 import { Expose } from 'class-transformer'
-import { DeepPartial } from 'typeorm/browser'
+import {
+    Column,
+    CreateDateColumn,
+    Entity,
+    ManyToOne,
+    OneToOne,
+    PrimaryGeneratedColumn,
+    UpdateDateColumn,
+} from 'typeorm'
 
 import { User } from '../../users/user.entity'
+import { Lobby } from './lobby.entity'
 
 export enum LobbyUserRole {
     Host = 'host',
     Player = 'player',
     Spectator = 'spectator',
 }
-
+@Entity()
 export class LobbyUser {
+    @PrimaryGeneratedColumn()
+    id: number
+
+    @Column({
+        type: 'enum',
+        enum: LobbyUserRole,
+        default: LobbyUserRole.Player,
+    })
     @Expose({ groups: ['wsLobby'] })
-    user: User
+    role: string
+
+    @Column({ type: 'int', default: 0 })
     @Expose({ groups: ['wsLobby'] })
-    role = LobbyUserRole.Player
+    points: number
+
+    @Column({ type: 'boolean', default: false })
     @Expose({ groups: ['wsLobby'] })
-    points = 0
-    @Expose({ groups: ['wsLobby'] })
-    disconnected = false
+    disconnected: boolean
+
+    @Column({ nullable: true })
     @Expose({ groups: ['wsLobby'] })
     status: string
 
-    constructor(xd: DeepPartial<LobbyUser>) {
-        Object.assign(this, xd)
-    }
+    @Column({ nullable: true })
+    answer?: string
+
+    @Column({ type: 'boolean', nullable: true })
+    @Expose({ groups: ['wsLobby'] })
+    correctAnswer: boolean | null
+
+    @OneToOne(() => User, (user) => user.currentLobby, { onDelete: 'CASCADE' })
+    @Expose({ groups: ['wsLobby'] })
+    user: User
+
+    @ManyToOne(() => Lobby, (lobby) => lobby.lobbyUsers, {
+        onDelete: 'CASCADE',
+    })
+    lobby: Lobby
+
+    @Column()
+    @CreateDateColumn()
+    createdAt: Date
+
+    @Column()
+    @UpdateDateColumn()
+    updatedAt: Date
 }

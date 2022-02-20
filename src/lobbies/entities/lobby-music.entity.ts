@@ -9,6 +9,7 @@ import {
 
 import { Music } from '../../games/entity/music.entity'
 import { Lobby } from './lobby.entity'
+import {Game} from "../../games/entity/game.entity";
 
 @Entity()
 export class LobbyMusic {
@@ -33,6 +34,9 @@ export class LobbyMusic {
         onDelete: 'CASCADE',
     })
     music: Music
+
+    @ManyToOne(() => Game)
+    expectedAnswer: Game
 
     @Column()
     @CreateDateColumn()
