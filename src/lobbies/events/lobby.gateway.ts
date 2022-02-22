@@ -33,6 +33,8 @@ import { User } from '../../users/user.entity'
 import { LobbyMusic } from '../entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from '../entities/lobby.entity'
+import { InvalidPasswordException } from '../exceptions/invalid-password.exception'
+import { MissingPasswordException } from '../exceptions/missing-password.exception'
 import { LobbyService } from '../lobby.service'
 
 export class AuthenticatedSocket extends Socket {
@@ -75,13 +77,21 @@ export class LobbyGateway {
     @SubscribeMessage('join')
     async join(
         @ConnectedSocket() client: AuthenticatedSocket,
-        @MessageBody() code: string,
+        @MessageBody() body: { code: string; password: string | null },
     ): Promise<undefined> {
         const lobby = await this.lobbyRepository.findOne({
-            code,
+            code: body.code,
         })
         if (lobby === undefined) {
             throw new WsException('Not found')
+        }
+        if (lobby.hasPassword) {
+            if (body.password === null) {
+                throw new MissingPasswordException()
+            }
+            if (body.password !== lobby.password) {
+                throw new InvalidPasswordException()
+            }
         }
 
         const currentLobby = await this.lobbyUserRepository.findOne({
@@ -90,11 +100,11 @@ export class LobbyGateway {
                 user: client.user,
             },
         })
-        if (currentLobby !== undefined && currentLobby.lobby.code !== code) {
+        if (currentLobby !== undefined && currentLobby.lobby.code !== lobby.code) {
             await this.lobbyRepository.remove(currentLobby.lobby)
         }
 
-        await client.join(code)
+        await client.join(lobby.code)
 
         const player = await this.lobbyUserRepository.findOne({
             relations: ['user'],
@@ -125,7 +135,7 @@ export class LobbyGateway {
             if (lobbyMusic !== undefined) client.emit('lobbyMusic', lobbyMusic?.id)
         }
 
-        this.server.to(code).emit(
+        this.server.to(lobby.code).emit(
             'lobbyUsers',
             classToClass<LobbyUser[]>(
                 await this.lobbyUserRepository.find({
@@ -166,10 +176,6 @@ export class LobbyGateway {
     //     @ConnectedSocket() client: AuthenticatedSocket,
     // ): Promise<undefined> {}
 
-    @SerializeOptions({
-        strategy: 'excludeAll',
-    })
-    @SubscribeMessage('answer')
     async answer(
         @ConnectedSocket() client: AuthenticatedSocket,
         @MessageBody() answer: string,

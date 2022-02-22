@@ -17,6 +17,7 @@ import { In, Repository } from 'typeorm'
 import { GameToMusic } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
 import { Music } from '../games/entity/music.entity'
+import { User } from '../users/user.entity'
 import { LobbyCreateDto } from './dto/lobby-create.dto'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
@@ -85,6 +86,35 @@ export class LobbyService {
             throw new InternalServerErrorException()
         }
         return code
+    }
+
+    async join(lobby: Lobby, user: User) {
+        //search lobby where user is already connected in
+        const currentLobby = await this.lobbyUserRepository.findOne({
+            relations: ['user', 'lobby'],
+            where: {
+                user: user,
+            },
+        })
+        if (currentLobby !== undefined && currentLobby.lobby.code !== lobby.code) {
+            await this.lobbyRepository.remove(currentLobby.lobby)
+        }
+        const player = await this.lobbyUserRepository.findOne({
+            relations: ['user'],
+            where: {
+                user: user,
+            },
+        })
+        if (player === undefined) {
+            const players = await this.lobbyUserRepository.find({
+                lobby: lobby,
+            })
+            await this.lobbyUserRepository.save({
+                lobby: lobby,
+                user: user,
+                role: players.length === 0 ? LobbyUserRole.Host : LobbyUserRole.Player,
+            })
+        }
     }
 
     async loadMusics(lobby: Lobby): Promise<void> {

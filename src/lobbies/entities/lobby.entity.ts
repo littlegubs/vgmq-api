@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt'
-import { Exclude } from 'class-transformer'
+import { Exclude, Expose } from 'class-transformer'
 import {
     Entity,
     Column,
@@ -11,7 +11,7 @@ import {
 } from 'typeorm'
 
 import { LobbyMusic } from './lobby-music.entity'
-import {LobbyUser} from "./lobby-user.entity";
+import { LobbyUser } from './lobby-user.entity'
 
 export enum LobbyStatuses {
     Waiting = 'waiting',
@@ -72,5 +72,10 @@ export class Lobby {
 
     @BeforeInsert() async hashPassword(): Promise<void> {
         this.password = this.password ? await bcrypt.hash(this.password, 8) : null
+    }
+
+    @Expose()
+    get hasPassword(): boolean {
+        return this.password !== null
     }
 }

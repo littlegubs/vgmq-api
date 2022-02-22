@@ -4,14 +4,13 @@ import { Socket } from 'socket.io'
 
 @Catch(UnauthorizedException)
 export class WsExceptionsFilter extends BaseWsExceptionFilter {
-    catch(exception: unknown, host: ArgumentsHost) {
+    catch(exception: UnauthorizedException, host: ArgumentsHost): void {
         super.catch(exception, host)
 
-        console.log('jpk ????')
         const [socket] = host.getArgs<[Socket]>()
-        socket.emit('unauthorizedException', {
+        socket.emit(exception.name, {
             status: 'error',
-            message: `Unauthorized`,
+            message: exception.message,
         })
     }
 }

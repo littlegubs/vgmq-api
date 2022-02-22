@@ -1,6 +1,7 @@
 import {
     Body,
     CACHE_MANAGER,
+    ClassSerializerInterceptor,
     Controller,
     ForbiddenException,
     Get,
@@ -12,6 +13,7 @@ import {
     Query,
     Req,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Cache } from 'cache-manager'
@@ -46,6 +48,7 @@ export class LobbyController {
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
     ) {}
 
+    @UseInterceptors(ClassSerializerInterceptor)
     @Get('')
     getAll(@Query() query: LobbySearchDto): Promise<Lobby[]> {
         return this.lobbyService.findByName(query.query)
@@ -81,20 +84,5 @@ export class LobbyController {
             throw new ForbiddenException()
         }
         return this.lobbyService.update(lobby, data)
-    }
-
-    @Get('/join')
-    async join(): Promise<Game[]> {
-        return this.gameRepository
-            .createQueryBuilder('game')
-            .innerJoinAndSelect('game.musics', 'gameToMusic')
-            .innerJoin('gameToMusic.music', 'music')
-            .innerJoin('game.users', 'user')
-            .andWhere('user.id in (:ids)')
-            .andWhere('music.duration > :guessTime')
-            .setParameter('ids', ['1', '3'])
-            .orderBy('RAND()')
-            .setParameter('guessTime', 0)
-            .getMany()
     }
 }
