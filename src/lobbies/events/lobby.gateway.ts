@@ -1,15 +1,5 @@
 import { InjectQueue } from '@nestjs/bull'
-import {
-    CACHE_MANAGER,
-    ClassSerializerInterceptor,
-    forwardRef,
-    Inject,
-    Logger,
-    SerializeOptions,
-    UseFilters,
-    UseGuards,
-    UseInterceptors,
-} from '@nestjs/common'
+import { CACHE_MANAGER, forwardRef, Inject, Logger, UseFilters, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
     ConnectedSocket,
@@ -70,60 +60,52 @@ export class LobbyGateway {
         private lobbyService: LobbyService,
     ) {}
 
-    @UseInterceptors(ClassSerializerInterceptor)
-    @SerializeOptions({
-        strategy: 'excludeAll',
-    })
     @SubscribeMessage('join')
     async join(
         @ConnectedSocket() client: AuthenticatedSocket,
         @MessageBody() body: { code: string; password: string | null },
     ): Promise<undefined> {
         const lobby = await this.lobbyRepository.findOne({
-            code: body.code,
+            relations: ['lobbyMusics'],
+            where: {
+                code: body.code,
+            },
         })
         if (lobby === undefined) {
             throw new WsException('Not found')
         }
-        if (lobby.hasPassword) {
-            if (body.password === null) {
-                throw new MissingPasswordException()
-            }
-            if (body.password !== lobby.password) {
-                throw new InvalidPasswordException()
-            }
-        }
-
-        const currentLobby = await this.lobbyUserRepository.findOne({
+        const lobbyUser = await this.lobbyUserRepository.findOne({
             relations: ['user', 'lobby'],
             where: {
                 user: client.user,
+                lobby,
             },
         })
-        if (currentLobby !== undefined && currentLobby.lobby.code !== lobby.code) {
-            await this.lobbyRepository.remove(currentLobby.lobby)
-        }
-
-        await client.join(lobby.code)
-
-        const player = await this.lobbyUserRepository.findOne({
-            relations: ['user'],
-            where: {
-                user: client.user,
-            },
-        })
-        if (player === undefined) {
-            const players = await this.lobbyUserRepository.find({
-                lobby: lobby,
-            })
+        if (lobbyUser === undefined) {
+            if (lobby.hasPassword) {
+                if (body.password === null) {
+                    throw new MissingPasswordException()
+                }
+                if (body.password !== lobby.password) {
+                    throw new InvalidPasswordException()
+                }
+            }
             await this.lobbyUserRepository.save({
                 lobby: lobby,
                 user: client.user,
-                role: players.length === 0 ? LobbyUserRole.Host : LobbyUserRole.Player,
+                role:
+                    lobby.status === LobbyStatuses.Waiting
+                        ? LobbyUserRole.Player
+                        : LobbyUserRole.Spectator,
             })
+        } else {
+            // if user was previously in lobby, set them connected
+            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: false })
         }
 
-        client.emit('lobbyJoined', lobby)
+        await client.join(lobby.code)
+        client.emit('lobbyJoined', classToClass<Lobby>(lobby))
+
         if (lobby.status === LobbyStatuses.PlayingMusic) {
             const lobbyMusic = await this.lobbyMusicRepository.findOne({
                 relations: ['lobby'],
@@ -135,20 +117,14 @@ export class LobbyGateway {
             if (lobbyMusic !== undefined) client.emit('lobbyMusic', lobbyMusic?.id)
         }
 
-        this.server.to(lobby.code).emit(
-            'lobbyUsers',
-            classToClass<LobbyUser[]>(
-                await this.lobbyUserRepository.find({
-                    relations: ['user'],
-                    where: {
-                        lobby: lobby,
-                    },
-                }),
-                {
-                    groups: ['wsLobby'],
-                    strategy: 'excludeAll',
+        this.sendLobbyUsers(
+            lobby,
+            await this.lobbyUserRepository.find({
+                relations: ['user'],
+                where: {
+                    lobby: lobby,
                 },
-            ),
+            }),
         )
 
         return
@@ -170,11 +146,6 @@ export class LobbyGateway {
         this.sendUpdateToRoom(lobby)
         await this.lobbyService.loadMusics(lobby)
     }
-
-    // @SubscribeMessage('disconnect')
-    // async disconnect(
-    //     @ConnectedSocket() client: AuthenticatedSocket,
-    // ): Promise<undefined> {}
 
     async answer(
         @ConnectedSocket() client: AuthenticatedSocket,
@@ -256,6 +227,17 @@ export class LobbyGateway {
     sendLobbyClosed(lobby: Lobby, message: string): void {
         this.server.to(lobby.code).emit('lobbyClosed', message)
     }
+
+    sendLobbyUsers(lobby: Lobby, lobbyUsers: LobbyUser[]): void {
+        this.server.to(lobby.code).emit(
+            'lobbyUsers',
+            classToClass<LobbyUser[]>(lobbyUsers, {
+                groups: ['wsLobby'],
+                strategy: 'excludeAll',
+            }),
+        )
+    }
+
     sendAnswer(lobby: Lobby, game: Game): void {
         this.server.to(lobby.code).emit('lobbyAnswer', game.name)
     }
