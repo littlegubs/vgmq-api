@@ -48,18 +48,26 @@ export class LobbyService {
     async findByName(query: string): Promise<Lobby[]> {
         const qb = this.lobbyRepository
             .createQueryBuilder('lobby')
+            .leftJoinAndSelect('lobby.lobbyMusics', 'lobbyMusic')
             .where('lobby.name LIKE :name')
             .setParameter('name', `%${query}%`)
         return qb.getMany()
     }
 
-    async create(data: LobbyCreateDto): Promise<Lobby> {
-        return this.lobbyRepository.save({
+    async create(data: LobbyCreateDto, user: User): Promise<Lobby> {
+        const lobby = await this.lobbyRepository.save({
             code: await this.generateCode(),
             name: data.name,
             password: data.password,
             musicNumber: data.musicNumber,
         })
+        await this.lobbyUserRepository.save({
+            lobby,
+            user,
+            role: LobbyUserRole.Host,
+        })
+
+        return lobby
     }
 
     async update(lobby: Lobby, data: LobbyCreateDto): Promise<void> {
@@ -204,8 +212,6 @@ export class LobbyService {
         lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Playing })
         await this.lobbyMusicRepository.save(lobbyMusics)
         await this.lobbyRepository.save(lobby)
-        console.log('???')
         await this.lobbyQueue.add('playMusic', lobby)
-        console.log('???2')
     }
 }

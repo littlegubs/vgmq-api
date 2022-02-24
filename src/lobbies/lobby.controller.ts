@@ -24,10 +24,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { GameToMusic } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
 import { Music } from '../games/entity/music.entity'
+import { User } from '../users/user.entity'
 import { LobbyCreateDto } from './dto/lobby-create.dto'
 import { LobbySearchDto } from './dto/lobby-search.dto'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
-import { Lobby } from './entities/lobby.entity'
+import { Lobby, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyService } from './lobby.service'
 
 @Controller('lobbies')
@@ -55,9 +56,8 @@ export class LobbyController {
     }
 
     @Post('/create')
-    create(@Body() data: LobbyCreateDto): Promise<Lobby> {
-        return this.lobbyService.create(data)
-        //TODO send join event from here instead of calling 'join' route from browser (could prevent a faster user to be the host instead of the original creator)
+    create(@Body() data: LobbyCreateDto, @Req() request: Request): Promise<Lobby> {
+        return this.lobbyService.create(data, request.user as User)
     }
 
     @Put(':code')
@@ -84,5 +84,27 @@ export class LobbyController {
             throw new ForbiddenException()
         }
         return this.lobbyService.update(lobby, data)
+    }
+
+    @Get('leave')
+    async leave(@Req() request: Request): Promise<void> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: ['user', 'lobby'],
+            where: {
+                user: request.user,
+            },
+        })
+        if (lobbyUser === undefined) {
+            throw new NotFoundException()
+        }
+
+        if (
+            lobbyUser.lobby.status === LobbyStatuses.Waiting ||
+            lobbyUser.role === LobbyUserRole.Spectator
+        ) {
+            await this.lobbyUserRepository.remove(lobbyUser)
+        } else {
+            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: true })
+        }
     }
 }

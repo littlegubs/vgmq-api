@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt'
-import { Exclude, Expose } from 'class-transformer'
+import { Exclude, Expose, Transform } from 'class-transformer'
 import {
     Entity,
     Column,
@@ -53,6 +53,7 @@ export class Lobby {
     @Column({ default: false })
     allowDuplicates: boolean
 
+    @Transform(({ value }) => value.length)
     @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.lobby)
     lobbyMusics: LobbyMusic[]
 
