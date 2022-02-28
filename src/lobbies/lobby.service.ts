@@ -172,12 +172,15 @@ export class LobbyService {
         for (const game of games) {
             let gamesToMusics: GameToMusic[] | undefined = game.musics
             if (gamesToMusics === undefined) {
-                const gameToMusic = await this.gameToMusicRepository.findOne({
-                    relations: ['music'],
-                    where: {
-                        game,
-                    },
-                })
+                const gameToMusic = await this.gameToMusicRepository
+                    .createQueryBuilder('gameToMusic')
+                    .leftJoinAndSelect('gameToMusic.music', 'music')
+                    .leftJoinAndSelect('music.file', 'file')
+                    .andWhere('gameToMusic.game = :game')
+                    .setParameter('game', game.id)
+                    .orderBy('RAND()')
+                    .getOne()
+
                 if (gameToMusic) gamesToMusics = [gameToMusic]
             }
             for (const gameToMusic of gamesToMusics) {
@@ -212,6 +215,6 @@ export class LobbyService {
         lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Playing })
         await this.lobbyMusicRepository.save(lobbyMusics)
         await this.lobbyRepository.save(lobby)
-        await this.lobbyQueue.add('playMusic', lobby)
+        await this.lobbyQueue.add('playMusic', lobby.code)
     }
 }

@@ -7,9 +7,9 @@ import {
     UpdateDateColumn,
 } from 'typeorm'
 
+import { Game } from '../../games/entity/game.entity'
 import { Music } from '../../games/entity/music.entity'
 import { Lobby } from './lobby.entity'
-import {Game} from "../../games/entity/game.entity";
 
 @Entity()
 export class LobbyMusic {
@@ -26,6 +26,7 @@ export class LobbyMusic {
     endAt = 0
 
     @ManyToOne(() => Lobby, (lobby) => lobby.lobbyMusics, {
+        orphanedRowAction: 'delete',
         onDelete: 'CASCADE',
     })
     lobby: Lobby

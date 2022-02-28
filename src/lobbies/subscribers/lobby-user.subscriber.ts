@@ -43,8 +43,8 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
     }
 
     async afterUpdate(event: UpdateEvent<LobbyUser>): Promise<void> {
-        if (event.entity?.role === LobbyUserRole.Host) {
-            if (event.updatedColumns.some((column) => column.propertyName === 'disconnected')) {
+        if (event.updatedColumns.some((column) => column.propertyName === 'disconnected')) {
+            if (event.entity?.role === LobbyUserRole.Host) {
                 if (event.entity?.disconnected === true) {
                     await event.manager.save(LobbyUser, {
                         ...event.entity,
@@ -52,8 +52,8 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                     })
                 }
             }
+            await this.handleHostDisconnected(event)
         }
-        await this.handleHostDisconnected(event)
     }
 
     async afterRemove(event: RemoveEvent<LobbyUser>): Promise<void> {
