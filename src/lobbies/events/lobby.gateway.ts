@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bull'
-import { CACHE_MANAGER, forwardRef, Inject, Logger, UseFilters, UseGuards } from '@nestjs/common'
+import {CACHE_MANAGER, ClassSerializerInterceptor, forwardRef, Inject, Logger, UseFilters, UseGuards, UseInterceptors} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
     ConnectedSocket,
@@ -102,7 +102,6 @@ export class LobbyGateway {
             // if user was previously in lobby, set them connected
             await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: false })
         }
-
         await client.join(lobby.code)
         client.emit('lobbyJoined', classToClass<Lobby>(lobby))
 
@@ -147,6 +146,7 @@ export class LobbyGateway {
         await this.lobbyService.loadMusics(lobby)
     }
 
+    @SubscribeMessage('answer')
     async answer(
         @ConnectedSocket() client: AuthenticatedSocket,
         @MessageBody() answer: string,
@@ -240,5 +240,8 @@ export class LobbyGateway {
 
     sendAnswer(lobby: Lobby, game: Game): void {
         this.server.to(lobby.code).emit('lobbyAnswer', game.name)
+    }
+    sendLobbyReset(lobby: Lobby): void {
+        this.server.to(lobby.code).emit('lobbyReset', classToClass<Lobby>(lobby))
     }
 }

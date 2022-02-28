@@ -55,6 +55,7 @@ export class LobbyUser {
 
     @ManyToOne(() => Lobby, (lobby) => lobby.lobbyUsers, {
         onDelete: 'CASCADE',
+        eager: true,
     })
     lobby: Lobby
 
