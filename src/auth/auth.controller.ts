@@ -9,13 +9,14 @@ import { AuthLoginDto } from './dto/auth-login.dto'
 import { AuthRegisterDto } from './dto/auth-register.dto'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard'
+import { RecaptchaGuard } from './guards/recaptcha.guard'
 
 @Controller('auth')
 export class AuthController {
     constructor(private readonly usersService: UsersService, private authService: AuthService) {}
 
     @Post('register')
-    @UseGuards(LimitedAccessGuard)
+    @UseGuards(RecaptchaGuard, LimitedAccessGuard)
     async register(
         @Body() createUserDto: AuthRegisterDto,
     ): Promise<{ accessToken: string; refreshToken: string }> {
@@ -23,6 +24,7 @@ export class AuthController {
         return this.authService.getUserTokens(user)
     }
 
+    @UseGuards(RecaptchaGuard)
     @Post('login')
     @HttpCode(200)
     async login(
