@@ -1,7 +1,8 @@
-import {Body, Controller, Get, HttpCode, Post, Req, Res} from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
 
+import { RecaptchaGuard } from '../auth/guards/recaptcha.guard'
 import { LimitedAccessDto } from './dto/limited-access.dto'
 
 @Controller('limited-access')
@@ -13,6 +14,7 @@ export class LimitedAccessController {
         return request.cookies['pote'] !== undefined
     }
 
+    @UseGuards(RecaptchaGuard)
     @Post('password')
     @HttpCode(200)
     password(
