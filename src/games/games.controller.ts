@@ -48,7 +48,6 @@ export class GamesController {
             })
             .then(([data, count]) => {
                 data.forEach((game) => {
-                    console.log(game.users)
                     game.selectedByUser = !!game.users.find((gameUser) => gameUser.id === user.id)
                 })
                 return { data, count }

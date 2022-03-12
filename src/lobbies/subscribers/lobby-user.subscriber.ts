@@ -9,7 +9,7 @@ import {
 
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
 import { Lobby } from '../entities/lobby.entity'
-import { LobbyGateway } from '../events/lobby.gateway'
+import { LobbyGateway } from '../lobby.gateway'
 
 @EventSubscriber()
 export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser> {
