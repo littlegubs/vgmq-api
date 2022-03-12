@@ -22,7 +22,7 @@ import { LobbyCreateDto } from './dto/lobby-create.dto'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from './entities/lobby.entity'
-import { LobbyGateway } from './events/lobby.gateway'
+import { LobbyGateway } from './lobby.gateway'
 
 @Injectable()
 export class LobbyService {

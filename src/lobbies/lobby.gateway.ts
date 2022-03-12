@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bull'
-import {CACHE_MANAGER, ClassSerializerInterceptor, forwardRef, Inject, Logger, UseFilters, UseGuards, UseInterceptors} from '@nestjs/common'
+import { CACHE_MANAGER, forwardRef, Inject, Logger, UseFilters, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
     ConnectedSocket,
@@ -15,17 +15,17 @@ import { classToClass } from 'class-transformer'
 import { Server, Socket } from 'socket.io'
 import { Not, Repository } from 'typeorm'
 
-import { WsExceptionsFilter } from '../../auth/exception-filter/ws.exception-filter'
-import { WsGuard } from '../../auth/guards/ws.guard'
-import { Game } from '../../games/entity/game.entity'
-import { Music } from '../../games/entity/music.entity'
-import { User } from '../../users/user.entity'
-import { LobbyMusic } from '../entities/lobby-music.entity'
-import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
-import { Lobby, LobbyStatuses } from '../entities/lobby.entity'
-import { InvalidPasswordException } from '../exceptions/invalid-password.exception'
-import { MissingPasswordException } from '../exceptions/missing-password.exception'
-import { LobbyService } from '../lobby.service'
+import { WsExceptionsFilter } from '../auth/exception-filter/ws.exception-filter'
+import { WsGuard } from '../auth/guards/ws.guard'
+import { Game } from '../games/entity/game.entity'
+import { Music } from '../games/entity/music.entity'
+import { User } from '../users/user.entity'
+import { LobbyMusic } from './entities/lobby-music.entity'
+import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
+import { Lobby, LobbyStatuses } from './entities/lobby.entity'
+import { InvalidPasswordException } from './exceptions/invalid-password.exception'
+import { MissingPasswordException } from './exceptions/missing-password.exception'
+import { LobbyService } from './lobby.service'
 
 export class AuthenticatedSocket extends Socket {
     user: User
@@ -127,6 +127,33 @@ export class LobbyGateway {
         )
 
         return
+    }
+
+    @SubscribeMessage('reconnect')
+    async reconnect(
+        @ConnectedSocket() client: AuthenticatedSocket,
+        @MessageBody() code: string,
+    ): Promise<void> {
+        const lobby = await this.lobbyRepository.findOne({
+            relations: ['lobbyMusics'],
+            where: {
+                code: code,
+            },
+        })
+        if (lobby === undefined) {
+            throw new WsException('Not found')
+        }
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: ['user', 'lobby'],
+            where: {
+                user: client.user,
+                lobby,
+            },
+        })
+        if (lobbyUser === undefined) {
+            throw new WsException('Not found')
+        }
+        await client.join(lobby.code)
     }
 
     @SubscribeMessage('play')
