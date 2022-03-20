@@ -1,4 +1,7 @@
 import 'reflect-metadata'
+import * as fs from 'fs'
+
+import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
 import { useContainer } from 'class-validator'
 import * as cookieParser from 'cookie-parser'
@@ -7,15 +10,34 @@ import { AppModule } from './app.module'
 import { exceptionPipe } from './exception.pipe'
 
 async function bootstrap(): Promise<void> {
-    const app = await NestFactory.create(AppModule)
+    let httpsOptions
+    if (
+        fs.existsSync('/etc/letsencrypt/live/api.videogamemusicquiz.com/privkey.pem') &&
+        fs.existsSync('/etc/letsencrypt/live/api.videogamemusicquiz.com/fullchain.pem')
+    ) {
+        httpsOptions = {
+            key: fs.readFileSync('/etc/letsencrypt/live/api.videogamemusicquiz.com/privkey.pem'),
+            cert: fs.readFileSync('/etc/letsencrypt/live/api.videogamemusicquiz.com/fullchain.pem'),
+        }
+    }
+    const app = await NestFactory.create(AppModule, { httpsOptions })
     app.useGlobalPipes(exceptionPipe)
     useContainer(app.select(AppModule), { fallbackOnErrors: true })
     app.use(cookieParser())
+    const configService = app.get(ConfigService)
+    const cors = configService.get<string>('CORS_ALLOW_ORIGIN')
+    if (cors === undefined) {
+        throw new Error('CORS_ALLOW_ORIGIN not defined')
+    }
     app.enableCors({
-        origin: /^https?:\/\/(localhost|127\.0\.0\.1|videogamemusicquiz.com)(:[0-9]+)?$/,
+        origin: new RegExp(cors),
         credentials: true,
     })
-    await app.listen(3000)
+    const port = configService.get<number>('PORT')
+    if (port === undefined) {
+        throw new Error('PORT not defined')
+    }
+    await app.listen(port)
 }
 
 void bootstrap()
