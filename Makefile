@@ -12,3 +12,11 @@ restart:
 
 clean:
 	@docker system prune --volumes --force
+
+migration-generate:
+	npm run build
+	npx typeorm migration:generate -n $(filter-out $@,$(MAKECMDGOALS))
+
+migration-run:
+	npm run build
+	npx typeorm migration:run
