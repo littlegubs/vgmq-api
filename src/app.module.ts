@@ -1,6 +1,6 @@
 import { BullModule } from '@nestjs/bull'
 import { Module } from '@nestjs/common'
-import { ConfigModule } from '@nestjs/config'
+import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import * as Joi from 'joi'
 
@@ -24,22 +24,15 @@ import { UsersModule } from './users/users.module'
             }),
             envFilePath: ['.env.local', '.env'],
         }),
-        TypeOrmModule.forRoot({
-            type: 'mysql',
-            host: process.env.DATABASE_HOST,
-            port: process.env.DATABASE_PORT ? parseInt(process.env.DATABASE_PORT) : 3306,
-            username: process.env.DATABASE_USERNAME,
-            password: process.env.DATABASE_PASSWORD,
-            logging: true,
-            database: process.env.DATABASE_NAME,
-            synchronize: true, // dev only
-            autoLoadEntities: true,
-        }),
-        BullModule.forRoot({
-            redis: {
-                host: 'localhost',
-                port: 6379,
-            },
+        TypeOrmModule.forRoot(),
+        BullModule.forRootAsync({
+            useFactory: (configService: ConfigService) => ({
+                redis: {
+                    host: configService.get('REDIS_HOST'),
+                    port: configService.get<number>('REDIS_PORT'),
+                },
+            }),
+            inject: [ConfigService],
         }),
         UsersModule,
         AuthModule,

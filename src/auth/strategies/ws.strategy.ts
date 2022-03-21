@@ -20,7 +20,6 @@ export class WsStrategy extends PassportStrategy(Strategy, 'ws') {
     }
 
     async validate(payload: { username: string }) {
-        console.log(payload)
         return this.usersService.findByUsername(payload.username)
     }
 }
