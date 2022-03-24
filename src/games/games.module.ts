@@ -14,6 +14,7 @@ import { Music } from './entity/music.entity'
 import { GameToMusicController } from './game-to-music.controller'
 import { GamesController } from './games.controller'
 import { IgdbHttpService } from './http/igdb.http.service'
+import { GameSseService } from './services/game-sse.service'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
 import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
@@ -33,6 +34,6 @@ import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
         ]),
         HttpModule,
     ],
-    providers: [GamesService, IgdbService, IgdbHttpService, GameToMusicSubscriber],
+    providers: [GamesService, IgdbService, IgdbHttpService, GameToMusicSubscriber, GameSseService],
 })
 export class GamesModule {}
