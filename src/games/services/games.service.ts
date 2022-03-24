@@ -86,33 +86,37 @@ export class GamesService {
     async uploadMusics(game: Game, files: Array<Express.Multer.File>): Promise<Game> {
         let musics: GameToMusic[] = []
         for (const file of files) {
-            await mm.parseBuffer(file.buffer).then(async (metadata) => {
-                const dir = `./upload/${game.slug}`
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir)
-                }
-                const filePath = `${dir}/${Math.random().toString(36).substr(2, 9)}${path.extname(
-                    file.originalname,
-                )}`
-                fs.writeFileSync(filePath, file.buffer)
-                musics = [
-                    ...musics,
-                    await this.gameToMusicRepository.save({
-                        game: game,
-                        music: this.musicRepository.create({
-                            title: metadata.common.title ?? file.originalname,
-                            artist: metadata.common.artist ?? 'unknown artist',
-                            duration: metadata.format.duration,
-                            file: this.fileRepository.create({
-                                path: filePath,
-                                originalFilename: file.originalname,
-                                mimeType: file.mimetype,
-                                size: file.size,
-                            }),
+            const metadata = await mm.parseBuffer(file.buffer, file.mimetype, {
+                duration: true,
+                skipCovers: true,
+                skipPostHeaders: true,
+            })
+
+            const dir = `./upload/${game.slug}`
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir)
+            }
+            const filePath = `${dir}/${Math.random().toString(36).substr(2, 9)}${path.extname(
+                file.originalname,
+            )}`
+            fs.writeFileSync(filePath, file.buffer)
+            musics = [
+                ...musics,
+                await this.gameToMusicRepository.save({
+                    game: game,
+                    music: this.musicRepository.create({
+                        title: metadata.common.title ?? file.originalname,
+                        artist: metadata.common.artist ?? 'unknown artist',
+                        duration: metadata.format.duration,
+                        file: this.fileRepository.create({
+                            path: filePath,
+                            originalFilename: file.originalname,
+                            mimeType: file.mimetype,
+                            size: file.size,
                         }),
                     }),
-                ]
-            })
+                }),
+            ]
         }
         return { ...game, musics: [...game.musics, ...musics] }
     }
