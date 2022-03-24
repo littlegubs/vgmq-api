@@ -12,6 +12,7 @@ import { AlternativeName } from '../entity/alternative-name.entity'
 import { GameToMusic } from '../entity/game-to-music.entity'
 import { Game } from '../entity/game.entity'
 import { Music } from '../entity/music.entity'
+import { GameSseService } from './game-sse.service'
 
 @Injectable()
 export class GamesService {
@@ -26,6 +27,7 @@ export class GamesService {
         private fileRepository: Repository<File>,
         @InjectRepository(AlternativeName)
         private alternativeNameRepository: Repository<AlternativeName>,
+        private gameSseService: GameSseService,
     ) {}
     async findByName(
         query: string,
@@ -85,7 +87,15 @@ export class GamesService {
 
     async uploadMusics(game: Game, files: Array<Express.Multer.File>): Promise<Game> {
         let musics: GameToMusic[] = []
+        let i = 1
         for (const file of files) {
+            this.gameSseService.addEvent({
+                data: {
+                    current: i,
+                    max: files.length,
+                },
+                type: game.slug,
+            })
             const metadata = await mm.parseBuffer(file.buffer, file.mimetype, {
                 duration: true,
                 skipCovers: true,
@@ -117,6 +127,7 @@ export class GamesService {
                     }),
                 }),
             ]
+            i = i + 1
         }
         return { ...game, musics: [...game.musics, ...musics] }
     }
