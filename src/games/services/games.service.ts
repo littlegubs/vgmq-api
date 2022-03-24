@@ -100,8 +100,8 @@ export class GamesService {
                     await this.gameToMusicRepository.save({
                         game: game,
                         music: this.musicRepository.create({
-                            title: metadata.common.title,
-                            artist: metadata.common.artist,
+                            title: metadata.common.title ?? file.originalname,
+                            artist: metadata.common.artist ?? 'unknown artist',
                             duration: metadata.format.duration,
                             file: this.fileRepository.create({
                                 path: filePath,
