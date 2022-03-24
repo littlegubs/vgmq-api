@@ -177,7 +177,9 @@ export class LobbyService {
                     .leftJoinAndSelect('gameToMusic.music', 'music')
                     .leftJoinAndSelect('music.file', 'file')
                     .andWhere('gameToMusic.game = :game')
+                    .andWhere('music.duration > :guessTime')
                     .setParameter('game', game.id)
+                    .setParameter('guessTime', lobby.guessTime)
                     .orderBy('RAND()')
                     .getOne()
 
