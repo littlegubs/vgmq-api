@@ -143,17 +143,11 @@ export class LobbyService {
 
         const users = players.map((player) => player.user)
 
-        // find a better way to do all this
         const games = await this.gameRepository
             .createQueryBuilder('game')
-            [lobby.allowDuplicates ? 'innerJoinAndSelect' : 'innerJoin'](
-                'game.musics',
-                'gameToMusic',
-            )
-            [lobby.allowDuplicates ? 'innerJoinAndSelect' : 'innerJoin'](
-                'gameToMusic.music',
-                'music',
-            )
+            .select('game.id')
+            .innerJoin('game.musics', 'gameToMusic')
+            .innerJoin('gameToMusic.music', 'music')
             .innerJoin('game.users', 'user')
             .andWhere('game.enabled = 1')
             .andWhere('user.id in (:ids)')
@@ -163,6 +157,7 @@ export class LobbyService {
                 users.map((user) => user.id),
             )
             .setParameter('guessTime', lobby.guessTime)
+            .groupBy('game.id')
             .orderBy('RAND()')
             .limit(lobby.musicNumber)
             .getMany()
