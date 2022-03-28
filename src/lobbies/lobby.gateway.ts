@@ -54,7 +54,6 @@ export class LobbyGateway {
         private lobbyMusicRepository: Repository<LobbyMusic>,
         @InjectRepository(LobbyUser)
         private lobbyUserRepository: Repository<LobbyUser>,
-        @Inject(CACHE_MANAGER) private cacheManager: Cache,
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyService))
         private lobbyService: LobbyService,
@@ -245,7 +244,7 @@ export class LobbyGateway {
     }
 
     sendUpdateToRoom(lobby: Lobby): void {
-        this.server.to(lobby.code).emit('lobby', lobby)
+        this.server.to(lobby.code).emit('lobby', classToClass<Lobby>(lobby))
     }
     sendLobbyMusicToLoad(lobbyMusic: LobbyMusic): void {
         this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', lobbyMusic.id)
