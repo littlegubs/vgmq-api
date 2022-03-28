@@ -25,6 +25,7 @@ export enum LobbyStatuses {
 @Entity()
 export class Lobby {
     @PrimaryGeneratedColumn()
+    @Exclude()
     id: number
 
     @Column({ unique: true })

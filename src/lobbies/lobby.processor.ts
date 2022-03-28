@@ -1,8 +1,7 @@
 import { InjectQueue, OnGlobalQueueStalled, Process, Processor } from '@nestjs/bull'
-import { CACHE_MANAGER, Inject, Logger } from '@nestjs/common'
+import { Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
-import { Cache } from 'cache-manager'
 import { Repository } from 'typeorm'
 
 import { LobbyMusic } from './entities/lobby-music.entity'
@@ -22,7 +21,6 @@ export class LobbyProcessor {
         private lobbyUserRepository: Repository<LobbyUser>,
         @InjectQueue('lobby')
         private lobbyQueue: Queue,
-        @Inject(CACHE_MANAGER) private cacheManager: Cache,
     ) {}
     private readonly logger = new Logger(LobbyProcessor.name)
 
@@ -55,19 +53,24 @@ export class LobbyProcessor {
             this.logger.error(
                 `lobby ${lobby.code} ERROR: Trying to get a music that does not exist`,
             )
-            lobby = await this.lobbyRepository.save({
-                ...lobby,
-                currentLobbyMusicPosition: null,
-                status: LobbyStatuses.Waiting,
-            })
+            lobby = this.lobbyRepository.create(
+                await this.lobbyRepository.save({
+                    ...lobby,
+                    currentLobbyMusicPosition: null,
+                    status: LobbyStatuses.Waiting,
+                }),
+            )
             this.lobbyGateway.sendUpdateToRoom(lobby)
             return
         }
 
-        lobby = await this.lobbyRepository.save({
-            ...lobby,
-            status: LobbyStatuses.PlayingMusic,
-        })
+        lobby = this.lobbyRepository.create(
+            await this.lobbyRepository.save({
+                ...lobby,
+                status: LobbyStatuses.PlayingMusic,
+            }),
+        )
+
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.lobbyGateway.sendLobbyMusicToLoad(lobbyMusic)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
@@ -88,10 +91,12 @@ export class LobbyProcessor {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
-        lobby = await this.lobbyRepository.save({
-            ...lobby,
-            status: LobbyStatuses.AnswerReveal,
-        })
+        lobby = this.lobbyRepository.create(
+            await this.lobbyRepository.save({
+                ...lobby,
+                status: LobbyStatuses.AnswerReveal,
+            }),
+        )
         const currentLobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: ['expectedAnswer'],
             where: {
@@ -103,11 +108,13 @@ export class LobbyProcessor {
             this.logger.error(
                 `lobby ${lobby.code} ERROR: Trying to get a music that does not exist`,
             )
-            lobby = await this.lobbyRepository.save({
-                ...lobby,
-                currentLobbyMusicPosition: null,
-                status: LobbyStatuses.Waiting,
-            })
+            lobby = this.lobbyRepository.create(
+                await this.lobbyRepository.save({
+                    ...lobby,
+                    currentLobbyMusicPosition: null,
+                    status: LobbyStatuses.Waiting,
+                }),
+            )
             this.lobbyGateway.sendUpdateToRoom(lobby)
             return
         }
@@ -138,12 +145,14 @@ export class LobbyProcessor {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
-        lobby = await this.lobbyRepository.save({
-            ...lobby,
-            status: LobbyStatuses.Waiting,
-            currentLobbyMusicPosition: null,
-            lobbyMusics: [],
-        })
+        lobby = this.lobbyRepository.create(
+            await this.lobbyRepository.save({
+                ...lobby,
+                status: LobbyStatuses.Waiting,
+                currentLobbyMusicPosition: null,
+                lobbyMusics: [],
+            }),
+        )
         const disconnectedLobbyUsers = await this.lobbyUserRepository.find({
             lobby,
             disconnected: true,
