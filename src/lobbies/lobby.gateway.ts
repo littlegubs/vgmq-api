@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bull'
-import { CACHE_MANAGER, forwardRef, Inject, Logger, UseFilters, UseGuards } from '@nestjs/common'
+import { forwardRef, Inject, Logger, UseFilters, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
     ConnectedSocket,
@@ -10,7 +10,6 @@ import {
     WsException,
 } from '@nestjs/websockets'
 import { Queue } from 'bull'
-import { Cache } from 'cache-manager'
 import { classToClass } from 'class-transformer'
 import { Server, Socket } from 'socket.io'
 import { Not, Repository } from 'typeorm'
@@ -230,6 +229,7 @@ export class LobbyGateway {
             correctAnswer: validAnswers.includes(answer),
         })
         if (lobbyUser.correctAnswer) {
+            await this.lobbyUserRepository.save(lobbyUser)
             // give points with queue
         }
         this.server.to(lobby.code).emit(

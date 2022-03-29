@@ -71,7 +71,18 @@ export class LobbyProcessor {
             }),
         )
 
+        let lobbyUsers = await this.lobbyUserRepository.find({
+            relations: ['user', 'lobby'],
+            where: { lobby },
+        })
+        lobbyUsers.forEach((lobbyUser) => {
+            lobbyUser.correctAnswer = null
+        })
+        lobbyUsers = this.lobbyUserRepository.create(
+            await this.lobbyUserRepository.save(lobbyUsers),
+        )
         this.lobbyGateway.sendUpdateToRoom(lobby)
+        this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.lobbyGateway.sendLobbyMusicToLoad(lobbyMusic)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
