@@ -53,6 +53,7 @@ export class GamesService {
                 }),
             )
             .setParameter('name', `%${query}%`)
+            .orderBy('game.name')
         if (options?.showDisabled === false) {
             qb.andWhere('game.enabled = 1')
         }
