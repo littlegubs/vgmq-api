@@ -270,4 +270,8 @@ export class LobbyGateway {
     sendLobbyReset(lobby: Lobby): void {
         this.server.to(lobby.code).emit('lobbyReset', classToClass<Lobby>(lobby))
     }
+
+    sendLobbyToast(lobby: Lobby, message: string): void {
+        this.server.to(lobby.code).emit('lobbyToast', message)
+    }
 }

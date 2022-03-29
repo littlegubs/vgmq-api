@@ -206,6 +206,7 @@ export class LobbyService {
             lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Waiting })
             await this.lobbyRepository.save(lobby)
             this.lobbyGateway.sendUpdateToRoom(lobby)
+            this.lobbyGateway.sendLobbyToast(lobby, 'No music were found!')
 
             return
         }
