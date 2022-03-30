@@ -42,7 +42,7 @@ export class GamesController {
         const user = request.user as User
         return this.gamesService
             .findByName(query.query, {
-                showDisabled: true,
+                showDisabled: false,
                 limit: query.limit,
                 page: query.page,
                 ...(query.filterByUser && { filterByUser: user }),
