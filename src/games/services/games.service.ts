@@ -4,7 +4,7 @@ import * as path from 'path'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import * as mm from 'music-metadata'
-import { Brackets, Like, Repository } from 'typeorm'
+import { Brackets, Repository } from 'typeorm'
 
 import { File } from '../../entity/file.entity'
 import { User } from '../../users/user.entity'
@@ -125,19 +125,18 @@ export class GamesService {
     }
 
     async getNamesForQuery(query: string): Promise<string[]> {
-        const gamegames = await this.gameRepository.find({
-            where: {
-                name: Like(`%${query}%`),
-                enabled: true,
-            },
-        })
-        const alternativeNames = await this.alternativeNameRepository.find({
-            where: {
-                name: Like(`%${query}%`),
-                enabled: true,
-            },
-        })
+        const games = await this.gameRepository
+            .createQueryBuilder('game')
+            .andWhere('game.enabled = 1')
+            .andWhere('REPLACE(game.name, ":", "") LIKE :query', { query: `%${query}%` })
+            .getMany()
 
-        return [...gamegames.map((g) => g.name), ...alternativeNames.map((a) => a.name)]
+        const alternativeNames = await this.alternativeNameRepository
+            .createQueryBuilder('alternativeName')
+            .andWhere('alternativeName.enabled = 1')
+            .andWhere('REPLACE(alternativeName.name, ":", "") LIKE :query', { query: `%${query}%` })
+            .getMany()
+
+        return [...games.map((g) => g.name), ...alternativeNames.map((a) => a.name)]
     }
 }
