@@ -12,7 +12,7 @@ import {
 import { Queue } from 'bull'
 import { classToClass } from 'class-transformer'
 import { Server, Socket } from 'socket.io'
-import { Not, Repository } from 'typeorm'
+import { Brackets, Not, Repository } from 'typeorm'
 
 import { WsExceptionsFilter } from '../auth/exception-filter/ws.exception-filter'
 import { WsGuard } from '../auth/guards/ws.guard'
@@ -205,28 +205,24 @@ export class LobbyGateway {
             // .andWhere('game.enabled = 1')
             .andWhere('expectedAnswerAlternativeName.enabled = 1')
             // .andWhere('alternativeName.enabled = 1')
-            .andWhere('lobbyMusic.lobby = :lobby')
-            .andWhere('lobbyMusic.position = :position')
-            .setParameter('lobby', lobby.id)
+            .andWhere('lobbyMusic.lobby = :lobby', { lobby: lobby.id })
+            .andWhere('lobbyMusic.position = :position', {
+                position: lobby.currentLobbyMusicPosition,
+            })
+            .andWhere(
+                new Brackets((qb) => {
+                    qb.where('expectedAnswer.name LIKE :answer').orWhere(
+                        'expectedAnswerAlternativeName.name LIKE :answer',
+                    )
+                }),
+            )
+            .setParameter('answer', answer)
             .setParameter('position', lobby.currentLobbyMusicPosition)
-            .getOneOrFail()
-
-        const validAnswers = [
-            lobbyMusic.expectedAnswer.name,
-            ...lobbyMusic.expectedAnswer.alternativeNames.map((a) => a.name),
-        ]
-
-        // lobbyMusic.music.games.forEach((gameToMusic) => {
-        //     validAnswers = [
-        //         ...validAnswers,
-        //         gameToMusic.game.name,
-        //         ...gameToMusic.game.alternativeNames.map((a) => a.name),
-        //     ]
-        // })
+            .getOne()
 
         lobbyUser = this.lobbyUserRepository.create({
             ...lobbyUser,
-            correctAnswer: validAnswers.includes(answer),
+            correctAnswer: !!lobbyMusic,
         })
         if (lobbyUser.correctAnswer) {
             await this.lobbyUserRepository.save(lobbyUser)
