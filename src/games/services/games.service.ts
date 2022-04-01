@@ -43,11 +43,11 @@ export class GamesService {
             .leftJoinAndSelect('game.users', 'user')
             .where(
                 new Brackets((qb) => {
-                    qb.orWhere('game.name LIKE :name').orWhere(
+                    qb.orWhere('REPLACE(REPLACE(game.name, ":", ""), "-", " ") LIKE :name').orWhere(
                         new Brackets((qb) => {
-                            qb.andWhere('alternativeName.name LIKE :name').andWhere(
-                                'alternativeName.enabled = 1',
-                            )
+                            qb.andWhere(
+                                'REPLACE(REPLACE(alternativeName.name, ":", ""), "-", " ") LIKE :name',
+                            ).andWhere('alternativeName.enabled = 1')
                         }),
                     )
                 }),
@@ -128,13 +128,17 @@ export class GamesService {
         const games = await this.gameRepository
             .createQueryBuilder('game')
             .andWhere('game.enabled = 1')
-            .andWhere('REPLACE(game.name, ":", "") LIKE :query', { query: `%${query}%` })
+            .andWhere('REPLACE(REPLACE(game.name, ":", ""), "-", " ") LIKE :query', {
+                query: `%${query}%`,
+            })
             .getMany()
 
         const alternativeNames = await this.alternativeNameRepository
             .createQueryBuilder('alternativeName')
             .andWhere('alternativeName.enabled = 1')
-            .andWhere('REPLACE(alternativeName.name, ":", "") LIKE :query', { query: `%${query}%` })
+            .andWhere('REPLACE(REPLACE(alternativeName.name, ":", ""), "-", " ") LIKE :query', {
+                query: `%${query}%`,
+            })
             .getMany()
 
         return [...games.map((g) => g.name), ...alternativeNames.map((a) => a.name)]
