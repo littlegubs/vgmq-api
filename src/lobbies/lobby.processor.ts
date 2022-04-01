@@ -71,15 +71,15 @@ export class LobbyProcessor {
             }),
         )
 
+        // reset answers
         let lobbyUsers = await this.lobbyUserRepository.find({
             relations: ['user', 'lobby'],
             where: { lobby },
         })
-        lobbyUsers.forEach((lobbyUser) => {
-            lobbyUser.correctAnswer = null
-        })
         lobbyUsers = this.lobbyUserRepository.create(
-            await this.lobbyUserRepository.save(lobbyUsers),
+            await this.lobbyUserRepository.save(
+                lobbyUsers.map((lobbyUser) => ({ ...lobbyUser, correctAnswer: null })),
+            ),
         )
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
@@ -164,11 +164,14 @@ export class LobbyProcessor {
                 lobbyMusics: [],
             }),
         )
+        // remove disconnected users
         const disconnectedLobbyUsers = await this.lobbyUserRepository.find({
             lobby,
             disconnected: true,
         })
         await this.lobbyUserRepository.remove(disconnectedLobbyUsers)
+
+        // set spectators as players
         const lobbySpectators = await this.lobbyUserRepository.find({
             lobby,
             role: LobbyUserRole.Spectator,
@@ -176,6 +179,16 @@ export class LobbyProcessor {
         await this.lobbyUserRepository.save(
             lobbySpectators.map((lobbyUser) => ({ ...lobbyUser, role: LobbyUserRole.Player })),
         )
+
+        // set answers back to null
+        const lobbyUsers = await this.lobbyUserRepository.find({
+            relations: ['user', 'lobby'],
+            where: { lobby },
+        })
+        await this.lobbyUserRepository.save(
+            lobbyUsers.map((lobbyUser) => ({ ...lobbyUser, correctAnswer: null })),
+        )
+
         this.lobbyGateway.sendLobbyUsers(
             lobby,
             await this.lobbyUserRepository.find({
