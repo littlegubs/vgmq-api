@@ -191,29 +191,22 @@ export class LobbyGateway {
         const lobbyMusic = await this.lobbyMusicRepository
             .createQueryBuilder('lobbyMusic')
             .innerJoinAndSelect('lobbyMusic.expectedAnswer', 'expectedAnswer')
-            .innerJoinAndSelect('expectedAnswer.alternativeNames', 'expectedAnswerAlternativeName')
-            // TODO try this to get other games names where the music also appears
-            // .innerJoinAndSelect('lobbyMusic.music', 'music')
-            // .innerJoinAndMapMany(
-            //     'music.games',
-            //     GameToMusic,
-            //     'gameToMusic',
-            //     'music.id = gameToMusic.music',
-            // )
-            // .innerJoinAndSelect('gameToMusic.game', 'game')
-            // .innerJoinAndSelect('game.alternativeNames', 'alternativeName')
-            // .andWhere('game.enabled = 1')
-            .andWhere('expectedAnswerAlternativeName.enabled = 1')
-            // .andWhere('alternativeName.enabled = 1')
+            .leftJoinAndSelect('expectedAnswer.alternativeNames', 'expectedAnswerAlternativeName')
+            .andWhere('expectedAnswer.enabled = 1')
+            .andWhere(
+                new Brackets((qb) => {
+                    qb.orWhere('expectedAnswerAlternativeName.enabled IS NULL')
+                    qb.orWhere('expectedAnswerAlternativeName.enabled = 1')
+                }),
+            )
             .andWhere('lobbyMusic.lobby = :lobby', { lobby: lobby.id })
             .andWhere('lobbyMusic.position = :position', {
                 position: lobby.currentLobbyMusicPosition,
             })
             .andWhere(
                 new Brackets((qb) => {
-                    qb.where('expectedAnswer.name LIKE :answer').orWhere(
-                        'expectedAnswerAlternativeName.name LIKE :answer',
-                    )
+                    qb.orWhere('expectedAnswer.name LIKE :answer')
+                    qb.orWhere('expectedAnswerAlternativeName.name LIKE :answer')
                 }),
             )
             .setParameter('answer', answer)
