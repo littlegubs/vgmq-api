@@ -1,5 +1,6 @@
 import {
     BadRequestException,
+    ClassSerializerInterceptor,
     Controller,
     Get,
     HttpCode,
@@ -8,6 +9,7 @@ import {
     Patch,
     Post,
     Query,
+    SerializeOptions,
     UploadedFiles,
     UseGuards,
     UseInterceptors,
@@ -38,10 +40,15 @@ export class AdminGamesController {
 
     @Roles(Role.Admin)
     @Get('')
+    @UseInterceptors(ClassSerializerInterceptor)
+    @SerializeOptions({
+        groups: ['game-list'],
+    })
     getAll(@Query() query: GamesSearchAdminDto): Promise<{ data: Game[]; count: number }> {
         return this.gamesService
             .findByName(query.query, {
                 showDisabled: query.showDisabled,
+                onlyShowWithoutMusics: query.onlyShowWithoutMusics,
                 limit: query.limit,
                 page: query.page,
             })

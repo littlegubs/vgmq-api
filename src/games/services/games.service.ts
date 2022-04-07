@@ -31,6 +31,7 @@ export class GamesService {
         query: string,
         options?: {
             showDisabled?: boolean
+            onlyShowWithoutMusics?: boolean
             filterByUser?: User
             limit?: number
             page?: number
@@ -39,6 +40,7 @@ export class GamesService {
         const qb = this.gameRepository
             .createQueryBuilder('game')
             .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
+            .leftJoinAndSelect('game.musics', 'musics')
             .leftJoinAndSelect('game.cover', 'cover')
             .leftJoinAndSelect('game.users', 'user')
             .where(
@@ -56,6 +58,9 @@ export class GamesService {
             .orderBy('game.name')
         if (options?.showDisabled === false) {
             qb.andWhere('game.enabled = 1')
+        }
+        if (options?.onlyShowWithoutMusics !== false) {
+            qb.andWhere('musics.id IS NULL')
         }
 
         if (options?.filterByUser instanceof User) {
