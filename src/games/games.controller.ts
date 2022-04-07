@@ -6,6 +6,7 @@ import {
     Param,
     Query,
     Req,
+    SerializeOptions,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common'
@@ -35,6 +36,10 @@ export class GamesController {
 
     @UseInterceptors(ClassSerializerInterceptor)
     @Get('')
+    @UseInterceptors(ClassSerializerInterceptor)
+    @SerializeOptions({
+        groups: ['game-list'],
+    })
     getAll(
         @Query() query: GamesSearchDto,
         @Req() request: Request,

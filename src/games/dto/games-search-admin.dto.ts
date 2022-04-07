@@ -6,6 +6,8 @@ export class GamesSearchAdminDto {
 
     showDisabled = false
 
+    onlyShowWithoutMusics = false
+
     limit?: number
 
     page?: number
