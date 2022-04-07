@@ -8,5 +8,5 @@ export class GamesSearchDto {
 
     limit?: number
 
-    page?: number
+    skip?: number
 }

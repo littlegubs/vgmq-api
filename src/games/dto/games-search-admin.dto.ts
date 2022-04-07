@@ -10,5 +10,5 @@ export class GamesSearchAdminDto {
 
     limit?: number
 
-    page?: number
+    skip?: number
 }

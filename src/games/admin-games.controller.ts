@@ -50,7 +50,7 @@ export class AdminGamesController {
                 showDisabled: query.showDisabled,
                 onlyShowWithoutMusics: query.onlyShowWithoutMusics,
                 limit: query.limit,
-                page: query.page,
+                skip: query.skip,
             })
             .then(([data, count]) => {
                 return { data, count }
