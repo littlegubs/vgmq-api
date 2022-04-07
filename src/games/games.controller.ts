@@ -49,7 +49,7 @@ export class GamesController {
             .findByName(query.query, {
                 showDisabled: false,
                 limit: query.limit,
-                page: query.page,
+                skip: query.skip,
                 ...(query.filterByUser && { filterByUser: user }),
             })
             .then(([data, count]) => {

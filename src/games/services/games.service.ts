@@ -34,7 +34,7 @@ export class GamesService {
             onlyShowWithoutMusics?: boolean
             filterByUser?: User
             limit?: number
-            page?: number
+            skip?: number
         },
     ): Promise<[Game[], number]> {
         const qb = this.gameRepository
@@ -70,8 +70,9 @@ export class GamesService {
         if (options?.limit !== undefined) {
             qb.take(options?.limit)
         }
-        if (options?.limit !== undefined && options?.page !== undefined) {
-            qb.skip((options?.page - 1) * options?.limit)
+
+        if (options?.skip !== undefined) {
+            qb.skip(options?.skip)
         }
         return qb.getManyAndCount()
     }
