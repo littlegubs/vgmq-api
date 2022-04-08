@@ -59,7 +59,10 @@ export class GamesService {
         if (options?.showDisabled === false) {
             qb.andWhere('game.enabled = 1')
         }
-        if (options?.onlyShowWithoutMusics !== false) {
+        if (
+            options?.onlyShowWithoutMusics !== undefined &&
+            options?.onlyShowWithoutMusics !== false
+        ) {
             qb.andWhere('musics.id IS NULL')
         }
 
