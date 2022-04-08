@@ -16,6 +16,8 @@ services:
       - '8080:80'
     depends_on:
       - db
+    environment:
+      UPLOAD_LIMIT: 300M
   redis:
     image: redis:alpine
     container_name: vgmq-api-redis
