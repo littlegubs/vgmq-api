@@ -11,7 +11,7 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-ref
     constructor(private authService: AuthService) {
         super({
             jwtFromRequest: ExtractJwt.fromExtractors([
-                (request: Request) => {
+                (request: Request): string => {
                     return request.body.refreshToken
                 },
             ]),
