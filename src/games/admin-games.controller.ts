@@ -101,7 +101,7 @@ export class AdminGamesController {
     @UseInterceptors(
         FilesInterceptor('files', 100, {
             limits: {
-                fileSize: 52428800, // 50 MB
+                fileSize: 157286400, // 150 MB
             },
             fileFilter(req, file, callback) {
                 if (
