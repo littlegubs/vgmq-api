@@ -99,7 +99,7 @@ export class AdminGamesController {
 
     @Roles(Role.Admin)
     @UseInterceptors(
-        FilesInterceptor('files', 100, {
+        FilesInterceptor('files', 200, {
             limits: {
                 fileSize: 157286400, // 150 MB
             },
