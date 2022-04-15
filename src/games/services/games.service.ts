@@ -42,7 +42,7 @@ export class GamesService {
             .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
             .leftJoinAndSelect('game.musics', 'musics')
             .leftJoinAndSelect('game.cover', 'cover')
-            .leftJoinAndSelect('game.users', 'user')
+            .leftJoinAndSelect('game.users', 'user') // TODO select count instead (to orderBy later)
             .where(
                 new Brackets((qb) => {
                     qb.orWhere('REPLACE(REPLACE(game.name, ":", ""), "-", " ") LIKE :name').orWhere(

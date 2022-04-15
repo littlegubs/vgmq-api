@@ -1,5 +1,4 @@
 import { randomInt } from 'crypto'
-import { statSync } from 'fs'
 
 import { InjectQueue } from '@nestjs/bull'
 import {
@@ -23,6 +22,7 @@ import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
+import {statSync} from "fs";
 
 @Injectable()
 export class LobbyService {
@@ -96,7 +96,7 @@ export class LobbyService {
         return code
     }
 
-    async join(lobby: Lobby, user: User) {
+    async join(lobby: Lobby, user: User): Promise<void> {
         //search lobby where user is already connected in
         const currentLobby = await this.lobbyUserRepository.findOne({
             relations: ['user', 'lobby'],
@@ -141,67 +141,126 @@ export class LobbyService {
             throw new InternalServerErrorException()
         }
 
-        const users = players.map((player) => player.user)
+        let userIds: number[] = []
+        let userIdsRandom: Array<number[] | undefined> = []
+        players.forEach((player) => {
+            userIds = [...userIds, player.user.id]
+            userIdsRandom = [
+                ...userIdsRandom,
+                ...Array<number[]>(Math.floor(lobby.musicNumber / players.length)).fill([
+                    player.user.id,
+                ]),
+            ]
+        })
+        if (userIdsRandom.length < lobby.musicNumber) {
+            userIdsRandom = [
+                ...userIdsRandom,
+                ...Array(lobby.musicNumber - userIdsRandom.length).fill([
+                    userIds[Math.floor(Math.random() * userIds.length)],
+                ]),
+            ]
+        }
+        userIdsRandom = userIdsRandom
+            .map((value) => ({ value, sort: Math.random() }))
+            .sort((a, b) => a.sort - b.sort)
+            .map(({ value }) => value)
 
-        const games = await this.gameRepository
-            .createQueryBuilder('game')
-            .select('game.id')
-            .innerJoin('game.musics', 'gameToMusic')
-            .innerJoin('gameToMusic.music', 'music')
-            .innerJoin('game.users', 'user')
-            .andWhere('game.enabled = 1')
-            .andWhere('user.id in (:ids)')
-            .andWhere('music.duration > :guessTime')
-            .setParameter(
-                'ids',
-                users.map((user) => user.id),
-            )
-            .setParameter('guessTime', lobby.guessTime)
-            .groupBy('game.id')
-            .orderBy('RAND()')
-            .limit(lobby.musicNumber)
-            .getMany()
-
+        let gameIds: number[] = []
+        let blackListGameIds: number[] = []
         let lobbyMusics: LobbyMusic[] = []
         let position = 0
-        for (const game of games) {
-            let gamesToMusics: GameToMusic[] | undefined = game.musics
-            if (gamesToMusics === undefined) {
-                const gameToMusic = await this.gameToMusicRepository
-                    .createQueryBuilder('gameToMusic')
-                    .leftJoinAndSelect('gameToMusic.music', 'music')
-                    .leftJoinAndSelect('music.file', 'file')
-                    .andWhere('gameToMusic.game = :game')
+        while (userIdsRandom.some((userId) => userId !== undefined)) {
+            for (const userId of userIdsRandom) {
+                if (userId === undefined) {
+                    continue
+                }
+                const i = userIdsRandom.indexOf(userId)
+                const qb = this.gameRepository
+                    .createQueryBuilder('game')
+                    .select('game.id')
+                    .innerJoin('game.musics', 'gameToMusic')
+                    .innerJoin('gameToMusic.music', 'music')
+                    .innerJoin('game.users', 'user')
+                    .andWhere('game.enabled = 1')
+                    .andWhere('user.id in (:userIds)', { userIds: userId })
                     .andWhere('music.duration > :guessTime')
-                    .setParameter('game', game.id)
                     .setParameter('guessTime', lobby.guessTime)
+                    .groupBy('game.id')
                     .orderBy('RAND()')
-                    .getOne()
 
-                if (gameToMusic) gamesToMusics = [gameToMusic]
-            }
-            for (const gameToMusic of gamesToMusics) {
-                position += 1
-                const music = gameToMusic.music
-                const stat = statSync(music.file.path)
-                let startAt = 0
-                let endAt = Math.ceil((stat.size * lobby.guessTime) / music.duration)
-                const contentLength = endAt - startAt + 1
-                endAt = randomInt(endAt, stat.size)
-                startAt = endAt - contentLength + 1
-                lobbyMusics = [
-                    ...lobbyMusics,
-                    this.lobbyMusicRepository.create({
-                        lobby,
-                        music,
-                        position,
-                        startAt,
-                        endAt,
-                        expectedAnswer: game,
-                    }),
-                ]
+                if (!lobby.allowDuplicates && gameIds.length > 0) {
+                    qb.andWhere('game.id not in (:ids)', { ids: gameIds })
+                }
+                if (blackListGameIds.length > 0) {
+                    qb.andWhere('game.id not in (:blackListIds)', {
+                        blackListIds: blackListGameIds,
+                    })
+                }
+                const game = await qb.getOne()
+
+                if (game !== undefined) {
+                    gameIds = [...gameIds, game.id]
+                    const qb = this.gameToMusicRepository
+                        .createQueryBuilder('gameToMusic')
+                        .leftJoinAndSelect('gameToMusic.music', 'music')
+                        .leftJoinAndSelect('music.file', 'file')
+                        .andWhere('gameToMusic.game = :game')
+                        .andWhere('music.duration > :guessTime')
+                        .setParameter('game', game.id)
+                        .setParameter('guessTime', lobby.guessTime)
+                        .orderBy('RAND()')
+
+                    if (lobbyMusics.length > 0) {
+                        qb.andWhere('music.id NOT IN (:musicIds)', {
+                            musicIds: lobbyMusics.map((lobbyMusic) => lobbyMusic.music.id),
+                        })
+                    }
+                    const gameToMusic = await qb.getOne()
+                    if (gameToMusic) {
+                        position += 1
+                        const music = gameToMusic.music
+                        const stat = statSync(music.file.path)
+                        const size = stat.size
+                        let startAt = 0
+                        let endAt = Math.ceil((size * lobby.guessTime) / music.duration)
+                        const contentLength = endAt - startAt + 1
+                        endAt = randomInt(endAt, size)
+                        startAt = endAt - contentLength + 1
+                        lobbyMusics = [
+                            ...lobbyMusics,
+                            this.lobbyMusicRepository.create({
+                                lobby,
+                                music,
+                                position,
+                                startAt,
+                                endAt,
+                                expectedAnswer: game,
+                            }),
+                        ]
+                        userIdsRandom.splice(i, 1, undefined)
+                    } else {
+                        blackListGameIds = [...blackListGameIds, game.id]
+                    }
+                } else {
+                    if (userId.length === userIds.length) {
+                        userIdsRandom.splice(i, 1, undefined)
+                        continue
+                    }
+                    userIdsRandom = userIdsRandom.map((v) => {
+                        if (Array.isArray(v) && v === userId) {
+                            const userIdsFiltered = userIds.filter((uid) => !v?.includes(uid))
+                            const random =
+                                userIdsFiltered[Math.floor(Math.random() * userIdsFiltered.length)]
+                            if (random) {
+                                return [...v, random]
+                            }
+                        }
+                        return v
+                    })
+                }
             }
         }
+
         if (lobbyMusics.length === 0) {
             lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Waiting })
             await this.lobbyRepository.save(lobby)
