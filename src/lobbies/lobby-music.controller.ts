@@ -15,6 +15,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import { Cache } from 'cache-manager'
 import { Request, Response as ExpressReponse } from 'express'
+import { fileExistsSync } from 'tsconfig-paths/lib/filesystem'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
@@ -44,6 +45,9 @@ export class LobbyMusicController {
             throw new NotFoundException()
         }
 
+        if (!fileExistsSync(lobbyMusic.music.file.path)) {
+            throw new NotFoundException()
+        }
         const file = createReadStream(lobbyMusic.music.file.path, {
             start: lobbyMusic.startAt,
             end: lobbyMusic.endAt,
