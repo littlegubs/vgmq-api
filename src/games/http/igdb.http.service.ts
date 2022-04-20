@@ -1,12 +1,10 @@
 import { HttpService } from '@nestjs/axios'
 import { HttpException, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { firstValueFrom } from 'rxjs'
 import { MoreThan } from 'typeorm'
 
 import { IgdbClient } from '../entity/igdb.entity'
 import { IgdbGame } from '../igdb.type'
-import {AxiosResponse} from "axios";
 
 @Injectable()
 export class IgdbHttpService {
@@ -65,23 +63,26 @@ export class IgdbHttpService {
         })
     }
 
-    async importByUrl(url: string): Promise<AxiosResponse<IgdbGame[]>> {
+    async importByUrl(url: string): Promise<IgdbGame[]> {
         const accessToken = await this.getAccessToken()
-
-        return firstValueFrom(
-            this.httpService.post<IgdbGame[]>(
-                'https://api.igdb.com/v4/games',
-                `fields category, parent_game.url, url, category,alternative_names.name, cover.*, first_release_date, version_parent.url, name, slug, videos.video_id;
+        return new Promise<IgdbGame[]>((resolve) => {
+            this.httpService
+                .post<IgdbGame[]>(
+                    'https://api.igdb.com/v4/games',
+                    `fields category, parent_game.url, url, category,alternative_names.name, cover.*, first_release_date, version_parent.url, name, slug, videos.video_id;
                 sort popularity desc; 
                 limit 500; 
                 where url = "${url}";`,
-                {
-                    headers: {
-                        'Client-ID': this.#twitchClientId,
-                        Authorization: `Bearer ${accessToken}`,
+                    {
+                        headers: {
+                            'Client-ID': this.#twitchClientId,
+                            Authorization: `Bearer ${accessToken}`,
+                        },
                     },
-                },
-            ),
-        )
+                )
+                .subscribe((res) => {
+                    resolve(res.data)
+                })
+        })
     }
 }
