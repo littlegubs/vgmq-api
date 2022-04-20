@@ -31,7 +31,7 @@ export class IgdbService {
         return this.igdbHttpService
             .importByUrl(url)
             .then(async (res) => {
-                const igdbGame = res.data[0]
+                const igdbGame = res[0]
 
                 if (!igdbGame) throw new NotFoundException('the game was not found')
                 if (!igdbGame.first_release_date)
