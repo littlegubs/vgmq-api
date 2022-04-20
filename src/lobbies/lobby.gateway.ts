@@ -1,3 +1,5 @@
+import { openSync, readSync, statSync, writeFileSync } from 'fs'
+
 import { InjectQueue } from '@nestjs/bull'
 import { forwardRef, Inject, Logger, UseFilters, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -25,6 +27,7 @@ import { Lobby, LobbyStatuses } from './entities/lobby.entity'
 import { InvalidPasswordException } from './exceptions/invalid-password.exception'
 import { MissingPasswordException } from './exceptions/missing-password.exception'
 import { LobbyService } from './lobby.service'
+import { Duration } from './mp3'
 
 export class AuthenticatedSocket extends Socket {
     user: User
@@ -105,13 +108,13 @@ export class LobbyGateway {
 
         if (lobby.status === LobbyStatuses.PlayingMusic) {
             const lobbyMusic = await this.lobbyMusicRepository.findOne({
-                relations: ['lobby'],
+                relations: ['lobby', 'music'],
                 where: {
                     lobby: lobby,
                     position: lobby.currentLobbyMusicPosition,
                 },
             })
-            if (lobbyMusic !== undefined) client.emit('lobbyMusic', lobbyMusic?.id)
+            if (lobbyMusic !== undefined) this.sendLobbyMusicToLoad(lobbyMusic)
         }
 
         this.sendLobbyUsers(
@@ -235,8 +238,22 @@ export class LobbyGateway {
     sendUpdateToRoom(lobby: Lobby): void {
         this.server.to(lobby.code).emit('lobby', classToClass<Lobby>(lobby))
     }
+
     sendLobbyMusicToLoad(lobbyMusic: LobbyMusic): void {
-        this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', lobbyMusic.id)
+        const music = lobbyMusic.music
+        const stat = statSync(music.file.path)
+        const size = stat.size
+        const { duration, offset } = Duration.getDuration(music.file.path)
+        const valuePerSecond = (size - offset) / duration
+        const startBit = lobbyMusic.startAt * valuePerSecond
+        const endBit = lobbyMusic.endAt * valuePerSecond
+        const fd = openSync(music.file.path, 'r')
+
+        const audioBuffer = Buffer.alloc(endBit - startBit)
+        readSync(fd, audioBuffer, 0, audioBuffer.length, parseInt(String(startBit + offset)))
+
+        writeFileSync(`./data/lobby-music/${music.id}.mp3`, audioBuffer)
+        this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', audioBuffer)
     }
 
     sendLobbyClosed(lobby: Lobby, message: string): void {
@@ -253,8 +270,14 @@ export class LobbyGateway {
         )
     }
 
-    sendAnswer(lobby: Lobby, game: Game): void {
-        this.server.to(lobby.code).emit('lobbyAnswer', game.name)
+    sendAnswer(lobby: Lobby, lobbyMusic: LobbyMusic): void {
+        this.server.to(lobby.code).emit(
+            'lobbyAnswer',
+            classToClass<LobbyMusic>(lobbyMusic, {
+                strategy: 'excludeAll',
+                groups: ['lobby-answer-reveal'],
+            }),
+        )
     }
     sendLobbyReset(lobby: Lobby): void {
         this.server.to(lobby.code).emit('lobbyReset', classToClass<Lobby>(lobby))

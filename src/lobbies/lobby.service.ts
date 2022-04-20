@@ -1,4 +1,4 @@
-import { randomInt } from 'crypto'
+import { openSync, readSync, statSync, writeFileSync } from 'fs'
 
 import { InjectQueue } from '@nestjs/bull'
 import {
@@ -22,7 +22,7 @@ import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
-import {statSync} from "fs";
+import { Duration } from './mp3'
 
 @Injectable()
 export class LobbyService {
@@ -194,13 +194,9 @@ export class LobbyService {
                     if (gameToMusic) {
                         position += 1
                         const music = gameToMusic.music
-                        const stat = statSync(music.file.path)
-                        const size = stat.size
-                        let startAt = 0
-                        let endAt = Math.ceil((size * lobby.guessTime) / music.duration)
-                        const contentLength = endAt - startAt + 1
-                        endAt = randomInt(endAt, size)
-                        startAt = endAt - contentLength + 1
+                        const { duration } = Duration.getDuration(music.file.path)
+                        const endAt = this.getRandomFloat(lobby.guessTime, duration, 4)
+                        const startAt = endAt - lobby.guessTime
                         lobbyMusics = [
                             ...lobbyMusics,
                             this.lobbyMusicRepository.create({
@@ -248,5 +244,11 @@ export class LobbyService {
         await this.lobbyMusicRepository.save(lobbyMusics)
         await this.lobbyRepository.save(lobby)
         await this.lobbyQueue.add('playMusic', lobby.code)
+    }
+
+    getRandomFloat(min: number, max: number, decimals: number): number {
+        const str = (Math.random() * (max - min) + min).toFixed(decimals)
+
+        return parseFloat(str)
     }
 }

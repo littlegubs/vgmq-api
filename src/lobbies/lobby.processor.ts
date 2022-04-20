@@ -43,7 +43,7 @@ export class LobbyProcessor {
         })
 
         const lobbyMusic = await this.lobbyMusicRepository.findOne({
-            relations: ['lobby'],
+            relations: ['lobby', 'music'],
             where: {
                 lobby: lobby,
                 position: lobby.currentLobbyMusicPosition,
@@ -109,7 +109,7 @@ export class LobbyProcessor {
             }),
         )
         const currentLobbyMusic = await this.lobbyMusicRepository.findOne({
-            relations: ['expectedAnswer'],
+            relations: ['expectedAnswer', 'music'],
             where: {
                 lobby,
                 position: lobby.currentLobbyMusicPosition,
@@ -130,7 +130,7 @@ export class LobbyProcessor {
             return
         }
         this.lobbyGateway.sendUpdateToRoom(lobby)
-        this.lobbyGateway.sendAnswer(lobby, currentLobbyMusic.expectedAnswer)
+        this.lobbyGateway.sendAnswer(lobby, currentLobbyMusic)
 
         await this.lobbyQueue.add(
             lobby.currentLobbyMusicPosition === lobby.lobbyMusics.length

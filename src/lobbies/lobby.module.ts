@@ -8,15 +8,14 @@ import { Music } from '../games/entity/music.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
-import { LobbyGateway } from './lobby.gateway'
-import { LobbyMusicController } from './lobby-music.controller'
 import { LobbyController } from './lobby.controller'
+import { LobbyGateway } from './lobby.gateway'
 import { LobbyProcessor } from './lobby.processor'
 import { LobbyService } from './lobby.service'
 import { LobbyUserSubscriber } from './subscribers/lobby-user.subscriber'
 
 @Module({
-    controllers: [LobbyController, LobbyMusicController],
+    controllers: [LobbyController],
     imports: [
         TypeOrmModule.forFeature([Lobby, LobbyMusic, LobbyUser, Game, GameToMusic, Music]),
         CacheModule.register(),
