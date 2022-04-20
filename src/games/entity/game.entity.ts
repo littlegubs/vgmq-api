@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer'
+import { Expose, Transform } from 'class-transformer'
 import {
     Entity,
     Column,
@@ -32,6 +32,7 @@ export class Game {
     firstReleaseDate?: Date
 
     @Column()
+    @Expose({ groups: ['lobby-answer-reveal'] })
     name: string
 
     @Column()

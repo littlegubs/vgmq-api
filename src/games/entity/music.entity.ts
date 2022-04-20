@@ -12,6 +12,7 @@ import {
 import { File } from '../../entity/file.entity'
 import { LobbyMusic } from '../../lobbies/entities/lobby-music.entity'
 import { GameToMusic } from './game-to-music.entity'
+import {Expose} from "class-transformer";
 
 @Entity()
 export class Music {
@@ -19,9 +20,11 @@ export class Music {
     id: number
 
     @Column()
+    @Expose({ groups: ['lobby-answer-reveal'] })
     title: string
 
     @Column({ nullable: true })
+    @Expose({ groups: ['lobby-answer-reveal'] })
     artist: string
 
     @Column({ type: 'float' })
