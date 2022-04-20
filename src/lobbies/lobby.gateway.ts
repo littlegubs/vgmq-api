@@ -252,7 +252,6 @@ export class LobbyGateway {
         const audioBuffer = Buffer.alloc(endBit - startBit)
         readSync(fd, audioBuffer, 0, audioBuffer.length, parseInt(String(startBit + offset)))
 
-        writeFileSync(`./data/lobby-music/${music.id}.mp3`, audioBuffer)
         this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', audioBuffer)
     }
 
