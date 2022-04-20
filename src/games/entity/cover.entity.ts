@@ -19,7 +19,7 @@ export class Cover {
     igdbId: number
 
     @Column()
-    @Expose({ groups: ['lobby-answer-reveal'] })
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
     imageId: string
 
     @OneToOne(() => Game, (game) => game.cover, { onDelete: 'CASCADE' })

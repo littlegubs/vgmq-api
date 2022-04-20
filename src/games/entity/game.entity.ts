@@ -32,7 +32,7 @@ export class Game {
     firstReleaseDate?: Date
 
     @Column()
-    @Expose({ groups: ['lobby-answer-reveal'] })
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
     name: string
 
     @Column()
@@ -49,12 +49,13 @@ export class Game {
     })
     alternativeNames: AlternativeName[]
 
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
     @OneToOne(() => Cover, (cover) => cover.game, {
         cascade: true,
         onDelete: 'SET NULL',
+        eager: true,
     })
     @JoinColumn()
-    @Expose({ groups: ['lobby-answer-reveal'] })
     cover?: Cover | null
 
     @Transform(({ value }) => value.length)
