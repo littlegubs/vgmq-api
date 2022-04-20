@@ -1,3 +1,4 @@
+import { Expose } from 'class-transformer'
 import {
     Entity,
     Column,
@@ -18,6 +19,7 @@ export class Cover {
     igdbId: number
 
     @Column()
+    @Expose({ groups: ['lobby-answer-reveal'] })
     imageId: string
 
     @OneToOne(() => Game, (game) => game.cover, { onDelete: 'CASCADE' })

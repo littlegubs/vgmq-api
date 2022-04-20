@@ -54,6 +54,7 @@ export class Game {
         onDelete: 'SET NULL',
     })
     @JoinColumn()
+    @Expose({ groups: ['lobby-answer-reveal'] })
     cover?: Cover | null
 
     @Transform(({ value }) => value.length)
