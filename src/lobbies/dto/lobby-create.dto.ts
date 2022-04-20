@@ -18,5 +18,16 @@ export class LobbyCreateDto {
         return value
     })
     password: string | null
+
+    @Max(100)
+    @Min(5)
+    @IsNumber()
     musicNumber: number
+
+    @Max(60)
+    @Min(5)
+    @IsNumber()
+    guessTime: number
+
+    allowDuplicates: boolean
 }

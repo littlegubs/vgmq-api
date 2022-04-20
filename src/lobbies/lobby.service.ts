@@ -60,6 +60,8 @@ export class LobbyService {
             name: data.name,
             password: data.password,
             musicNumber: data.musicNumber,
+            guessTime: data.guessTime,
+            allowDuplicates: data.allowDuplicates,
         })
         await this.lobbyUserRepository.save({
             lobby,
@@ -76,6 +78,8 @@ export class LobbyService {
             name: data.name,
             password: data.password,
             musicNumber: data.musicNumber,
+            guessTime: data.guessTime,
+            allowDuplicates: data.allowDuplicates,
         })
 
         this.lobbyGateway.sendUpdateToRoom(lobby)
@@ -94,35 +98,6 @@ export class LobbyService {
             throw new InternalServerErrorException()
         }
         return code
-    }
-
-    async join(lobby: Lobby, user: User): Promise<void> {
-        //search lobby where user is already connected in
-        const currentLobby = await this.lobbyUserRepository.findOne({
-            relations: ['user', 'lobby'],
-            where: {
-                user: user,
-            },
-        })
-        if (currentLobby !== undefined && currentLobby.lobby.code !== lobby.code) {
-            await this.lobbyRepository.remove(currentLobby.lobby)
-        }
-        const player = await this.lobbyUserRepository.findOne({
-            relations: ['user'],
-            where: {
-                user: user,
-            },
-        })
-        if (player === undefined) {
-            const players = await this.lobbyUserRepository.find({
-                lobby: lobby,
-            })
-            await this.lobbyUserRepository.save({
-                lobby: lobby,
-                user: user,
-                role: players.length === 0 ? LobbyUserRole.Host : LobbyUserRole.Player,
-            })
-        }
     }
 
     async loadMusics(lobby: Lobby): Promise<void> {
