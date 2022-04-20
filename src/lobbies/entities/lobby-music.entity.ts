@@ -1,3 +1,4 @@
+import { Expose } from 'class-transformer'
 import {
     Column,
     CreateDateColumn,
@@ -34,8 +35,10 @@ export class LobbyMusic {
     @ManyToOne(() => Music, (music) => music.lobbyMusics, {
         onDelete: 'CASCADE',
     })
+    @Expose({ groups: ['lobby-answer-reveal'] })
     music: Music
 
+    @Expose({ groups: ['lobby-answer-reveal'] })
     @ManyToOne(() => Game)
     expectedAnswer: Game
 
