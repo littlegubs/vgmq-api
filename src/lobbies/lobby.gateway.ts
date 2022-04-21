@@ -1,4 +1,4 @@
-import { openSync, readSync, statSync, writeFileSync } from 'fs'
+import { openSync, readSync, statSync } from 'fs'
 
 import { InjectQueue } from '@nestjs/bull'
 import { forwardRef, Inject, Logger, UseFilters, UseGuards } from '@nestjs/common'
@@ -196,12 +196,6 @@ export class LobbyGateway {
             .innerJoinAndSelect('lobbyMusic.expectedAnswer', 'expectedAnswer')
             .leftJoinAndSelect('expectedAnswer.alternativeNames', 'expectedAnswerAlternativeName')
             .andWhere('expectedAnswer.enabled = 1')
-            .andWhere(
-                new Brackets((qb) => {
-                    qb.orWhere('expectedAnswerAlternativeName.enabled IS NULL')
-                    qb.orWhere('expectedAnswerAlternativeName.enabled = 1')
-                }),
-            )
             .andWhere('lobbyMusic.lobby = :lobby', { lobby: lobby.id })
             .andWhere('lobbyMusic.position = :position', {
                 position: lobby.currentLobbyMusicPosition,
@@ -209,7 +203,14 @@ export class LobbyGateway {
             .andWhere(
                 new Brackets((qb) => {
                     qb.orWhere('expectedAnswer.name LIKE :answer')
-                    qb.orWhere('expectedAnswerAlternativeName.name LIKE :answer')
+                    qb.orWhere(
+                        new Brackets((qb2) => {
+                            qb2.orWhere('expectedAnswerAlternativeName.enabled IS NULL')
+                            qb2.orWhere(
+                                'expectedAnswerAlternativeName.enabled = 1 AND expectedAnswerAlternativeName.name LIKE :answer',
+                            )
+                        }),
+                    )
                 }),
             )
             .setParameter('answer', answer)
