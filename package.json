@@ -37,6 +37,7 @@
     "bcrypt": "^5.0.1",
     "bull": "^3.29.3",
     "cache-manager": "^3.6.0",
+    "check-disk-space": "^3.3.0",
     "class-transformer": "^0.4.0",
     "class-validator": "^0.13.1",
     "cookie-parser": "^1.4.5",
