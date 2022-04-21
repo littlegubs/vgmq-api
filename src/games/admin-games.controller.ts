@@ -14,8 +14,10 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { FilesInterceptor } from '@nestjs/platform-express'
 import { InjectRepository } from '@nestjs/typeorm'
+import checkDiskSpace from 'check-disk-space'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
@@ -36,6 +38,7 @@ export class AdminGamesController {
         private igdbService: IgdbService,
         @InjectRepository(Game)
         private gamesRepository: Repository<Game>,
+        private configService: ConfigService,
     ) {}
 
     @Roles(Role.Admin)
@@ -78,7 +81,7 @@ export class AdminGamesController {
 
     @Roles(Role.Admin)
     @Get('/:slug')
-    async get(@Param('slug') slug: string): Promise<Game> {
+    async get(@Param('slug') slug: string): Promise<{ game: Game; free: number; size: number }> {
         const game = await this.gamesRepository.findOne({
             relations: ['alternativeNames', 'musics'],
             where: {
@@ -88,7 +91,10 @@ export class AdminGamesController {
         if (game === undefined) {
             throw new NotFoundException()
         }
-        return game
+        const { free, size } = await checkDiskSpace(
+            this.configService.get('DISK_SPACE_PATH') ?? '/',
+        )
+        return { game, free, size }
     }
 
     @Roles(Role.Admin)
