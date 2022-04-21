@@ -106,15 +106,23 @@ export class LobbyGateway {
         await client.join(lobby.code)
         client.emit('lobbyJoined', classToClass<Lobby>(lobby))
 
-        if (lobby.status === LobbyStatuses.PlayingMusic) {
+        if (
+            [LobbyStatuses.PlayingMusic.toString(), LobbyStatuses.AnswerReveal.toString()].includes(
+                lobby.status,
+            )
+        ) {
             const lobbyMusic = await this.lobbyMusicRepository.findOne({
-                relations: ['lobby', 'music'],
+                relations: ['lobby', 'music', 'expectedAnswer'],
                 where: {
                     lobby: lobby,
                     position: lobby.currentLobbyMusicPosition,
                 },
             })
-            if (lobbyMusic !== undefined) this.sendLobbyMusicToLoad(lobbyMusic)
+            if (lobbyMusic !== undefined) {
+                if (lobby.status === LobbyStatuses.PlayingMusic)
+                    this.sendLobbyMusicToLoad(lobbyMusic, client)
+                if (lobby.status === LobbyStatuses.AnswerReveal) this.sendAnswer(lobbyMusic, client)
+            }
         }
 
         this.sendLobbyUsers(
@@ -240,7 +248,7 @@ export class LobbyGateway {
         this.server.to(lobby.code).emit('lobby', classToClass<Lobby>(lobby))
     }
 
-    sendLobbyMusicToLoad(lobbyMusic: LobbyMusic): void {
+    sendLobbyMusicToLoad(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
         const music = lobbyMusic.music
         const stat = statSync(music.file.path)
         const size = stat.size
@@ -253,7 +261,11 @@ export class LobbyGateway {
         const audioBuffer = Buffer.alloc(endBit - startBit)
         readSync(fd, audioBuffer, 0, audioBuffer.length, parseInt(String(startBit + offset)))
 
-        this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', audioBuffer)
+        if (client) {
+            client.emit('lobbyMusic', audioBuffer)
+        } else {
+            this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', audioBuffer)
+        }
     }
 
     sendLobbyClosed(lobby: Lobby, message: string): void {
@@ -270,14 +282,16 @@ export class LobbyGateway {
         )
     }
 
-    sendAnswer(lobby: Lobby, lobbyMusic: LobbyMusic): void {
-        this.server.to(lobby.code).emit(
-            'lobbyAnswer',
-            classToClass<LobbyMusic>(lobbyMusic, {
-                strategy: 'excludeAll',
-                groups: ['lobby-answer-reveal'],
-            }),
-        )
+    sendAnswer(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
+        const data = classToClass<LobbyMusic>(lobbyMusic, {
+            strategy: 'excludeAll',
+            groups: ['lobby-answer-reveal'],
+        })
+        if (client) {
+            client.emit('lobbyAnswer', data)
+        } else {
+            this.server.to(lobbyMusic.lobby.code).emit('lobbyAnswer', data)
+        }
     }
     sendLobbyReset(lobby: Lobby): void {
         this.server.to(lobby.code).emit('lobbyReset', classToClass<Lobby>(lobby))
