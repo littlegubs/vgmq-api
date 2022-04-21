@@ -210,13 +210,22 @@ export class LobbyGateway {
             })
             .andWhere(
                 new Brackets((qb) => {
-                    qb.orWhere('expectedAnswer.name LIKE :answer')
-                    qb.orWhere(
+                    qb.where(
                         new Brackets((qb2) => {
-                            qb2.orWhere('expectedAnswerAlternativeName.enabled IS NULL')
-                            qb2.orWhere(
-                                'expectedAnswerAlternativeName.enabled = 1 AND expectedAnswerAlternativeName.name LIKE :answer',
+                            qb2.andWhere(
+                                new Brackets((qb3) => {
+                                    qb3.orWhere('expectedAnswerAlternativeName.enabled IS NULL')
+                                    qb3.orWhere('expectedAnswerAlternativeName.enabled = 0')
+                                    qb3.orWhere('expectedAnswerAlternativeName.enabled = 1')
+                                }),
                             )
+                            qb2.andWhere('expectedAnswer.name LIKE :answer')
+                        }),
+                    )
+                    qb.orWhere(
+                        new Brackets((qb4) => {
+                            qb4.andWhere('expectedAnswerAlternativeName.enabled = 1')
+                            qb4.andWhere('expectedAnswerAlternativeName.name LIKE :answer')
                         }),
                     )
                 }),
