@@ -140,6 +140,7 @@ export class GamesService {
             .andWhere('REPLACE(REPLACE(game.name, ":", ""), "-", " ") LIKE :query', {
                 query: `%${query}%`,
             })
+            .orderBy('game.name')
             .getMany()
 
         const alternativeNames = await this.alternativeNameRepository
@@ -148,8 +149,11 @@ export class GamesService {
             .andWhere('REPLACE(REPLACE(alternativeName.name, ":", ""), "-", " ") LIKE :query', {
                 query: `%${query}%`,
             })
+            .orderBy('alternativeName.name')
             .getMany()
 
-        return [...games.map((g) => g.name), ...alternativeNames.map((a) => a.name)]
+        return [
+            ...new Set([...games.map((g) => g.name), ...alternativeNames.map((a) => a.name)]),
+        ].sort((a, b) => a.localeCompare(b))
     }
 }
