@@ -31,7 +31,7 @@
     "@nestjs/passport": "^8.0.1",
     "@nestjs/platform-express": "^8.0.6",
     "@nestjs/platform-socket.io": "^8.2.6",
-    "@nestjs/typeorm": "^8.0.2",
+    "@nestjs/typeorm": "^8.0.3",
     "@nestjs/websockets": "^8.2.6",
     "axios": "^0.21.1",
     "bcrypt": "^5.0.1",
@@ -54,7 +54,7 @@
     "slugify": "^1.6.0",
     "socket.io": "^4.4.1",
     "typedi": "^0.10.0",
-    "typeorm": "^0.2.37"
+    "typeorm": "^0.2.45"
   },
   "devDependencies": {
     "@nestjs/cli": "^8.1.1",

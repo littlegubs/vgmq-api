@@ -39,10 +39,12 @@ export class GamesService {
     ): Promise<[Game[], number]> {
         const qb = this.gameRepository
             .createQueryBuilder('game')
-            .leftJoinAndSelect('game.alternativeNames', 'alternativeName')
-            .leftJoinAndSelect('game.musics', 'musics')
+            .leftJoin('game.alternativeNames', 'alternativeName')
+            .leftJoin('game.musics', 'music')
+            .loadRelationCountAndMap('game.countMusics', 'game.musics', 'countMusics')
             .leftJoinAndSelect('game.cover', 'cover')
-            .leftJoinAndSelect('game.users', 'user') // TODO select count instead (to orderBy later)
+            .loadRelationCountAndMap('game.countUsers', 'game.users', 'countUsers')
+            .leftJoin('game.users', 'user')
             .where(
                 new Brackets((qb) => {
                     qb.orWhere('REPLACE(REPLACE(game.name, ":", ""), "-", " ") LIKE :name').orWhere(
@@ -59,15 +61,16 @@ export class GamesService {
         if (options?.showDisabled === false) {
             qb.andWhere('game.enabled = 1')
         }
+
         if (
             options?.onlyShowWithoutMusics !== undefined &&
             options?.onlyShowWithoutMusics !== false
         ) {
-            qb.andWhere('musics.id IS NULL')
+            qb.andWhere('music.id IS NULL')
         }
 
         if (options?.filterByUser instanceof User) {
-            qb.andWhere('user.id = :userId').setParameter('userId', options.filterByUser.id)
+            qb.andWhere('user.id = :userId', { userId: options.filterByUser.id })
         }
 
         if (options?.limit !== undefined) {
@@ -78,6 +81,16 @@ export class GamesService {
             qb.skip(options?.skip)
         }
         return qb.getManyAndCount()
+    }
+
+    async getGamesIdsForUser(user: User): Promise<number[]> {
+        const qb = this.gameRepository
+            .createQueryBuilder('game')
+            .select('game.id')
+            .leftJoin('game.users', 'user')
+            .andWhere('user.id = :userId', { userId: user.id })
+        const rawValues = await qb.getRawMany<{ game_id: number }>()
+        return rawValues.map((game) => game.game_id)
     }
 
     async toggle(slug: string): Promise<Game> {

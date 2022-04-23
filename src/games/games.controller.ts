@@ -52,11 +52,15 @@ export class GamesController {
                 skip: query.skip,
                 ...(query.filterByUser && { filterByUser: user }),
             })
-            .then(([data, count]) => {
-                data.forEach((game) => {
-                    game.selectedByUser = !!game.users.find((gameUser) => gameUser.id === user.id)
-                })
-                return { data, count }
+            .then(async ([data, count]) => {
+                const gameIds = await this.gamesService.getGamesIdsForUser(user)
+                return {
+                    data: data.map((game) => ({
+                        ...game,
+                        selectedByUser: gameIds.includes(game.id),
+                    })),
+                    count,
+                }
             })
     }
 
