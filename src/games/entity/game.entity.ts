@@ -58,7 +58,6 @@ export class Game {
     @JoinColumn()
     cover?: Cover | null
 
-    @Transform(({ value }) => value.length)
     @ManyToMany(() => User, (user) => user.games)
     users: User[]
 
@@ -79,7 +78,6 @@ export class Game {
     })
     versionParent?: Game
 
-    @Transform(({ value }) => value.length, { groups: ['game-list'] })
     @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.game)
     musics: GameToMusic[]
 
