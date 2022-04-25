@@ -1,5 +1,18 @@
-import { Controller, Delete, NotFoundException, Param, UseGuards } from '@nestjs/common'
+import { createReadStream } from 'fs'
+
+import {
+    Controller,
+    Delete,
+    Get,
+    NotFoundException,
+    Param,
+    Req,
+    Response,
+    StreamableFile,
+    UseGuards,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { Request, Response as ExpressReponse } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
@@ -28,5 +41,22 @@ export class GameToMusicController {
             throw new NotFoundException()
         }
         await this.gameToMusicRepository.remove(gameToMusic)
+    }
+
+    @Get('/:id/listen')
+    async listen(
+        @Param('id') id: string,
+        @Req() request: Request,
+        @Response({ passthrough: true }) res: ExpressReponse,
+    ): Promise<StreamableFile> {
+        const gameToMusic = await this.gameToMusicRepository.findOne(id)
+        if (!gameToMusic) {
+            throw new NotFoundException()
+        }
+        const file = createReadStream(gameToMusic.music.file.path)
+        res.set({
+            'Content-Type': 'audio/mpeg',
+        })
+        return new StreamableFile(file)
     }
 }
