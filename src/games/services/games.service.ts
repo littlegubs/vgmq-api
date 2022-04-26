@@ -40,11 +40,9 @@ export class GamesService {
         const qb = this.gameRepository
             .createQueryBuilder('game')
             .leftJoin('game.alternativeNames', 'alternativeName')
-            .leftJoin('game.musics', 'music')
             .loadRelationCountAndMap('game.countMusics', 'game.musics', 'countMusics')
-            .leftJoinAndSelect('game.cover', 'cover')
             .loadRelationCountAndMap('game.countUsers', 'game.users', 'countUsers')
-            .leftJoin('game.users', 'user')
+            .leftJoinAndSelect('game.cover', 'cover')
             .where(
                 new Brackets((qb) => {
                     qb.orWhere('REPLACE(REPLACE(game.name, ":", ""), "-", " ") LIKE :name').orWhere(
@@ -58,6 +56,7 @@ export class GamesService {
             )
             .setParameter('name', `%${query}%`)
             .orderBy('game.name')
+            .groupBy('game.id')
         if (options?.showDisabled === false) {
             qb.andWhere('game.enabled = 1')
         }
@@ -66,19 +65,21 @@ export class GamesService {
             options?.onlyShowWithoutMusics !== undefined &&
             options?.onlyShowWithoutMusics !== false
         ) {
-            qb.andWhere('music.id IS NULL')
+            qb.leftJoin('game.musics', 'music').andWhere('music.id IS NULL')
         }
 
         if (options?.filterByUser instanceof User) {
-            qb.andWhere('user.id = :userId', { userId: options.filterByUser.id })
+            qb.leftJoin('game.users', 'user').andWhere('user.id = :userId', {
+                userId: options.filterByUser.id,
+            })
         }
 
         if (options?.limit !== undefined) {
-            qb.take(options?.limit)
+            qb.limit(options?.limit)
         }
 
         if (options?.skip !== undefined) {
-            qb.skip(options?.skip)
+            qb.offset(options?.skip)
         }
         return qb.getManyAndCount()
     }
