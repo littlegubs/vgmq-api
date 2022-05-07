@@ -49,6 +49,12 @@ export class User {
     @Column({ type: 'varchar', nullable: true })
     currentHashedRefreshToken?: string | null
 
+    @Column({ type: 'varchar', nullable: true })
+    resetPasswordToken: string | null
+
+    @Column({ type: 'datetime', nullable: true })
+    resetPasswordTokenCreatedAt: Date | null
+
     @ManyToMany(() => Game, (game) => game.users)
     @JoinTable({ name: 'user_games' })
     games: Game[]

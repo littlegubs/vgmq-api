@@ -1,4 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { randomBytes } from 'crypto'
+
+import { MailerService } from '@nestjs-modules/mailer'
+import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -22,6 +25,7 @@ export class AuthService {
         private readonly configService: ConfigService,
         @InjectRepository(User)
         private usersRepository: Repository<User>,
+        private mailerService: MailerService,
     ) {}
 
     public getJwtAccessToken(user: User): string {
@@ -102,6 +106,29 @@ export class AuthService {
         await this.usersRepository.save({
             ...user,
             currentHashedRefreshToken: null,
+        })
+    }
+
+    async resetPassword(user: User): Promise<void> {
+        const token = randomBytes(32).toString('hex')
+        const vgmqClientUrl = this.configService.get<string>('VGMQ_CLIENT_URL')
+        if (vgmqClientUrl === undefined) {
+            throw new InternalServerErrorException()
+        }
+        await this.usersRepository.save({
+            ...user,
+            resetPasswordToken: token,
+            resetPasswordTokenCreatedAt: new Date(),
+        })
+        const url = `${vgmqClientUrl}/reset-password/${token}`
+
+        await this.mailerService.sendMail({
+            to: user.email,
+            subject: 'Reset your VGMQ password',
+            template: 'reset-password',
+            context: {
+                url: url,
+            },
         })
     }
 }

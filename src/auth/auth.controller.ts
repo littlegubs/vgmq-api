@@ -11,8 +11,9 @@ import {
     UseGuards,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import * as dayjs from 'dayjs'
 import { Request } from 'express'
-import { Repository } from 'typeorm'
+import { MoreThan, Repository } from 'typeorm'
 
 import { LimitedAccessGuard } from '../limited-access/guards/limited-access.guard'
 import { User } from '../users/user.entity'
@@ -20,6 +21,8 @@ import { UsersService } from '../users/users.service'
 import { AuthService } from './auth.service'
 import { AuthLoginDto } from './dto/auth-login.dto'
 import { AuthRegisterDto } from './dto/auth-register.dto'
+import { AuthRequestResetPasswordDto } from './dto/auth-request-reset-password.dto'
+import { AuthResetPasswordDto } from './dto/auth-reset-password.dto'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard'
 import { RecaptchaGuard } from './guards/recaptcha.guard'
@@ -67,6 +70,54 @@ export class AuthController {
             throw new NotFoundException()
         }
         await this.userRepository.save({ ...user, enabled: true, confirmationToken: null })
+        return this.authService.getUserTokens(user)
+    }
+
+    @UseGuards(RecaptchaGuard)
+    @Post('reset-password/request')
+    @HttpCode(200)
+    async requestResetPassword(
+        @Body() authRequestResetPassword: AuthRequestResetPasswordDto,
+    ): Promise<void> {
+        const user = await this.usersService.findByEmail(authRequestResetPassword.email)
+        if (user === undefined) {
+            return
+        }
+        if (
+            user.resetPasswordTokenCreatedAt &&
+            dayjs().diff(user.resetPasswordTokenCreatedAt, 'hour') < 24
+        ) {
+            throw new BadRequestException(
+                'You already requested to change your password recently, please try again later',
+            )
+        }
+        await this.authService.resetPassword(user)
+    }
+
+    @UseGuards(RecaptchaGuard)
+    @Post('reset-password/:token')
+    @HttpCode(200)
+    async resetPassword(
+        @Param('token') token: string,
+        @Body() authResetPassword: AuthResetPasswordDto,
+    ): Promise<{ accessToken: string; refreshToken: string }> {
+        const user = await this.userRepository.findOne({
+            where: {
+                resetPasswordToken: token,
+                resetPasswordTokenCreatedAt: MoreThan(dayjs().subtract(1, 'day').format()),
+            },
+        })
+        if (user === undefined) {
+            throw new NotFoundException('This link has expired')
+        }
+        await this.userRepository.save(
+            this.userRepository.create({
+                ...user,
+                password: authResetPassword.password,
+                resetPasswordToken: null,
+                resetPasswordTokenCreatedAt: null,
+            }),
+        )
         return this.authService.getUserTokens(user)
     }
 
