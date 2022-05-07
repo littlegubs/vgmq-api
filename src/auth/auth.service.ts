@@ -66,9 +66,9 @@ export class AuthService {
     }
 
     async validateUser(authLoginDto: AuthLoginDto): Promise<User> {
-        const { username, password } = authLoginDto
+        const { email, password } = authLoginDto
 
-        const user = await this.usersService.findByUsername(username)
+        const user = await this.usersService.findByEmail(email)
 
         if (user && (await user.validatePassword(password))) {
             if (!user.enabled) {
