@@ -14,6 +14,7 @@ import { LobbyModule } from './lobbies/lobby.module'
 import { MusicsModule } from './musics/musics.module'
 import { FileSubscriber } from './subscribers/file.subscriber'
 import { UsersModule } from './users/users.module'
+import { MailModule } from './mail/mail.module';
 
 @Module({
     imports: [
@@ -41,6 +42,7 @@ import { UsersModule } from './users/users.module'
         AlternativeNamesModule,
         MusicsModule,
         LobbyModule,
+        MailModule,
     ],
     controllers: [AppController],
     providers: [AppService, FileSubscriber],

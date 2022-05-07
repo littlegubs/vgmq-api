@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common'
+import { randomBytes } from 'crypto'
+
+import { MailerService } from '@nestjs-modules/mailer'
+import { Injectable, InternalServerErrorException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 
@@ -10,18 +14,43 @@ export class UsersService {
     constructor(
         @InjectRepository(User)
         private userRepository: Repository<User>,
+        private mailerService: MailerService,
+        private configService: ConfigService,
     ) {}
 
-    async create(createUserDto: AuthRegisterDto): Promise<User> {
+    async create(createUserDto: AuthRegisterDto): Promise<void> {
         const user = this.userRepository.create(createUserDto)
-        return this.userRepository.save(user)
+        const vgmqClientUrl = this.configService.get<string>('VGMQ_CLIENT_URL')
+        if (vgmqClientUrl === undefined) {
+            throw new InternalServerErrorException()
+        }
+        const token = randomBytes(16).toString('hex')
+        await this.userRepository.save(
+            this.userRepository.create({ ...user, confirmationToken: token }),
+        )
+        const url = `${vgmqClientUrl}/register/${token}`
+        await this.mailerService.sendMail({
+            to: user.email,
+            subject: 'Confirm your VGMQ account',
+            template: 'confirmation',
+            context: {
+                url: url,
+            },
+        })
     }
 
     async findByUsername(username: string): Promise<User | undefined> {
         return this.userRepository.findOne({
-            relations: ['games'],
             where: {
                 username: username,
+            },
+        })
+    }
+
+    async findByConfirmationToken(token: string): Promise<User | undefined> {
+        return this.userRepository.findOne({
+            where: {
+                confirmationToken: token,
             },
         })
     }

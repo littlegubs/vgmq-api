@@ -71,6 +71,12 @@ export class AuthService {
         const user = await this.usersService.findByUsername(username)
 
         if (user && (await user.validatePassword(password))) {
+            if (!user.enabled) {
+                throw new UnauthorizedException(
+                    'Your account is disabled, check your emails to activate your account',
+                )
+            }
+
             return user
         }
 
