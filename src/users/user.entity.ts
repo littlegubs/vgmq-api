@@ -40,8 +40,11 @@ export class User {
     })
     roles: string[]
 
-    @Column({ default: true })
+    @Column({ default: false })
     enabled: boolean
+
+    @Column({ type: 'varchar', length: 40, nullable: true })
+    confirmationToken: string | null
 
     @Column({ type: 'varchar', nullable: true })
     currentHashedRefreshToken?: string | null

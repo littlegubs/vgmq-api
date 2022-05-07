@@ -1,5 +1,18 @@
-import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common'
+import {
+    BadRequestException,
+    Body,
+    Controller,
+    Get,
+    HttpCode,
+    NotFoundException,
+    Param,
+    Post,
+    Req,
+    UseGuards,
+} from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
+import { Repository } from 'typeorm'
 
 import { LimitedAccessGuard } from '../limited-access/guards/limited-access.guard'
 import { User } from '../users/user.entity'
@@ -13,15 +26,17 @@ import { RecaptchaGuard } from './guards/recaptcha.guard'
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly usersService: UsersService, private authService: AuthService) {}
+    constructor(
+        private readonly usersService: UsersService,
+        private authService: AuthService,
+        @InjectRepository(User)
+        private userRepository: Repository<User>,
+    ) {}
 
     @Post('register')
     @UseGuards(RecaptchaGuard, LimitedAccessGuard)
-    async register(
-        @Body() createUserDto: AuthRegisterDto,
-    ): Promise<{ accessToken: string; refreshToken: string }> {
-        const user = await this.usersService.create(createUserDto)
-        return this.authService.getUserTokens(user)
+    async register(@Body() createUserDto: AuthRegisterDto): Promise<void> {
+        return this.usersService.create(createUserDto)
     }
 
     @UseGuards(RecaptchaGuard)
@@ -40,6 +55,19 @@ export class AuthController {
         return {
             accessToken: this.authService.getJwtAccessToken(<User>request.user),
         }
+    }
+
+    @Get('confirmation/:token')
+    @HttpCode(200)
+    async confirmation(
+        @Param('token') token: string,
+    ): Promise<{ accessToken: string; refreshToken: string }> {
+        const user = await this.usersService.findByConfirmationToken(token)
+        if (user === undefined) {
+            throw new NotFoundException()
+        }
+        await this.userRepository.save({ ...user, enabled: true, confirmationToken: null })
+        return this.authService.getUserTokens(user)
     }
 
     @UseGuards(JwtAuthGuard)
