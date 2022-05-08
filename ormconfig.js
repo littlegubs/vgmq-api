@@ -1,10 +1,15 @@
+const dotenv = require('dotenv');
+const env = dotenv.config({
+  path: process.env.NODE_ENV !== undefined ? `./.env.${process.env.NODE_ENV}.local` : './.env.local',
+});
+
 module.exports = {
     type: 'mysql',
-    host: process.env.DATABASE_HOST,
-    port: process.env.DATABASE_PORT,
-    username: process.env.DATABASE_USERNAME,
-    password: process.env.DATABASE_PASSWORD,
-    database: process.env.DATABASE_NAME,
+    host: env.parsed.DATABASE_HOST,
+    port: env.parsed.DATABASE_PORT,
+    username: env.parsed.DATABASE_USERNAME,
+    password: env.parsed.DATABASE_PASSWORD,
+    database: env.parsed.DATABASE_NAME,
     synchronize: false,
     logging: false,
     entities: ['dist/**/*.entity{.ts,.js}'],
