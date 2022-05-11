@@ -75,7 +75,12 @@ export class GamesController {
             throw new NotFoundException()
         }
         const user = request.user as User
-        await this.userRepository.save({ ...user, games: [...user.games, game] })
+        const games = await this.gamesRepository
+            .createQueryBuilder('g')
+            .leftJoin('g.users', 'user')
+            .andWhere('user.id = :id', { id: user.id })
+            .getMany()
+        await this.userRepository.save({ ...user, games: [...games, game] })
     }
 
     @Get('/:slug/remove')
@@ -89,9 +94,14 @@ export class GamesController {
             throw new NotFoundException()
         }
         const user = request.user as User
+        const games = await this.gamesRepository
+            .createQueryBuilder('g')
+            .leftJoin('g.users', 'user')
+            .andWhere('user.id = :id', { id: user.id })
+            .getMany()
         await this.userRepository.save({
             ...user,
-            games: user.games.filter((game) => game.id !== gameToRemove.id),
+            games: games.filter((game) => game.id !== gameToRemove.id),
         })
     }
 
