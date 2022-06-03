@@ -1,5 +1,7 @@
 import { HttpModule } from '@nestjs/axios'
 import { Module } from '@nestjs/common'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { ElasticsearchModule } from '@nestjs/elasticsearch'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { File } from '../entity/file.entity'
@@ -32,6 +34,17 @@ import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
             User,
         ]),
         HttpModule,
+        ElasticsearchModule.registerAsync({
+            imports: [ConfigModule],
+            useFactory: (configService: ConfigService) => ({
+                node: configService.get('ELASTICSEARCH_NODE'),
+                auth: {
+                    username: configService.get('ELASTICSEARCH_USERNAME')!,
+                    password: configService.get('ELASTICSEARCH_PASSWORD')!,
+                },
+            }),
+            inject: [ConfigService],
+        }),
     ],
     providers: [GamesService, IgdbService, IgdbHttpService, GameToMusicSubscriber],
 })
