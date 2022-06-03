@@ -2,6 +2,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 import { Injectable, NotFoundException } from '@nestjs/common'
+import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
 import * as mm from 'music-metadata'
 import { Brackets, Repository } from 'typeorm'
@@ -12,6 +13,7 @@ import { AlternativeName } from '../entity/alternative-name.entity'
 import { GameToMusic } from '../entity/game-to-music.entity'
 import { Game } from '../entity/game.entity'
 import { Music } from '../entity/music.entity'
+import GameNameSearchBody from '../types/game-name-search-body.interface'
 
 @Injectable()
 export class GamesService {
@@ -26,6 +28,7 @@ export class GamesService {
         private fileRepository: Repository<File>,
         @InjectRepository(AlternativeName)
         private alternativeNameRepository: Repository<AlternativeName>,
+        private elasticsearchService: ElasticsearchService,
     ) {}
     async findByName(
         query: string,
@@ -37,6 +40,8 @@ export class GamesService {
             skip?: number
         },
     ): Promise<[Game[], number]> {
+        // query = query.replace(/:|-/g, '_')
+        // console.log(query)
         const qb = this.gameRepository
             .createQueryBuilder('game')
             .leftJoin('game.alternativeNames', 'alternativeName')
@@ -151,7 +156,7 @@ export class GamesService {
         const games = await this.gameRepository
             .createQueryBuilder('game')
             .andWhere('game.enabled = 1')
-            .andWhere('REPLACE(REPLACE(game.name, ":", ""), "-", " ") LIKE :query', {
+            .andWhere('game.name LIKE REPLACE(REPLACE(:query, ":", "_"), "-", "_") ', {
                 query: `%${query}%`,
             })
             .orderBy('game.name')
@@ -169,5 +174,100 @@ export class GamesService {
         return [
             ...new Set([...games.map((g) => g.name), ...alternativeNames.map((a) => a.name)]),
         ].sort((a, b) => a.localeCompare(b))
+    }
+
+    async populateElasticSearch(): Promise<void> {
+        await this.elasticsearchService.indices.delete({
+            index: 'game_name',
+        })
+        await this.elasticsearchService.indices.create({
+            index: 'game_name',
+            settings: {
+                max_ngram_diff: 20,
+                analysis: {
+                    normalizer: {
+                        lobby_autocomplete_normalizer: {
+                            type: 'custom',
+                            filter: ['lowercase'],
+                        },
+                        lobby_autocomplete_normalizer_slug: {
+                            type: 'custom',
+                            char_filter: ['my_char_filter'],
+                            filter: ['lowercase'],
+                        },
+                    },
+                    analyzer: {
+                        lobby_autocomplete_analyzer: {
+                            type: 'custom',
+                            tokenizer: 'lobby_autocomplete_tokenizer',
+                            char_filter: ['my_char_filter'],
+                            filter: ['lowercase'],
+                        },
+                    },
+                    char_filter: {
+                        my_char_filter: {
+                            type: 'pattern_replace',
+                            pattern: '([:.,-](\\s*)?)',
+                            replacement: ' ',
+                        },
+                    },
+                    tokenizer: {
+                        lobby_autocomplete_tokenizer: {
+                            type: 'ngram',
+                            min_gram: 1,
+                            max_gram: 20,
+                            token_chars: [],
+                        },
+                    },
+                },
+            },
+            mappings: {
+                properties: {
+                    name: {
+                        type: 'keyword',
+                        normalizer: 'lobby_autocomplete_normalizer',
+                        copy_to: ['name_slug', 'suggest_highlight'],
+                    },
+                    name_slug: {
+                        type: 'keyword',
+                        normalizer: 'lobby_autocomplete_normalizer_slug',
+                    },
+                    suggest_highlight: {
+                        type: 'text',
+                        analyzer: 'lobby_autocomplete_analyzer',
+                        term_vector: 'with_positions_offsets',
+                        store: true,
+                    },
+                },
+            },
+        })
+        const games = await this.gameRepository
+            .createQueryBuilder('g')
+            .select(['g.igdbId', 'g.name'])
+            .where('g.enabled = 1')
+            .getMany()
+        for (const game of games) {
+            await this.elasticsearchService.index<GameNameSearchBody>({
+                index: 'game_name',
+                body: {
+                    igdbId: game.igdbId,
+                    name: game.name,
+                },
+            })
+        }
+        const alternativeNames = await this.alternativeNameRepository
+            .createQueryBuilder('an')
+            .select(['an.igdbId', 'an.name'])
+            .where('an.enabled = 1')
+            .getMany()
+        for (const alternativeName of alternativeNames) {
+            await this.elasticsearchService.index<GameNameSearchBody>({
+                index: 'game_name',
+                body: {
+                    igdbId: alternativeName.igdbId,
+                    name: alternativeName.name,
+                },
+            })
+        }
     }
 }

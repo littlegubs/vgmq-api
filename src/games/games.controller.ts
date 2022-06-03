@@ -10,6 +10,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common'
+import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
 import { Repository } from 'typeorm'
@@ -21,6 +22,7 @@ import { GamesSearchDto } from './dto/games-search.dto'
 import { Game } from './entity/game.entity'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
+import GameNameSearchBody from './types/game-name-search-body.interface'
 
 @Controller('games')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -32,6 +34,7 @@ export class GamesController {
         private gamesRepository: Repository<Game>,
         @InjectRepository(User)
         private userRepository: Repository<User>,
+        private elasticsearchService: ElasticsearchService,
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
@@ -106,7 +109,62 @@ export class GamesController {
     }
 
     @Get('/names')
-    async getNames(@Query() query: GamesSearchDto): Promise<string[]> {
-        return this.gamesService.getNamesForQuery(query.query)
+    async getNames(@Query() query: GamesSearchDto): Promise<Array<string | undefined>> {
+        const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
+            index: 'game_name',
+            explain: true,
+            query: {
+                bool: {
+                    should: [
+                        {
+                            wildcard: {
+                                name: {
+                                    value: `*${query.query}*`,
+                                },
+                            },
+                        },
+                        {
+                            wildcard: {
+                                name: {
+                                    value: `${query.query}*`,
+                                    boost: 2,
+                                },
+                            },
+                        },
+                        { wildcard: { name_slug: `*${query.query}*` } },
+                        {
+                            wildcard: {
+                                name_slug: {
+                                    value: `${query.query}*`,
+                                    boost: 2,
+                                },
+                            },
+                        },
+                        {
+                            term: {
+                                suggest_highlight: {
+                                    value: `${query.query
+                                        .replace(/([:.,-](\s*)?)/, ' ')
+                                        .toLowerCase()}`,
+                                    boost: 0,
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+            highlight: {
+                type: 'fvh',
+                require_field_match: false,
+                boundary_scanner: 'chars',
+                fields: {
+                    suggest_highlight: {},
+                },
+                pre_tags: ['<span class="highlighted">'],
+                post_tags: ['</span>'],
+            },
+        })
+        const hits2 = hits.hits
+        return hits2.map((item) => item.highlight?.suggest_highlight?.[0])
     }
 }
