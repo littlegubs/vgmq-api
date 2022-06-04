@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { DeleteByQueryResponse, IndexResponse } from '@elastic/elasticsearch/lib/api/types'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -40,8 +41,6 @@ export class GamesService {
             skip?: number
         },
     ): Promise<[Game[], number]> {
-        // query = query.replace(/:|-/g, '_')
-        // console.log(query)
         const qb = this.gameRepository
             .createQueryBuilder('game')
             .leftJoin('game.alternativeNames', 'alternativeName')
@@ -50,11 +49,11 @@ export class GamesService {
             .leftJoinAndSelect('game.cover', 'cover')
             .where(
                 new Brackets((qb) => {
-                    qb.orWhere('REPLACE(REPLACE(game.name, ":", ""), "-", " ") LIKE :name').orWhere(
+                    qb.orWhere('game.name LIKE :name').orWhere(
                         new Brackets((qb) => {
-                            qb.andWhere(
-                                'REPLACE(REPLACE(alternativeName.name, ":", ""), "-", " ") LIKE :name',
-                            ).andWhere('alternativeName.enabled = 1')
+                            qb.andWhere('alternativeName.name LIKE :name').andWhere(
+                                'alternativeName.enabled = 1',
+                            )
                         }),
                     )
                 }),
@@ -243,31 +242,85 @@ export class GamesService {
         })
         const games = await this.gameRepository
             .createQueryBuilder('g')
-            .select(['g.igdbId', 'g.name'])
+            .select(['g.id', 'g.name'])
             .where('g.enabled = 1')
             .getMany()
         for (const game of games) {
-            await this.elasticsearchService.index<GameNameSearchBody>({
-                index: 'game_name',
-                body: {
-                    igdbId: game.igdbId,
-                    name: game.name,
-                },
-            })
+            await this.indexGameName(game)
         }
         const alternativeNames = await this.alternativeNameRepository
             .createQueryBuilder('an')
-            .select(['an.igdbId', 'an.name'])
+            .select(['an.id', 'an.name'])
             .where('an.enabled = 1')
             .getMany()
         for (const alternativeName of alternativeNames) {
-            await this.elasticsearchService.index<GameNameSearchBody>({
-                index: 'game_name',
-                body: {
-                    igdbId: alternativeName.igdbId,
-                    name: alternativeName.name,
-                },
-            })
+            await this.indexAlternativeName(alternativeName)
         }
+    }
+
+    indexGameName(game: Game): Promise<IndexResponse> {
+        return this.elasticsearchService.index<GameNameSearchBody>({
+            index: 'game_name',
+            body: {
+                id: game.id,
+                name: game.name,
+                type: 'game_name',
+            },
+        })
+    }
+
+    removeGameName(game: Game): Promise<DeleteByQueryResponse> {
+        return this.elasticsearchService.deleteByQuery({
+            index: 'game_name',
+            query: {
+                bool: {
+                    must: [
+                        {
+                            match: {
+                                id: game.id,
+                            },
+                        },
+                        {
+                            match: {
+                                type: 'game_name',
+                            },
+                        },
+                    ],
+                },
+            },
+        })
+    }
+
+    indexAlternativeName(alternativeName: AlternativeName): Promise<IndexResponse> {
+        return this.elasticsearchService.index<GameNameSearchBody>({
+            index: 'game_name',
+            body: {
+                id: alternativeName.id,
+                name: alternativeName.name,
+                type: 'alternative_name',
+            },
+        })
+    }
+
+    removeAlternativeName(alternativeName: AlternativeName): Promise<DeleteByQueryResponse> {
+        return this.elasticsearchService.deleteByQuery({
+            index: 'game_name',
+            query: {
+                bool: {
+                    must: [
+                        {
+                            match: {
+                                id: alternativeName.id,
+                            },
+                        },
+                        {
+                            match: {
+                                type: 'alternative_name',
+                            },
+                        },
+                    ],
+                },
+            },
+        })
     }
 }

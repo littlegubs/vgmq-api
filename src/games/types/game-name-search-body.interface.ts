@@ -1,5 +1,5 @@
 export default interface GameNameSearchBody {
-    igdbId: number
+    id: number
     name: string
-    suggest_highlight?: string
+    type: 'game_name' | 'alternative_name'
 }
