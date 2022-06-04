@@ -115,6 +115,7 @@ export class GamesController {
         const queryStr = query.query.toLowerCase()
         const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
             index: 'game_name',
+            sort: ['_score', 'name'],
             query: {
                 bool: {
                     should: [
