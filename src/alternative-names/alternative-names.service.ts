@@ -12,7 +12,15 @@ export class AlternativeNamesService {
     ) {}
 
     async toggle(id: string): Promise<AlternativeName> {
-        const alternativeName = await this.alternativeNameRepository.findOne(id)
+        const alternativeName = await this.alternativeNameRepository.findOne({
+            relations: ['game'],
+            where: {
+                id: id,
+                game: {
+                    enabled: true,
+                },
+            },
+        })
         if (alternativeName === undefined) {
             throw new NotFoundException()
         }

@@ -112,7 +112,6 @@ export class GamesController {
     async getNames(@Query() query: GamesSearchDto): Promise<Array<string | undefined>> {
         const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
             index: 'game_name',
-            explain: true,
             query: {
                 bool: {
                     should: [

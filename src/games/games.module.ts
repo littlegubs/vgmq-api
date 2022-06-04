@@ -18,7 +18,9 @@ import { GamesController } from './games.controller'
 import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
+import { AlternativeNameSubscriber } from './subscribers/alternative-name.subscriber'
 import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
+import { GameSubscriber } from './subscribers/game.subscriber'
 
 @Module({
     controllers: [AdminGamesController, GamesController, GameToMusicController],
@@ -46,6 +48,13 @@ import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
             inject: [ConfigService],
         }),
     ],
-    providers: [GamesService, IgdbService, IgdbHttpService, GameToMusicSubscriber],
+    providers: [
+        GamesService,
+        IgdbService,
+        IgdbHttpService,
+        GameToMusicSubscriber,
+        GameSubscriber,
+        AlternativeNameSubscriber,
+    ],
 })
 export class GamesModule {}
