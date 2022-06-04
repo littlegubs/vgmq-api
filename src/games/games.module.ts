@@ -44,6 +44,11 @@ import { GameSubscriber } from './subscribers/game.subscriber'
                     username: configService.get('ELASTICSEARCH_USERNAME')!,
                     password: configService.get('ELASTICSEARCH_PASSWORD')!,
                 },
+                ...(configService.get('ELASTICSEARCH_CA_PATH') && {
+                    tls: {
+                        ca: configService.get('ELASTICSEARCH_CA_PATH'),
+                    },
+                }),
             }),
             inject: [ConfigService],
         }),

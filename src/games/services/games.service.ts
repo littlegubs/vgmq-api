@@ -176,9 +176,11 @@ export class GamesService {
     }
 
     async populateElasticSearch(): Promise<void> {
-        await this.elasticsearchService.indices.delete({
-            index: 'game_name',
-        })
+        await this.elasticsearchService.indices
+            .delete({
+                index: 'game_name',
+            })
+            .catch(() => {})
         await this.elasticsearchService.indices.create({
             index: 'game_name',
             settings: {
