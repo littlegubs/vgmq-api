@@ -109,7 +109,10 @@ export class GamesController {
     }
 
     @Get('/names')
-    async getNames(@Query() query: GamesSearchDto): Promise<{ highlight: string | undefined; name: string | undefined }[]> {
+    async getNames(
+        @Query() query: GamesSearchDto,
+    ): Promise<{ highlight: string | undefined; name: string | undefined }[]> {
+        const queryStr = query.query.toLowerCase()
         const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
             index: 'game_name',
             query: {
@@ -118,23 +121,23 @@ export class GamesController {
                         {
                             wildcard: {
                                 name: {
-                                    value: `*${query.query}*`,
+                                    value: `*${queryStr}*`,
                                 },
                             },
                         },
                         {
                             wildcard: {
                                 name: {
-                                    value: `${query.query}*`,
+                                    value: `${queryStr}*`,
                                     boost: 2,
                                 },
                             },
                         },
-                        { wildcard: { name_slug: `*${query.query}*` } },
+                        { wildcard: { name_slug: `*${queryStr}*` } },
                         {
                             wildcard: {
                                 name_slug: {
-                                    value: `${query.query}*`,
+                                    value: `${queryStr}*`,
                                     boost: 2,
                                 },
                             },
@@ -142,9 +145,7 @@ export class GamesController {
                         {
                             term: {
                                 suggest_highlight: {
-                                    value: `${query.query
-                                        .replace(/([:.,-](\s*)?)/, ' ')
-                                        .toLowerCase()}`,
+                                    value: `${queryStr.replace(/([:.,-](\s*)?)/, ' ')}`,
                                     boost: 0,
                                 },
                             },
@@ -154,7 +155,6 @@ export class GamesController {
             },
             highlight: {
                 type: 'fvh',
-                require_field_match: false,
                 boundary_scanner: 'chars',
                 fields: {
                     suggest_highlight: {},
