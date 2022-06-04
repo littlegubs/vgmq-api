@@ -109,7 +109,7 @@ export class GamesController {
     }
 
     @Get('/names')
-    async getNames(@Query() query: GamesSearchDto): Promise<Array<string | undefined>> {
+    async getNames(@Query() query: GamesSearchDto): Promise<{ highlight: string | undefined; name: string | undefined }[]> {
         const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
             index: 'game_name',
             query: {
@@ -164,6 +164,9 @@ export class GamesController {
             },
         })
         const hits2 = hits.hits
-        return hits2.map((item) => item.highlight?.suggest_highlight?.[0])
+        return hits2.map((item) => ({
+            name: item._source?.name,
+            highlight: item.highlight?.suggest_highlight?.[0],
+        }))
     }
 }
