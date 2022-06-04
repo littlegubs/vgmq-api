@@ -47,6 +47,7 @@ import { GameSubscriber } from './subscribers/game.subscriber'
                 ...(configService.get('ELASTICSEARCH_CA_PATH') && {
                     tls: {
                         ca: configService.get('ELASTICSEARCH_CA_PATH'),
+                        rejectUnauthorized: false,
                     },
                 }),
             }),
