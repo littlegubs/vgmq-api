@@ -112,7 +112,11 @@ export class GamesController {
     async getNames(
         @Query() query: GamesSearchDto,
     ): Promise<{ highlight: string | undefined; name: string | undefined }[]> {
-        const queryStr = query.query.toLowerCase()
+        // remove accents
+        const queryStr = query.query
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/\p{Diacritic}/gu, '')
         const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
             index: 'game_name',
             sort: ['_score', 'name'],

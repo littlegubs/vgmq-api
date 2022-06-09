@@ -189,12 +189,12 @@ export class GamesService {
                     normalizer: {
                         lobby_autocomplete_normalizer: {
                             type: 'custom',
-                            filter: ['lowercase'],
+                            filter: ['lowercase', 'asciifolding'],
                         },
                         lobby_autocomplete_normalizer_slug: {
                             type: 'custom',
                             char_filter: ['my_char_filter'],
-                            filter: ['lowercase'],
+                            filter: ['lowercase', 'asciifolding'],
                         },
                     },
                     analyzer: {
@@ -202,7 +202,7 @@ export class GamesService {
                             type: 'custom',
                             tokenizer: 'lobby_autocomplete_tokenizer',
                             char_filter: ['my_char_filter'],
-                            filter: ['lowercase'],
+                            filter: ['lowercase', 'asciifolding'],
                         },
                     },
                     char_filter: {
