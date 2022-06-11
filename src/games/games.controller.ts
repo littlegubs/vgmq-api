@@ -169,8 +169,7 @@ export class GamesController {
                 post_tags: ['</span>'],
             },
         })
-        const hits2 = hits.hits
-        return hits2.reduce(
+        return hits.hits.reduce(
             (previous: { highlight: string | undefined; name: string | undefined }[], item) => {
                 if (!previous.some((i) => i.name === item._source?.name)) {
                     return [
