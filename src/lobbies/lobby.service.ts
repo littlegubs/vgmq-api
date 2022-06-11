@@ -194,8 +194,7 @@ export class LobbyService {
                     if (gameToMusic) {
                         position += 1
                         const music = gameToMusic.music
-                        const { duration } = Duration.getDuration(music.file.path)
-                        const endAt = this.getRandomFloat(lobby.guessTime, duration, 4)
+                        const endAt = this.getRandomFloat(lobby.guessTime, music.duration, 4)
                         const startAt = endAt - lobby.guessTime
                         lobbyMusics = [
                             ...lobbyMusics,

@@ -261,8 +261,10 @@ export class LobbyGateway {
         const music = lobbyMusic.music
         const stat = statSync(music.file.path)
         const size = stat.size
-        const { duration, offset } = Duration.getDuration(music.file.path)
-        const valuePerSecond = (size - offset) / duration
+
+        // for some reason, the Duration class returns an incorrect duration value, I'm afraid it might also return an incorrect offset value
+        const { offset } = Duration.getDuration(music.file.path)
+        const valuePerSecond = (size - offset) / music.duration
         const startBit = lobbyMusic.startAt * valuePerSecond
         const endBit = lobbyMusic.endAt * valuePerSecond
         const fd = openSync(music.file.path, 'r')
