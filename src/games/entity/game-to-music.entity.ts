@@ -25,6 +25,12 @@ export class GameToMusic {
     })
     music: Music
 
+    @Column({ type: 'float', nullable: true })
+    guessAccuracy: number
+
+    @Column({ type: 'integer', default: 0 })
+    playNumber = 0
+
     @Column()
     @CreateDateColumn()
     createdAt: Date
