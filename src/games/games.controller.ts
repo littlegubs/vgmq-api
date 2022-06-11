@@ -120,6 +120,7 @@ export class GamesController {
         const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
             index: 'game_name',
             sort: ['_score', 'name'],
+            size: 20,
             query: {
                 bool: {
                     should: [
@@ -169,9 +170,20 @@ export class GamesController {
             },
         })
         const hits2 = hits.hits
-        return hits2.map((item) => ({
-            name: item._source?.name,
-            highlight: item.highlight?.suggest_highlight?.[0],
-        }))
+        return hits2.reduce(
+            (previous: { highlight: string | undefined; name: string | undefined }[], item) => {
+                if (!previous.some((i) => i.name === item._source?.name)) {
+                    return [
+                        ...previous,
+                        {
+                            name: item._source?.name,
+                            highlight: item.highlight?.suggest_highlight?.[0],
+                        },
+                    ]
+                }
+                return [...previous]
+            },
+            [],
+        )
     }
 }
