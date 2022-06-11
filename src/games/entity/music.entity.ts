@@ -30,12 +30,6 @@ export class Music {
     @Column({ type: 'float' })
     duration: number
 
-    @Column({ type: 'float', nullable: true })
-    guessAccuracy: number
-
-    @Column({ type: 'integer', default: 0 })
-    playNumber = 0
-
     @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.music, {
         cascade: ['remove'],
     })

@@ -1,5 +1,3 @@
-import { openSync, readSync, statSync, writeFileSync } from 'fs'
-
 import { InjectQueue } from '@nestjs/bull'
 import {
     CACHE_MANAGER,
@@ -22,7 +20,6 @@ import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
-import { Duration } from './mp3'
 
 @Injectable()
 export class LobbyService {
@@ -208,6 +205,10 @@ export class LobbyService {
                             }),
                         ]
                         userIdsRandom.splice(i, 1, undefined)
+                        await this.gameToMusicRepository.save({
+                            ...gameToMusic,
+                            playNumber: gameToMusic.playNumber + 1,
+                        })
                     } else {
                         blackListGameIds = [...blackListGameIds, game.id]
                     }
