@@ -20,10 +20,10 @@ export class LobbyMusic {
     @Column({ type: 'int' })
     position = 0
 
-    @Column({ type: 'int' })
+    @Column({ type: 'float' })
     startAt = 0
 
-    @Column({ type: 'int' })
+    @Column({ type: 'float' })
     endAt = 0
 
     @ManyToOne(() => Lobby, (lobby) => lobby.lobbyMusics, {
