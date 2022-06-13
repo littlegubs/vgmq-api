@@ -17,6 +17,11 @@ export enum LobbyUserRole {
     Player = 'player',
     Spectator = 'spectator',
 }
+
+export enum LobbyUserStatus {
+    Reconnecting = 'reconnecting',
+}
+
 @Entity()
 export class LobbyUser {
     @PrimaryGeneratedColumn()
@@ -38,9 +43,9 @@ export class LobbyUser {
     @Expose({ groups: ['wsLobby'] })
     disconnected: boolean
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, type: 'enum', enum: LobbyUserStatus })
     @Expose({ groups: ['wsLobby'] })
-    status: string
+    status: string | null
 
     @Column({ nullable: true })
     answer?: string
