@@ -13,11 +13,12 @@ import { LobbyGateway } from './lobby.gateway'
 import { LobbyProcessor } from './lobby.processor'
 import { LobbyService } from './lobby.service'
 import { LobbyUserSubscriber } from './subscribers/lobby-user.subscriber'
+import {User} from "../users/user.entity";
 
 @Module({
     controllers: [LobbyController],
     imports: [
-        TypeOrmModule.forFeature([Lobby, LobbyMusic, LobbyUser, Game, GameToMusic, Music]),
+        TypeOrmModule.forFeature([Lobby, LobbyMusic, LobbyUser, Game, GameToMusic, Music, User]),
         CacheModule.register(),
         BullModule.registerQueue({
             name: 'lobby',

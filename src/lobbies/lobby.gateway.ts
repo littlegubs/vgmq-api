@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import {
     ConnectedSocket,
     MessageBody,
+    OnGatewayConnection,
     SubscribeMessage,
     WebSocketGateway,
     WebSocketServer,
@@ -22,7 +23,7 @@ import { Game } from '../games/entity/game.entity'
 import { Music } from '../games/entity/music.entity'
 import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
-import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
+import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from './entities/lobby.entity'
 import { InvalidPasswordException } from './exceptions/invalid-password.exception'
 import { MissingPasswordException } from './exceptions/missing-password.exception'
@@ -33,14 +34,14 @@ export class AuthenticatedSocket extends Socket {
     user: User
 }
 
-@UseFilters(new WsExceptionsFilter())
+@UseFilters(WsExceptionsFilter)
 @WebSocketGateway({
     cors: {
         origin: '*',
     },
 })
 @UseGuards(WsGuard)
-export class LobbyGateway {
+export class LobbyGateway implements OnGatewayConnection {
     @WebSocketServer()
     server: Server
     private readonly logger = new Logger(LobbyGateway.name)
@@ -101,7 +102,7 @@ export class LobbyGateway {
             })
         } else {
             // if user was previously in lobby, set them connected
-            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: false })
+            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: false, status: null })
         }
         await client.join(lobby.code)
         client.emit('lobbyJoined', classToClass<Lobby>(lobby))
@@ -162,6 +163,7 @@ export class LobbyGateway {
         if (lobbyUser === undefined) {
             throw new WsException('Not found')
         }
+        await this.lobbyUserRepository.save({ ...lobbyUser, status: null })
         await client.join(lobby.code)
     }
 
@@ -253,6 +255,41 @@ export class LobbyGateway {
         return
     }
 
+    handleConnection(client: AuthenticatedSocket, ...args: any): any {
+        client.on('disconnecting', async (reason) => {
+            if (reason === 'server namespace disconnect') {
+                return
+            }
+            if (client.user === undefined) {
+                return
+            }
+            // for some reason I must search by id here?????
+            const lobbyUser = await this.lobbyUserRepository.findOne({
+                relations: ['user'],
+                where: {
+                    user: {
+                        id: client.user.id,
+                    },
+                },
+            })
+            if (lobbyUser === undefined) {
+                return
+            }
+            if (lobbyUser.status === LobbyUserStatus.Reconnecting) {
+                // don't disconnect if reconnecting
+                return
+            }
+            if (
+                lobbyUser.lobby.status === LobbyStatuses.Waiting ||
+                lobbyUser.role === LobbyUserRole.Spectator
+            ) {
+                await this.lobbyUserRepository.remove(lobbyUser)
+            } else {
+                await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: true })
+            }
+        })
+    }
+
     sendUpdateToRoom(lobby: Lobby): void {
         this.server.to(lobby.code).emit('lobby', classToClass<Lobby>(lobby))
     }
@@ -280,7 +317,7 @@ export class LobbyGateway {
     }
 
     sendLobbyClosed(lobby: Lobby, message: string): void {
-        this.server.to(lobby.code).emit('lobbyClosed', message)
+        this.server.in(lobby.code).disconnectSockets()
     }
 
     sendLobbyUsers(lobby: Lobby, lobbyUsers: LobbyUser[]): void {

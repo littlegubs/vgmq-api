@@ -85,26 +85,4 @@ export class LobbyController {
         }
         return this.lobbyService.update(lobby, data)
     }
-
-    @Get('leave')
-    async leave(@Req() request: Request): Promise<void> {
-        const lobbyUser = await this.lobbyUserRepository.findOne({
-            relations: ['user', 'lobby'],
-            where: {
-                user: request.user,
-            },
-        })
-        if (lobbyUser === undefined) {
-            throw new NotFoundException()
-        }
-
-        if (
-            lobbyUser.lobby.status === LobbyStatuses.Waiting ||
-            lobbyUser.role === LobbyUserRole.Spectator
-        ) {
-            await this.lobbyUserRepository.remove(lobbyUser)
-        } else {
-            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: true })
-        }
-    }
 }

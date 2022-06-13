@@ -13,6 +13,7 @@ module.exports = {
     synchronize: false,
     logging: false,
     entities: ['dist/**/*.entity{.ts,.js}'],
+    // entities: ['src/**/*.entity{.ts,.js}'],
     migrations: ['dist/migration/*.js'],
     cli: {
         migrationsDir: 'src/migration',
