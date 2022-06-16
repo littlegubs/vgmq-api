@@ -54,6 +54,12 @@ export class LobbyUser {
     @Expose({ groups: ['wsLobby'] })
     correctAnswer: boolean | null
 
+    @Column()
+    socketId: string
+
+    @Column()
+    afkJobId: string
+
     @OneToOne(() => User, (user) => user.currentLobby, { onDelete: 'CASCADE' })
     @Expose({ groups: ['wsLobby'] })
     user: User

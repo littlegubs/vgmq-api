@@ -99,10 +99,16 @@ export class LobbyGateway implements OnGatewayConnection {
                     lobby.status === LobbyStatuses.Waiting
                         ? LobbyUserRole.Player
                         : LobbyUserRole.Spectator,
+                socketId: client.id,
             })
         } else {
             // if user was previously in lobby, set them connected
-            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: false, status: null })
+            await this.lobbyUserRepository.save({
+                ...lobbyUser,
+                disconnected: false,
+                status: null,
+                socketId: client.id,
+            })
         }
         await client.join(lobby.code)
         client.emit('lobbyJoined', classToClass<Lobby>(lobby))
@@ -135,6 +141,8 @@ export class LobbyGateway implements OnGatewayConnection {
                 },
             }),
         )
+        const job = await this.lobbyQueue.add('afkWarning', null, { delay: 600000 }) // 10min
+        await this.lobbyUserRepository.save({ ...lobbyUser, afkJobId: job.id as string })
 
         return
     }

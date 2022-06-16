@@ -205,4 +205,32 @@ export class LobbyProcessor {
     onStalled(job: Job): void {
         this.logger.error(`Job stalled ${job.id} of type ${job.name} with data ${job.data}...`)
     }
+
+    @Process('afkWarning')
+    async afkWarning(job: Job<string>): Promise<void> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            where: {
+                afkJobId: job.id,
+            },
+        })
+        if (lobbyUser === undefined) {
+            return
+        }
+        const afkJob = await this.lobbyQueue.add('afkRemove', null, { delay: 300000 }) // 5min
+        await this.lobbyUserRepository.save({ ...lobbyUser, afkJobId: afkJob.id as string })
+    }
+
+    @Process('afkRemove')
+    async afkRemove(job: Job<string>): Promise<void> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            where: {
+                afkJobId: job.id,
+            },
+        })
+        if (lobbyUser === undefined) {
+            return
+        }
+
+        await this.lobbyUserRepository.remove(lobbyUser)
+    }
 }
