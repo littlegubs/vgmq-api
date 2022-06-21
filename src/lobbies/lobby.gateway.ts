@@ -315,7 +315,27 @@ export class LobbyGateway implements OnGatewayConnection {
             this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', audioBuffer)
         }
     }
+    sendLobbyMusicToLoad(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
+        const music = lobbyMusic.music
+        const stat = statSync(music.file.path)
+        const size = stat.size
 
+        // for some reason, the Duration class returns an incorrect duration value, I'm afraid it might also return an incorrect offset value
+        const { offset } = Duration.getDuration(music.file.path)
+        const valuePerSecond = (size - offset) / music.duration
+        const startBit = lobbyMusic.startAt * valuePerSecond
+        const endBit = lobbyMusic.endAt * valuePerSecond
+        const fd = openSync(music.file.path, 'r')
+
+        const audioBuffer = Buffer.alloc(endBit - startBit)
+        readSync(fd, audioBuffer, 0, audioBuffer.length, parseInt(String(startBit + offset)))
+
+        if (client) {
+            client.emit('lobbyMusic', audioBuffer)
+        } else {
+            this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', audioBuffer)
+        }
+    }
     sendLobbyClosed(lobby: Lobby, message: string): void {
         this.server.in(lobby.code).disconnectSockets()
     }
