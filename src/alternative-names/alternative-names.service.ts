@@ -11,7 +11,7 @@ export class AlternativeNamesService {
         private alternativeNameRepository: Repository<AlternativeName>,
     ) {}
 
-    async toggle(id: string): Promise<AlternativeName> {
+    async toggle(id: number): Promise<AlternativeName> {
         const alternativeName = await this.alternativeNameRepository.findOne({
             relations: ['game'],
             where: {
@@ -21,7 +21,7 @@ export class AlternativeNamesService {
                 },
             },
         })
-        if (alternativeName === undefined) {
+        if (alternativeName === null) {
             throw new NotFoundException()
         }
         return this.alternativeNameRepository.save({

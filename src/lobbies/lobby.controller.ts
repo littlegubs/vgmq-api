@@ -66,10 +66,10 @@ export class LobbyController {
         @Param('code') code: string,
         @Req() request: Request,
     ): Promise<void> {
-        const lobby = await this.lobbyRepository.findOne({
+        const lobby = await this.lobbyRepository.findOneBy({
             code,
         })
-        if (lobby === undefined) {
+        if (lobby === null) {
             throw new NotFoundException()
         }
 
@@ -80,7 +80,7 @@ export class LobbyController {
                 role: LobbyUserRole.Host,
             },
         })
-        if (player === undefined) {
+        if (player === null) {
             throw new ForbiddenException()
         }
         return this.lobbyService.update(lobby, data)

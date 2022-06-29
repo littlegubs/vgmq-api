@@ -74,7 +74,7 @@ export class GamesController {
                 slug,
             },
         })
-        if (game === undefined) {
+        if (game === null) {
             throw new NotFoundException()
         }
         const user = request.user as User
@@ -93,7 +93,7 @@ export class GamesController {
                 slug,
             },
         })
-        if (gameToRemove === undefined) {
+        if (gameToRemove === null) {
             throw new NotFoundException()
         }
         const user = request.user as User

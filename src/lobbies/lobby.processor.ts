@@ -32,7 +32,7 @@ export class LobbyProcessor {
             relations: ['lobbyMusics'],
             where: { code: lobbyCode },
         })
-        if (lobby === undefined) {
+        if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
@@ -45,11 +45,13 @@ export class LobbyProcessor {
         const lobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: ['lobby', 'music'],
             where: {
-                lobby: lobby,
-                position: lobby.currentLobbyMusicPosition,
+                lobby: {
+                    id: lobby.id,
+                },
+                position: lobby.currentLobbyMusicPosition!,
             },
         })
-        if (lobbyMusic === undefined) {
+        if (lobbyMusic === null) {
             this.logger.error(
                 `lobby ${lobby.code} ERROR: Trying to get a music that does not exist`,
             )
@@ -74,7 +76,11 @@ export class LobbyProcessor {
         // reset answers
         let lobbyUsers = await this.lobbyUserRepository.find({
             relations: ['user', 'lobby'],
-            where: { lobby },
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+            },
         })
         lobbyUsers = this.lobbyUserRepository.create(
             await this.lobbyUserRepository.save(
@@ -111,11 +117,13 @@ export class LobbyProcessor {
         const currentLobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: ['expectedAnswer', 'music', 'lobby'],
             where: {
-                lobby,
-                position: lobby.currentLobbyMusicPosition,
+                lobby: {
+                    id: lobby.id,
+                },
+                position: lobby.currentLobbyMusicPosition ?? 0,
             },
         })
-        if (currentLobbyMusic === undefined) {
+        if (currentLobbyMusic === null) {
             this.logger.error(
                 `lobby ${lobby.code} ERROR: Trying to get a music that does not exist`,
             )
@@ -166,15 +174,23 @@ export class LobbyProcessor {
         )
         // remove disconnected users
         const disconnectedLobbyUsers = await this.lobbyUserRepository.find({
-            lobby,
-            disconnected: true,
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+                disconnected: true,
+            },
         })
         await this.lobbyUserRepository.remove(disconnectedLobbyUsers)
 
         // set spectators as players
         const lobbySpectators = await this.lobbyUserRepository.find({
-            lobby,
-            role: LobbyUserRole.Spectator,
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+                role: LobbyUserRole.Spectator,
+            },
         })
         await this.lobbyUserRepository.save(
             lobbySpectators.map((lobbyUser) => ({ ...lobbyUser, role: LobbyUserRole.Player })),
@@ -183,7 +199,11 @@ export class LobbyProcessor {
         // set answers back to null
         const lobbyUsers = await this.lobbyUserRepository.find({
             relations: ['user', 'lobby'],
-            where: { lobby },
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+            },
         })
         await this.lobbyUserRepository.save(
             lobbyUsers.map((lobbyUser) => ({ ...lobbyUser, correctAnswer: null })),
@@ -194,7 +214,9 @@ export class LobbyProcessor {
             await this.lobbyUserRepository.find({
                 relations: ['user', 'lobby'],
                 where: {
-                    lobby: lobby,
+                    lobby: {
+                        id: lobby.id,
+                    },
                 },
             }),
         )

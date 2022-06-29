@@ -27,8 +27,10 @@ export class MusicController {
 
     @Roles(Role.Admin)
     @Patch('/:id')
-    async edit(@Param('id') id: string, @Body() musicEditDto: MusicEditDto): Promise<Music> {
-        const music = await this.musicRepository.findOne(id)
+    async edit(@Param('id') id: number, @Body() musicEditDto: MusicEditDto): Promise<Music> {
+        const music = await this.musicRepository.findOneBy({
+            id: id,
+        })
         if (!music) {
             throw new NotFoundException()
         }

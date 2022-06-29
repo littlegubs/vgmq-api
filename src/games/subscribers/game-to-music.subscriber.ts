@@ -17,7 +17,9 @@ export class GameToMusicSubscriber implements EntitySubscriberInterface<GameToMu
         if (event.entity?.music) {
             const countMusics = await event.manager.count(GameToMusic, {
                 where: {
-                    music: event.entity.music,
+                    music: {
+                        id: event.entity.music.id,
+                    },
                 },
             })
             if (countMusics === 0) {

@@ -25,7 +25,9 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
         const lobbyUser = await event.manager.findOne(LobbyUser, {
             relations: ['user', 'lobby'],
             where: {
-                user: event.entity.user,
+                user: {
+                    id: event.entity.user.id,
+                },
             },
         })
         if (lobbyUser) {
@@ -35,7 +37,9 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 await event.manager.find(LobbyUser, {
                     relations: ['user', 'lobby'],
                     where: {
-                        lobby: event.entity?.lobby,
+                        lobby: {
+                            id: event.entity?.lobby.id,
+                        },
                     },
                 }),
             )

@@ -89,7 +89,7 @@ export class LobbyService {
             for (let i = 0; i < 4; i++) {
                 code += str[Math.floor(Math.random() * str.length)]
             }
-        } while (undefined !== (await this.lobbyRepository.findOne({ code })))
+        } while (null !== (await this.lobbyRepository.findOneBy({ code })))
 
         if (code === '') {
             throw new InternalServerErrorException()
@@ -101,7 +101,9 @@ export class LobbyService {
         const players = await this.lobbyUserRepository.find({
             relations: ['user'],
             where: {
-                lobby: lobby,
+                lobby: {
+                    id: lobby.id,
+                },
                 role: In([LobbyUserRole.Player, LobbyUserRole.Host]),
             },
         })
@@ -170,7 +172,7 @@ export class LobbyService {
                 }
                 const game = await qb.getOne()
 
-                if (game !== undefined) {
+                if (game !== null) {
                     gameIds = [...gameIds, game.id]
                     const qb = this.gameToMusicRepository
                         .createQueryBuilder('gameToMusic')

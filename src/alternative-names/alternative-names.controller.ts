@@ -14,7 +14,7 @@ export class AlternativeNamesController {
 
     @Roles(Role.Admin)
     @Patch('/:id/toggle')
-    async toggle(@Param('id') id: string): Promise<AlternativeName> {
+    async toggle(@Param('id') id: number): Promise<AlternativeName> {
         return this.alternativeNamesService.toggle(id)
     }
 }

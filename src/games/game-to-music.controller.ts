@@ -35,8 +35,10 @@ export class GameToMusicController {
     ) {}
 
     @Delete('/:id')
-    async delete(@Param('id') id: string): Promise<void> {
-        const gameToMusic = await this.gameToMusicRepository.findOne(id)
+    async delete(@Param('id') id: number): Promise<void> {
+        const gameToMusic = await this.gameToMusicRepository.findOneBy({
+            id,
+        })
         if (!gameToMusic) {
             throw new NotFoundException()
         }
@@ -45,11 +47,13 @@ export class GameToMusicController {
 
     @Get('/:id/listen')
     async listen(
-        @Param('id') id: string,
+        @Param('id') id: number,
         @Req() request: Request,
         @Response({ passthrough: true }) res: ExpressReponse,
     ): Promise<StreamableFile> {
-        const gameToMusic = await this.gameToMusicRepository.findOne(id)
+        const gameToMusic = await this.gameToMusicRepository.findOneBy({
+            id,
+        })
         if (!gameToMusic) {
             throw new NotFoundException()
         }
