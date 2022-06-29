@@ -105,7 +105,7 @@ export class GamesService {
                 slug,
             },
         })
-        if (game === undefined) {
+        if (game === null) {
             throw new NotFoundException()
         }
         return this.gameRepository.save({ ...game, enabled: !game.enabled })

@@ -30,7 +30,7 @@ export class IgdbHttpService {
                 updatedAt: MoreThan(date),
             },
         })
-        if (igdbClient !== undefined) {
+        if (igdbClient !== null) {
             return igdbClient.accessToken
         }
         if (this.#twitchClientId === undefined || this.#twitchClientSecret === undefined) {

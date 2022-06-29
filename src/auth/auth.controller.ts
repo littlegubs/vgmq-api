@@ -66,7 +66,7 @@ export class AuthController {
         @Param('token') token: string,
     ): Promise<{ accessToken: string; refreshToken: string }> {
         const user = await this.usersService.findByConfirmationToken(token)
-        if (user === undefined) {
+        if (user === null) {
             throw new NotFoundException()
         }
         await this.userRepository.save({ ...user, enabled: true, confirmationToken: null })
@@ -80,7 +80,7 @@ export class AuthController {
         @Body() authRequestResetPassword: AuthRequestResetPasswordDto,
     ): Promise<void> {
         const user = await this.usersService.findByEmail(authRequestResetPassword.email)
-        if (user === undefined) {
+        if (user === null) {
             return
         }
         if (
@@ -104,10 +104,10 @@ export class AuthController {
         const user = await this.userRepository.findOne({
             where: {
                 resetPasswordToken: token,
-                resetPasswordTokenCreatedAt: MoreThan(dayjs().subtract(1, 'day').format()),
+                resetPasswordTokenCreatedAt: MoreThan(dayjs().subtract(1, 'day').toDate()),
             },
         })
-        if (user === undefined) {
+        if (user === null) {
             throw new NotFoundException('This link has expired')
         }
         await this.userRepository.save(

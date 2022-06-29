@@ -115,7 +115,7 @@ export class IgdbService {
         }
     }
 
-    updateOrCreateGame(game: Game, oldGame?: Game): Promise<Game> {
+    updateOrCreateGame(game: Game, oldGame: Game | null): Promise<Game> {
         return this.gamesRepository.save(oldGame ? { ...game, id: oldGame.id } : game)
     }
 

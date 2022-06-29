@@ -73,17 +73,21 @@ export class LobbyGateway implements OnGatewayConnection {
                 code: body.code,
             },
         })
-        if (lobby === undefined) {
+        if (lobby === null) {
             throw new WsException('Not found')
         }
         const lobbyUser = await this.lobbyUserRepository.findOne({
             relations: ['user', 'lobby'],
             where: {
-                user: client.user,
-                lobby,
+                user: {
+                    id: client.user.id,
+                },
+                lobby: {
+                    id: lobby?.id,
+                },
             },
         })
-        if (lobbyUser === undefined) {
+        if (lobbyUser === null) {
             if (lobby.hasPassword) {
                 if (body.password === null) {
                     throw new MissingPasswordException()
@@ -115,11 +119,11 @@ export class LobbyGateway implements OnGatewayConnection {
             const lobbyMusic = await this.lobbyMusicRepository.findOne({
                 relations: ['lobby', 'music', 'expectedAnswer'],
                 where: {
-                    lobby: lobby,
-                    position: lobby.currentLobbyMusicPosition,
+                    lobby: { id: lobby.id },
+                    position: lobby.currentLobbyMusicPosition!,
                 },
             })
-            if (lobbyMusic !== undefined) {
+            if (lobbyMusic !== null) {
                 if (lobby.status === LobbyStatuses.PlayingMusic)
                     this.sendLobbyMusicToLoad(lobbyMusic, client)
                 if (lobby.status === LobbyStatuses.AnswerReveal) this.sendAnswer(lobbyMusic, client)
@@ -131,7 +135,9 @@ export class LobbyGateway implements OnGatewayConnection {
             await this.lobbyUserRepository.find({
                 relations: ['user'],
                 where: {
-                    lobby: lobby,
+                    lobby: {
+                        id: lobby.id,
+                    },
                 },
             }),
         )
@@ -150,14 +156,18 @@ export class LobbyGateway implements OnGatewayConnection {
                 code: code,
             },
         })
-        if (lobby === undefined) {
+        if (lobby === null) {
             throw new WsException('Not found')
         }
         const lobbyUser = await this.lobbyUserRepository.findOne({
             relations: ['user', 'lobby'],
             where: {
-                user: client.user,
-                lobby,
+                user: {
+                    id: client.user.id,
+                },
+                lobby: {
+                    id: lobby.id,
+                },
             },
         })
         if (lobbyUser === undefined) {
@@ -172,10 +182,10 @@ export class LobbyGateway implements OnGatewayConnection {
         @ConnectedSocket() client: AuthenticatedSocket,
         @MessageBody() code: string,
     ): Promise<void> {
-        let lobby = await this.lobbyRepository.findOne({
+        let lobby = await this.lobbyRepository.findOneBy({
             code,
         })
-        if (lobby === undefined) {
+        if (lobby === null) {
             throw new WsException('Not found')
         }
         lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Loading })
@@ -192,7 +202,9 @@ export class LobbyGateway implements OnGatewayConnection {
         let lobbyUser = await this.lobbyUserRepository.findOne({
             relations: ['lobby', 'user'],
             where: {
-                user: client.user,
+                user: {
+                    id: client.user.id,
+                },
                 role: Not(LobbyUserRole.Spectator),
             },
         })
@@ -272,7 +284,7 @@ export class LobbyGateway implements OnGatewayConnection {
                     },
                 },
             })
-            if (lobbyUser === undefined) {
+            if (lobbyUser === null) {
                 return
             }
             if (lobbyUser.status === LobbyUserStatus.Reconnecting) {

@@ -39,7 +39,7 @@ export class UsersService {
         })
     }
 
-    async findByEmail(email: string): Promise<User | undefined> {
+    async findByEmail(email: string): Promise<User | null> {
         return this.userRepository.findOne({
             where: {
                 email: email,
@@ -47,7 +47,7 @@ export class UsersService {
         })
     }
 
-    async findByUsername(username: string): Promise<User | undefined> {
+    async findByUsername(username: string): Promise<User | null> {
         return this.userRepository.findOne({
             where: {
                 username: username,
@@ -55,7 +55,7 @@ export class UsersService {
         })
     }
 
-    async findByConfirmationToken(token: string): Promise<User | undefined> {
+    async findByConfirmationToken(token: string): Promise<User | null> {
         return this.userRepository.findOne({
             where: {
                 confirmationToken: token,

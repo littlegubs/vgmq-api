@@ -39,7 +39,9 @@ export class GameSubscriber implements EntitySubscriberInterface<Game> {
                 const alternativeNames = await event.manager.find(AlternativeName, {
                     relations: ['game'],
                     where: {
-                        game: event.entity,
+                        game: {
+                            id: event.entity.id,
+                        },
                     },
                 })
                 for (const alternativeName of alternativeNames) {

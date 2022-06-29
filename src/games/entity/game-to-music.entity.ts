@@ -26,7 +26,7 @@ export class GameToMusic {
     music: Music
 
     @Column({ type: 'float', nullable: true })
-    guessAccuracy: number
+    guessAccuracy: number | null
 
     @Column({ type: 'integer', default: 0 })
     playNumber = 0
