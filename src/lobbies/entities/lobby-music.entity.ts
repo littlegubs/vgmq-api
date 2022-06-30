@@ -3,13 +3,15 @@ import {
     Column,
     CreateDateColumn,
     Entity,
+    JoinTable,
+    ManyToMany,
     ManyToOne,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
 } from 'typeorm'
 
+import { GameToMusic } from '../../games/entity/game-to-music.entity'
 import { Game } from '../../games/entity/game.entity'
-import { Music } from '../../games/entity/music.entity'
 import { Lobby } from './lobby.entity'
 
 @Entity()
@@ -32,15 +34,15 @@ export class LobbyMusic {
     })
     lobby: Lobby
 
-    @ManyToOne(() => Music, (music) => music.lobbyMusics, {
+    @ManyToOne(() => GameToMusic, (gameToMusic) => gameToMusic.lobbyMusics, {
         onDelete: 'CASCADE',
     })
     @Expose({ groups: ['lobby-answer-reveal'] })
-    music: Music
+    gameToMusic: GameToMusic
 
-    @Expose({ groups: ['lobby-answer-reveal'] })
-    @ManyToOne(() => Game)
-    expectedAnswer: Game
+    @ManyToMany(() => Game, { onDelete: 'CASCADE' })
+    @JoinTable()
+    expectedAnswers: Game[]
 
     @Column()
     @CreateDateColumn()

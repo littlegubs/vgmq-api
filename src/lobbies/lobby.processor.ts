@@ -43,7 +43,12 @@ export class LobbyProcessor {
         })
 
         const lobbyMusic = await this.lobbyMusicRepository.findOne({
-            relations: ['lobby', 'music'],
+            relations: {
+                lobby: true,
+                gameToMusic: {
+                    music: true,
+                },
+            },
             where: {
                 lobby: {
                     id: lobby.id,
@@ -115,7 +120,13 @@ export class LobbyProcessor {
             }),
         )
         const currentLobbyMusic = await this.lobbyMusicRepository.findOne({
-            relations: ['expectedAnswer', 'music', 'lobby'],
+            relations: {
+                lobby: true,
+                gameToMusic: {
+                    music: true,
+                    game: true,
+                },
+            },
             where: {
                 lobby: {
                     id: lobby.id,

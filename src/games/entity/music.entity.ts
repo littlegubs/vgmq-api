@@ -30,17 +30,12 @@ export class Music {
     @Column({ type: 'float' })
     duration: number
 
-    @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.music, {
-        cascade: ['remove'],
-    })
+    @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.music)
     games: GameToMusic[]
 
     @OneToOne(() => File, { eager: true, cascade: true })
     @JoinColumn()
     file: File
-
-    @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.music)
-    lobbyMusics: LobbyMusic[]
 
     @Column()
     @CreateDateColumn()

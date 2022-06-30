@@ -11,7 +11,7 @@ import { Queue } from 'bull'
 import { Cache } from 'cache-manager'
 import { In, Repository } from 'typeorm'
 
-import { GameToMusic } from '../games/entity/game-to-music.entity'
+import { GameToMusic, GameToMusicType } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
 import { Music } from '../games/entity/music.entity'
 import { User } from '../users/user.entity'
@@ -178,6 +178,19 @@ export class LobbyService {
                         .createQueryBuilder('gameToMusic')
                         .leftJoinAndSelect('gameToMusic.music', 'music')
                         .leftJoinAndSelect('music.file', 'file')
+                        .leftJoinAndSelect('gameToMusic.game', 'game')
+                        .leftJoinAndSelect('gameToMusic.derivedGameToMusics', 'derivedGameToMusics')
+                        .leftJoinAndSelect('derivedGameToMusics.game', 'derivedGames')
+                        .leftJoinAndSelect('gameToMusic.originalGameToMusic', 'originalGameToMusic')
+                        .leftJoinAndSelect('originalGameToMusic.game', 'originalGame')
+                        .leftJoinAndSelect(
+                            'originalGameToMusic.derivedGameToMusics',
+                            'originalDerivedGameToMusics',
+                        )
+                        .leftJoinAndSelect(
+                            'originalDerivedGameToMusics.game',
+                            'originalDerivedGames',
+                        )
                         .andWhere('gameToMusic.game = :game')
                         .andWhere('music.duration > :guessTime')
                         .setParameter('game', game.id)
@@ -185,8 +198,8 @@ export class LobbyService {
                         .orderBy('RAND()')
 
                     if (lobbyMusics.length > 0) {
-                        qb.andWhere('music.id NOT IN (:musicIds)', {
-                            musicIds: lobbyMusics.map((lobbyMusic) => lobbyMusic.music.id),
+                        qb.andWhere('gameToMusic.id NOT IN (:musicIds)', {
+                            musicIds: lobbyMusics.map((lobbyMusic) => lobbyMusic.gameToMusic.id),
                         })
                     }
                     const gameToMusic = await qb.getOne()
@@ -195,15 +208,40 @@ export class LobbyService {
                         const music = gameToMusic.music
                         const endAt = this.getRandomFloat(lobby.guessTime, music.duration, 4)
                         const startAt = endAt - lobby.guessTime
+                        let expectedAnswers: Game[] = []
+                        if (gameToMusic.type === GameToMusicType.Original) {
+                            expectedAnswers = [gameToMusic.game]
+                            if (gameToMusic.derivedGameToMusics) {
+                                expectedAnswers = [
+                                    ...expectedAnswers,
+                                    ...gameToMusic.derivedGameToMusics.map(
+                                        (derivedGameMusic) => derivedGameMusic.game,
+                                    ),
+                                ]
+                            }
+                        } else {
+                            const originalGameToMusic = gameToMusic.originalGameToMusic
+                            if (originalGameToMusic !== null) {
+                                expectedAnswers = [originalGameToMusic.game]
+                                if (originalGameToMusic.derivedGameToMusics) {
+                                    expectedAnswers = [
+                                        ...expectedAnswers,
+                                        ...originalGameToMusic.derivedGameToMusics.map(
+                                            (derivedGameMusic) => derivedGameMusic.game,
+                                        ),
+                                    ]
+                                }
+                            }
+                        }
                         lobbyMusics = [
                             ...lobbyMusics,
                             this.lobbyMusicRepository.create({
                                 lobby,
-                                music,
+                                gameToMusic,
                                 position,
                                 startAt,
                                 endAt,
-                                expectedAnswer: game,
+                                expectedAnswers,
                             }),
                         ]
                         userIdsRandom.splice(i, 1, undefined)

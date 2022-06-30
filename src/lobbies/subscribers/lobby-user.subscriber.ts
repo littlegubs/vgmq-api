@@ -89,7 +89,9 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
             await event.manager.find(LobbyUser, {
                 relations: ['user', 'lobby'],
                 where: {
-                    lobby: event.entity?.lobby,
+                    lobby: {
+                        id: event.entity?.lobby.id,
+                    },
                 },
             }),
         )
