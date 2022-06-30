@@ -117,7 +117,13 @@ export class LobbyGateway implements OnGatewayConnection {
             )
         ) {
             const lobbyMusic = await this.lobbyMusicRepository.findOne({
-                relations: ['lobby', 'music', 'expectedAnswer'],
+                relations: {
+                    lobby: true,
+                    gameToMusic: {
+                        game: true,
+                        music: true,
+                    },
+                },
                 where: {
                     lobby: { id: lobby.id },
                     position: lobby.currentLobbyMusicPosition!,
@@ -215,9 +221,9 @@ export class LobbyGateway implements OnGatewayConnection {
 
         const lobbyMusic = await this.lobbyMusicRepository
             .createQueryBuilder('lobbyMusic')
-            .innerJoinAndSelect('lobbyMusic.expectedAnswer', 'expectedAnswer')
-            .leftJoinAndSelect('expectedAnswer.alternativeNames', 'expectedAnswerAlternativeName')
-            .andWhere('expectedAnswer.enabled = 1')
+            .innerJoinAndSelect('lobbyMusic.expectedAnswers', 'expectedAnswers')
+            .leftJoinAndSelect('expectedAnswers.alternativeNames', 'expectedAnswerAlternativeName')
+            .andWhere('expectedAnswers.enabled = 1')
             .andWhere('lobbyMusic.lobby = :lobby', { lobby: lobby.id })
             .andWhere('lobbyMusic.position = :position', {
                 position: lobby.currentLobbyMusicPosition,
@@ -233,7 +239,7 @@ export class LobbyGateway implements OnGatewayConnection {
                                     qb3.orWhere('expectedAnswerAlternativeName.enabled = 1')
                                 }),
                             )
-                            qb2.andWhere('expectedAnswer.name LIKE :answer')
+                            qb2.andWhere('expectedAnswers.name LIKE :answer')
                         }),
                     )
                     qb.orWhere(
@@ -275,7 +281,6 @@ export class LobbyGateway implements OnGatewayConnection {
             if (client.user === undefined) {
                 return
             }
-            // for some reason I must search by id here?????
             const lobbyUser = await this.lobbyUserRepository.findOne({
                 relations: ['user'],
                 where: {
@@ -307,16 +312,16 @@ export class LobbyGateway implements OnGatewayConnection {
     }
 
     sendLobbyMusicToLoad(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
-        const music = lobbyMusic.music
-        const stat = statSync(music.file.path)
+        const gameToMusic = lobbyMusic.gameToMusic
+        const stat = statSync(gameToMusic.music.file.path)
         const size = stat.size
 
         // for some reason, the Duration class returns an incorrect duration value, I'm afraid it might also return an incorrect offset value
-        const { offset } = Duration.getDuration(music.file.path)
-        const valuePerSecond = (size - offset) / music.duration
+        const { offset } = Duration.getDuration(gameToMusic.music.file.path)
+        const valuePerSecond = (size - offset) / gameToMusic.music.duration
         const startBit = lobbyMusic.startAt * valuePerSecond
         const endBit = lobbyMusic.endAt * valuePerSecond
-        const fd = openSync(music.file.path, 'r')
+        const fd = openSync(gameToMusic.music.file.path, 'r')
 
         const audioBuffer = Buffer.alloc(endBit - startBit)
         readSync(fd, audioBuffer, 0, audioBuffer.length, parseInt(String(startBit + offset)))

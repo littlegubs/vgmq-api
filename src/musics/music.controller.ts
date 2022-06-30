@@ -1,12 +1,4 @@
-import {
-    Body,
-    Controller,
-    Delete,
-    NotFoundException,
-    Param,
-    Patch,
-    UseGuards,
-} from '@nestjs/common'
+import { Body, Controller, NotFoundException, Param, Patch, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 
@@ -39,15 +31,5 @@ export class MusicController {
             title: musicEditDto.title,
             artist: musicEditDto.artist,
         })
-    }
-
-    @Roles(Role.Admin)
-    @Delete('/:id')
-    async delete(@Param('id') id: string): Promise<Music> {
-        const music = await this.musicRepository.findOne(id)
-        if (!music) {
-            throw new NotFoundException()
-        }
-        return this.musicRepository.remove(music)
     }
 }

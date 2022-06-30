@@ -1,3 +1,4 @@
+import { Expose } from 'class-transformer'
 import {
     Entity,
     Column,
@@ -5,31 +6,56 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     ManyToOne,
+    OneToMany,
 } from 'typeorm'
 
+import { LobbyMusic } from '../../lobbies/entities/lobby-music.entity'
 import { Game } from './game.entity'
 import { Music } from './music.entity'
+
+export enum GameToMusicType {
+    Original = 'original',
+    Reused = 'reused',
+}
 
 @Entity()
 export class GameToMusic {
     @PrimaryGeneratedColumn()
     id: number
 
+    @Column({ type: 'enum', enum: GameToMusicType, default: GameToMusicType.Original })
+    type: string
+
     @ManyToOne(() => Game, (game) => game.musics)
+    @Expose({ groups: ['lobby-answer-reveal'] })
     game: Game
 
     @ManyToOne(() => Music, (music) => music.games, {
         cascade: ['insert', 'update'],
-        onDelete: 'CASCADE',
         eager: true,
     })
+    @Expose({ groups: ['lobby-answer-reveal'] })
     music: Music
+
+    @ManyToOne(() => GameToMusic, (gameToMusic) => gameToMusic.derivedGameToMusics, {
+        cascade: ['insert', 'update'],
+        onDelete: 'CASCADE',
+    })
+    originalGameToMusic: GameToMusic | null
+
+    @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.originalGameToMusic, {
+        cascade: ['remove'],
+    })
+    derivedGameToMusics?: GameToMusic[]
 
     @Column({ type: 'float', nullable: true })
     guessAccuracy: number | null
 
     @Column({ type: 'integer', default: 0 })
     playNumber = 0
+
+    @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.gameToMusic)
+    lobbyMusics: LobbyMusic[]
 
     @Column()
     @CreateDateColumn()

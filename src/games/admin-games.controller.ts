@@ -83,12 +83,27 @@ export class AdminGamesController {
     @Get('/:slug')
     async get(@Param('slug') slug: string): Promise<{ game: Game; free: number; size: number }> {
         const game = await this.gamesRepository.findOne({
-            relations: ['alternativeNames', 'musics'],
+            relations: {
+                alternativeNames: true,
+                musics: {
+                    derivedGameToMusics: {
+                        game: true,
+                    },
+                    originalGameToMusic: {
+                        game: true,
+                    },
+                },
+            },
             where: {
                 slug,
             },
+            order: {
+                musics: {
+                    id: 'ASC',
+                },
+            },
         })
-        if (game === undefined) {
+        if (game === null) {
             throw new NotFoundException()
         }
         const { free, size } = await checkDiskSpace(
@@ -127,12 +142,22 @@ export class AdminGamesController {
         @UploadedFiles() files: Array<Express.Multer.File>,
     ): Promise<Game> {
         const game = await this.gamesRepository.findOne({
-            relations: ['alternativeNames', 'musics'],
+            relations: {
+                alternativeNames: true,
+                musics: {
+                    derivedGameToMusics: {
+                        game: true,
+                    },
+                    originalGameToMusic: {
+                        game: true,
+                    },
+                },
+            },
             where: {
                 slug,
             },
         })
-        if (game === undefined) {
+        if (game === null) {
             throw new NotFoundException()
         }
 

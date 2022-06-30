@@ -16,14 +16,12 @@ export const AppDataSource = new DataSource({
     username: env.parsed?.DATABASE_USERNAME,
     password: env.parsed?.DATABASE_PASSWORD,
     database: env.parsed?.DATABASE_NAME,
-    synchronize: false,
+    synchronize: true,
     logging: false,
     entities: ['dist/**/*.entity{.ts,.js}'],
     // entities: ['src/**/*.entity{.ts,.js}'],
-    migrations: ['dist/migration/*.js'],
-    cli: {
-        migrationsDir: 'src/migration',
-    },
+    migrations: ['src/migration/*.ts'],
+    // migrations: ['dist/migration/*{.ts,.js}'],
 })
 
 AppDataSource.initialize()

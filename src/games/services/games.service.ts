@@ -100,7 +100,17 @@ export class GamesService {
 
     async toggle(slug: string): Promise<Game> {
         const game = await this.gameRepository.findOne({
-            relations: ['alternativeNames'],
+            relations: {
+                alternativeNames: true,
+                musics: {
+                    derivedGameToMusics: {
+                        game: true,
+                    },
+                    originalGameToMusic: {
+                        game: true,
+                    },
+                },
+            },
             where: {
                 slug,
             },
