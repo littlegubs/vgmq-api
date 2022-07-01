@@ -7,7 +7,7 @@ import { LobbyUser, LobbyUserStatus } from '../../lobbies/entities/lobby-user.en
 import { AuthenticatedSocket } from '../../lobbies/lobby.gateway'
 
 @Catch(UnauthorizedException)
-export class WsExceptionsFilter extends BaseWsExceptionFilter {
+export class WsUnauthorizedExceptionFilter extends BaseWsExceptionFilter {
     constructor(
         @InjectRepository(LobbyUser)
         private lobbyUserRepository: Repository<LobbyUser>,
@@ -36,7 +36,6 @@ export class WsExceptionsFilter extends BaseWsExceptionFilter {
             }
         }
 
-        console.log('sex2')
         socket.emit(exception.name, {
             status: 'error',
             message: exception.message,

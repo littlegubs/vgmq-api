@@ -2,6 +2,7 @@ import { InjectQueue, OnGlobalQueueStalled, Process, Processor } from '@nestjs/b
 import { Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
+import * as dayjs from 'dayjs'
 import { Repository } from 'typeorm'
 
 import { LobbyMusic } from './entities/lobby-music.entity'
@@ -95,6 +96,10 @@ export class LobbyProcessor {
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.lobbyGateway.sendLobbyMusicToLoad(lobbyMusic)
+        await this.lobbyMusicRepository.save({
+            ...lobbyMusic,
+            musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
+        })
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
         })

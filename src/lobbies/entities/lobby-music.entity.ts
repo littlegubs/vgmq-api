@@ -44,6 +44,9 @@ export class LobbyMusic {
     @JoinTable()
     expectedAnswers: Game[]
 
+    @Column({ type: 'datetime', nullable: true })
+    musicFinishPlayingAt: Date
+
     @Column()
     @CreateDateColumn()
     createdAt: Date

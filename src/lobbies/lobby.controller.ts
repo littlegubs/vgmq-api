@@ -28,7 +28,7 @@ import { User } from '../users/user.entity'
 import { LobbyCreateDto } from './dto/lobby-create.dto'
 import { LobbySearchDto } from './dto/lobby-search.dto'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
-import { Lobby, LobbyStatuses } from './entities/lobby.entity'
+import { Lobby } from './entities/lobby.entity'
 import { LobbyService } from './lobby.service'
 
 @Controller('lobbies')
@@ -76,7 +76,9 @@ export class LobbyController {
         const player = await this.lobbyUserRepository.findOne({
             relations: ['user'],
             where: {
-                user: request.user,
+                user: {
+                    id: (<User>request.user).id,
+                },
                 role: LobbyUserRole.Host,
             },
         })

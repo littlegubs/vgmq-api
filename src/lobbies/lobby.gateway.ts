@@ -1,7 +1,14 @@
 import { openSync, readSync, statSync } from 'fs'
 
 import { InjectQueue } from '@nestjs/bull'
-import { forwardRef, Inject, Logger, UseFilters, UseGuards } from '@nestjs/common'
+import {
+    forwardRef,
+    Inject,
+    Logger,
+    NotFoundException,
+    UseFilters,
+    UseGuards,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
     ConnectedSocket,
@@ -14,10 +21,12 @@ import {
 } from '@nestjs/websockets'
 import { Queue } from 'bull'
 import { classToClass } from 'class-transformer'
+import * as dayjs from 'dayjs'
 import { Server, Socket } from 'socket.io'
 import { Brackets, Not, Repository } from 'typeorm'
 
-import { WsExceptionsFilter } from '../auth/exception-filter/ws.exception-filter'
+import { WsNotFoundExceptionFilter } from '../auth/exception-filter/ws-not-found.exception-filter'
+import { WsUnauthorizedExceptionFilter } from '../auth/exception-filter/ws-unauthorized.exception-filter'
 import { WsGuard } from '../auth/guards/ws.guard'
 import { Game } from '../games/entity/game.entity'
 import { Music } from '../games/entity/music.entity'
@@ -34,7 +43,7 @@ export class AuthenticatedSocket extends Socket {
     user: User
 }
 
-@UseFilters(WsExceptionsFilter)
+@UseFilters(WsUnauthorizedExceptionFilter, WsNotFoundExceptionFilter)
 @WebSocketGateway({
     cors: {
         origin: '*',
@@ -74,7 +83,7 @@ export class LobbyGateway implements OnGatewayConnection {
             },
         })
         if (lobby === null) {
-            throw new WsException('Not found')
+            throw new NotFoundException()
         }
         const lobbyUser = await this.lobbyUserRepository.findOne({
             relations: ['user', 'lobby'],
@@ -327,9 +336,13 @@ export class LobbyGateway implements OnGatewayConnection {
         readSync(fd, audioBuffer, 0, audioBuffer.length, parseInt(String(startBit + offset)))
 
         if (client) {
-            client.emit('lobbyMusic', audioBuffer)
+            client.emit('lobbyPlayMusic', audioBuffer)
+            client.emit(
+                'lobbyMusicFinishesIn',
+                dayjs(lobbyMusic.musicFinishPlayingAt).diff(dayjs(), 'seconds'),
+            )
         } else {
-            this.server.to(lobbyMusic.lobby.code).emit('lobbyMusic', audioBuffer)
+            this.server.to(lobbyMusic.lobby.code).emit('lobbyPlayMusic', audioBuffer)
         }
     }
 

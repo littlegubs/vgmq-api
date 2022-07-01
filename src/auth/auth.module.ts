@@ -7,14 +7,15 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { LobbyUser } from '../lobbies/entities/lobby-user.entity'
 import { UserExistsRule } from '../users/unique.validator'
+import { User } from '../users/user.entity'
 import { UsersModule } from '../users/users.module'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
-import { WsExceptionsFilter } from './exception-filter/ws.exception-filter'
+import { WsNotFoundExceptionFilter } from './exception-filter/ws-not-found.exception-filter'
+import { WsUnauthorizedExceptionFilter } from './exception-filter/ws-unauthorized.exception-filter'
 import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh-token.strategy'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { WsStrategy } from './strategies/ws.strategy'
-import {User} from "../users/user.entity";
 
 @Module({
     controllers: [AuthController],
@@ -42,7 +43,8 @@ import {User} from "../users/user.entity";
         JwtRefreshTokenStrategy,
         WsStrategy,
         UserExistsRule,
-        WsExceptionsFilter,
+        WsUnauthorizedExceptionFilter,
+        WsNotFoundExceptionFilter,
     ],
     exports: [AuthService],
 })
