@@ -6,11 +6,14 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
 import * as mm from 'music-metadata'
+import Vibrant = require('node-vibrant')
 import { Brackets, Repository } from 'typeorm'
 
 import { File } from '../../entity/file.entity'
 import { User } from '../../users/user.entity'
 import { AlternativeName } from '../entity/alternative-name.entity'
+import { ColorPalette } from '../entity/color-palette.entity'
+import { Cover } from '../entity/cover.entity'
 import { GameToMusic } from '../entity/game-to-music.entity'
 import { Game } from '../entity/game.entity'
 import { Music } from '../entity/music.entity'
@@ -21,6 +24,10 @@ export class GamesService {
     constructor(
         @InjectRepository(Game)
         private gameRepository: Repository<Game>,
+        @InjectRepository(Cover)
+        private coverRepository: Repository<Cover>,
+        @InjectRepository(ColorPalette)
+        private colorPaletteRepository: Repository<ColorPalette>,
         @InjectRepository(Music)
         private musicRepository: Repository<Music>,
         @InjectRepository(GameToMusic)
@@ -47,6 +54,7 @@ export class GamesService {
             .loadRelationCountAndMap('game.countMusics', 'game.musics', 'countMusics')
             .loadRelationCountAndMap('game.countUsers', 'game.users', 'countUsers')
             .leftJoinAndSelect('game.cover', 'cover')
+            .leftJoinAndSelect('cover.colorPalette', 'colorPalette')
             .where(
                 new Brackets((qb) => {
                     qb.orWhere('game.name LIKE :name').orWhere(
@@ -334,5 +342,27 @@ export class GamesService {
                 },
             },
         })
+    }
+
+    async updateGameCoverColorPalette(): Promise<void> {
+        const covers = await this.coverRepository.find()
+        for (const cover of covers) {
+            const colorPalette = await Vibrant.from(
+                `https://images.igdb.com/igdb/image/upload/t_1080p/${cover.imageId}.jpg`,
+            ).getPalette()
+            await this.coverRepository.save({
+                ...cover,
+                colorPalette: this.colorPaletteRepository.create({
+                    vibrantHex: colorPalette.Vibrant?.hex,
+                    mutedHex: colorPalette.Muted?.hex,
+                    darkMutedHex: colorPalette.DarkMuted?.hex,
+                    darkVibrantHex: colorPalette.DarkVibrant?.hex,
+                    lightMutedHex: colorPalette.LightMuted?.hex,
+                    lightVibrantHex: colorPalette.LightVibrant?.hex,
+                    backgroundColorHex: colorPalette.DarkVibrant?.hex,
+                    colorHex: colorPalette.Vibrant?.hex,
+                }),
+            })
+        }
     }
 }

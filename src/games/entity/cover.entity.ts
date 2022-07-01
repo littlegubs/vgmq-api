@@ -6,8 +6,10 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     OneToOne,
+    JoinColumn,
 } from 'typeorm'
 
+import { ColorPalette } from './color-palette.entity'
 import { Game } from './game.entity'
 
 @Entity()
@@ -24,6 +26,13 @@ export class Cover {
 
     @OneToOne(() => Game, (game) => game.cover, { onDelete: 'CASCADE' })
     game: Game
+
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
+    @OneToOne(() => ColorPalette, (colorPalette) => colorPalette.cover, {
+        cascade: ['insert', 'remove'],
+    })
+    @JoinColumn()
+    colorPalette: ColorPalette
 
     @Column()
     @CreateDateColumn()
