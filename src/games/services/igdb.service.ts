@@ -8,9 +8,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import axios, { AxiosError } from 'axios'
 import { DateTime } from 'luxon'
+import Vibrant = require('node-vibrant')
 import { Repository } from 'typeorm'
 
 import { AlternativeName } from '../entity/alternative-name.entity'
+import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
 import { Game } from '../entity/game.entity'
 import { IgdbHttpService } from '../http/igdb.http.service'
@@ -25,6 +27,8 @@ export class IgdbService {
         private coversRepository: Repository<Cover>,
         @InjectRepository(AlternativeName)
         private alternativeNamesRepository: Repository<AlternativeName>,
+        @InjectRepository(ColorPalette)
+        private colorPaletteRepository: Repository<ColorPalette>,
     ) {}
 
     async importByUrl(url: string): Promise<Game> {
@@ -61,7 +65,7 @@ export class IgdbService {
                     firstReleaseDate: DateTime.fromSeconds(igdbGame.first_release_date).toISO(),
                 })
 
-                const cover = this.getCover(game, igdbGame.cover)
+                const cover = await this.getCover(game, igdbGame.cover)
 
                 const alternativeNames = this.handleAlternativeNames(
                     game,
@@ -100,17 +104,30 @@ export class IgdbService {
         return parent ? this.importByUrl(parent.url).catch(() => undefined) : undefined
     }
 
-    getCover(
+    async getCover(
         game: Game,
         igdbCover?: {
             id: number
             image_id: string
         },
-    ): Cover | undefined {
+    ): Promise<Cover | undefined> {
         if (igdbCover) {
+            const colorPalette = await Vibrant.from(
+                `https://images.igdb.com/igdb/image/upload/t_1080p/${igdbCover.image_id}.jpg`,
+            ).getPalette()
             return this.coversRepository.create({
                 igdbId: igdbCover.id,
                 imageId: igdbCover.image_id,
+                colorPalette: this.colorPaletteRepository.create({
+                    vibrantHex: colorPalette.Vibrant?.hex,
+                    mutedHex: colorPalette.Muted?.hex,
+                    darkMutedHex: colorPalette.DarkMuted?.hex,
+                    darkVibrantHex: colorPalette.DarkVibrant?.hex,
+                    lightMutedHex: colorPalette.LightMuted?.hex,
+                    lightVibrantHex: colorPalette.LightVibrant?.hex,
+                    backgroundColorHex: colorPalette.DarkVibrant?.hex,
+                    colorHex: colorPalette.Vibrant?.hex,
+                }),
             })
         }
     }

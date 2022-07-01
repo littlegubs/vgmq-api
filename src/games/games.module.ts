@@ -8,6 +8,7 @@ import { File } from '../entity/file.entity'
 import { User } from '../users/user.entity'
 import { AdminGamesController } from './admin-games.controller'
 import { AlternativeName } from './entity/alternative-name.entity'
+import { ColorPalette } from './entity/color-palette.entity'
 import { Cover } from './entity/cover.entity'
 import { GameToMusic } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
@@ -34,6 +35,7 @@ import { GameSubscriber } from './subscribers/game.subscriber'
             Music,
             File,
             User,
+            ColorPalette,
         ]),
         HttpModule,
         ElasticsearchModule.registerAsync({

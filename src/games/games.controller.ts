@@ -43,28 +43,32 @@ export class GamesController {
     @SerializeOptions({
         groups: ['game-list'],
     })
-    getAll(
+    async getAll(
         @Query() query: GamesSearchDto,
         @Req() request: Request,
     ): Promise<{ data: Game[]; count: number }> {
         const user = request.user as User
-        return this.gamesService
-            .findByName(query.query, {
-                showDisabled: false,
-                limit: query.limit,
-                skip: query.skip,
-                ...(query.filterByUser && { filterByUser: user }),
-            })
-            .then(async ([data, count]) => {
+        let [games, count] = await this.gamesService.findByName(query.query, {
+            showDisabled: false,
+            limit: query.limit,
+            skip: query.skip,
+            ...(query.filterByUser && { filterByUser: user }),
+        })
+
+        games = await Promise.all(
+            games.map(async (game) => {
                 const gameIds = await this.gamesService.getGamesIdsForUser(user)
                 return {
-                    data: data.map((game) => ({
-                        ...game,
-                        selectedByUser: gameIds.includes(game.id),
-                    })),
-                    count,
+                    ...game,
+                    selectedByUser: gameIds.includes(game.id),
                 }
-            })
+            }),
+        )
+
+        return {
+            data: games,
+            count,
+        }
     }
 
     @Get('/:slug/add')
