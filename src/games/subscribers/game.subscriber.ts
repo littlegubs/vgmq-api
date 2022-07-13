@@ -54,6 +54,9 @@ export class GameSubscriber implements EntitySubscriberInterface<Game> {
                 await this.gameService.indexGameName(event.entity as Game)
             }
         }
+        if (event.updatedColumns.some((column) => column.propertyName === 'name')) {
+            await this.gameService.updateGameName(event.entity as Game)
+        }
     }
     async afterRemove(event: RemoveEvent<Game>): Promise<void> {
         if (event.entity) {

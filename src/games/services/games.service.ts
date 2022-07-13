@@ -1,7 +1,11 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
-import { DeleteByQueryResponse, IndexResponse } from '@elastic/elasticsearch/lib/api/types'
+import {
+    DeleteByQueryResponse,
+    IndexResponse,
+    UpdateByQueryResponse,
+} from '@elastic/elasticsearch/lib/api/types'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -311,6 +315,31 @@ export class GamesService {
         })
     }
 
+    updateGameName(game: Game): Promise<UpdateByQueryResponse> {
+        return this.elasticsearchService.updateByQuery({
+            index: 'game_name',
+            script: {
+                source: `ctx._source["name"] = "${game.name}"`,
+            },
+            query: {
+                bool: {
+                    must: [
+                        {
+                            match: {
+                                id: game.id,
+                            },
+                        },
+                        {
+                            match: {
+                                type: 'game_name',
+                            },
+                        },
+                    ],
+                },
+            },
+        })
+    }
+
     indexAlternativeName(alternativeName: AlternativeName): Promise<IndexResponse> {
         return this.elasticsearchService.index<GameNameSearchBody>({
             index: 'game_name',
@@ -325,6 +354,31 @@ export class GamesService {
     removeAlternativeName(alternativeName: AlternativeName): Promise<DeleteByQueryResponse> {
         return this.elasticsearchService.deleteByQuery({
             index: 'game_name',
+            query: {
+                bool: {
+                    must: [
+                        {
+                            match: {
+                                id: alternativeName.id,
+                            },
+                        },
+                        {
+                            match: {
+                                type: 'alternative_name',
+                            },
+                        },
+                    ],
+                },
+            },
+        })
+    }
+
+    updateAlternativeName(alternativeName: AlternativeName): Promise<UpdateByQueryResponse> {
+        return this.elasticsearchService.updateByQuery({
+            index: 'game_name',
+            script: {
+                source: `ctx._source["name"] = "${alternativeName.name}"`,
+            },
             query: {
                 bool: {
                     must: [
