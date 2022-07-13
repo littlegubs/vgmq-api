@@ -25,6 +25,7 @@ export class AlternativeName {
 
     @ManyToOne(() => Game, (game) => game.alternativeNames, {
         onDelete: 'CASCADE',
+        orphanedRowAction: 'delete',
     })
     game: Game
 

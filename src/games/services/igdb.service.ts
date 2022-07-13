@@ -49,11 +49,10 @@ export class IgdbService {
                 })
 
                 if (oldGame) {
-                    // TODO maybe check if old game is not already being played in a lobby, and prevent from updating, as bugs could occur
+                    // TODO stop deleting cover when color palette choice is in place
                     if (oldGame.cover) {
                         await this.coversRepository.remove(oldGame.cover)
                     }
-                    await this.alternativeNamesRepository.remove(oldGame.alternativeNames)
                 }
 
                 let game = this.gamesRepository.create({
@@ -67,7 +66,7 @@ export class IgdbService {
 
                 const cover = await this.getCover(game, igdbGame.cover)
 
-                const alternativeNames = this.handleAlternativeNames(
+                const alternativeNames = await this.handleAlternativeNames(
                     game,
                     igdbGame.alternative_names,
                 )
@@ -142,14 +141,26 @@ export class IgdbService {
             id: number
             name: string
         }>,
-    ): AlternativeName[] | undefined {
+    ): Promise<AlternativeName[]> {
         if (Array.isArray(igdbAlternativeNames) && igdbAlternativeNames.length > 0) {
-            return igdbAlternativeNames.map((alternativeName) => {
-                return this.alternativeNamesRepository.create({
-                    igdbId: alternativeName.id,
-                    name: alternativeName.name,
-                })
-            })
+            return Promise.all(
+                igdbAlternativeNames.map(async (igdbAlternativeName) => {
+                    const alternativeName = await this.alternativeNamesRepository.findOneBy({
+                        igdbId: igdbAlternativeName.id,
+                    })
+                    if (alternativeName === null) {
+                        return this.alternativeNamesRepository.create({
+                            igdbId: igdbAlternativeName.id,
+                            name: igdbAlternativeName.name,
+                        })
+                    }
+                    return this.alternativeNamesRepository.save<AlternativeName>({
+                        ...alternativeName,
+                        name: igdbAlternativeName.name,
+                    })
+                }),
+            )
         }
+        return Promise.resolve([])
     }
 }

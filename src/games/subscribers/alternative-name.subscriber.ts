@@ -1,6 +1,6 @@
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import {
-    Connection,
+    DataSource,
     EntitySubscriberInterface,
     EventSubscriber,
     InsertEvent,
@@ -14,7 +14,7 @@ import { GamesService } from '../services/games.service'
 @EventSubscriber()
 export class AlternativeNameSubscriber implements EntitySubscriberInterface<AlternativeName> {
     constructor(
-        connection: Connection,
+        connection: DataSource,
         private elasticsearchService: ElasticsearchService,
         private gameService: GamesService,
     ) {
@@ -39,8 +39,11 @@ export class AlternativeNameSubscriber implements EntitySubscriberInterface<Alte
                 await this.gameService.indexAlternativeName(event.entity as AlternativeName)
             }
         }
+        if (event.updatedColumns.some((column) => column.propertyName === 'name')) {
+            await this.gameService.updateAlternativeName(event.entity as AlternativeName)
+        }
     }
-    async afterRemove(event: RemoveEvent<AlternativeName>): Promise<void> {
+    async beforeRemove(event: RemoveEvent<AlternativeName>): Promise<void> {
         if (event.entity) {
             await this.gameService.removeAlternativeName(event.entity)
         }
