@@ -32,7 +32,7 @@ export class UsersService {
         await this.mailerService.sendMail({
             to: user.email,
             subject: 'Confirm your VGMQ account',
-            template: 'confirmation',
+            template: './confirmation',
             context: {
                 url: url,
             },
