@@ -28,8 +28,8 @@ export class Game {
     @Column()
     category: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 
-    @Column()
-    firstReleaseDate?: Date
+    @Column({ type: 'datetime', nullable: true })
+    firstReleaseDate: Date | null
 
     @Column()
     @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })

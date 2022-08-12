@@ -1,5 +1,4 @@
 import {
-    BadRequestException,
     HttpException,
     Injectable,
     InternalServerErrorException,
@@ -38,8 +37,6 @@ export class IgdbService {
                 const igdbGame = res[0]
 
                 if (!igdbGame) throw new NotFoundException('the game was not found')
-                if (!igdbGame.first_release_date)
-                    throw new BadRequestException('the game has no release date')
 
                 const oldGame = await this.gamesRepository.findOne({
                     where: {
@@ -61,7 +58,9 @@ export class IgdbService {
                     name: igdbGame.name,
                     url: igdbGame.url,
                     slug: igdbGame.slug,
-                    firstReleaseDate: DateTime.fromSeconds(igdbGame.first_release_date).toISO(),
+                    firstReleaseDate: igdbGame.first_release_date
+                        ? DateTime.fromSeconds(igdbGame.first_release_date).toISO()
+                        : null,
                 })
 
                 const cover = await this.getCover(game, igdbGame.cover)
