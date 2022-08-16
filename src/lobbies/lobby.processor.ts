@@ -114,7 +114,7 @@ export class LobbyProcessor {
             relations: ['lobbyMusics'],
             where: { code: lobbyCode },
         })
-        if (lobby === undefined) {
+        if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
@@ -176,7 +176,7 @@ export class LobbyProcessor {
             relations: ['lobbyMusics'],
             where: { code: lobbyCode },
         })
-        if (lobby === undefined) {
+        if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
