@@ -26,6 +26,14 @@ export class GameToMusic {
     @Column({ type: 'enum', enum: GameToMusicType, default: GameToMusicType.Original })
     type: string
 
+    @Column({ type: 'varchar', nullable: true })
+    @Expose({ groups: ['lobby-answer-reveal'] })
+    title: string | null
+
+    @Column({ type: 'varchar', nullable: true })
+    @Expose({ groups: ['lobby-answer-reveal'] })
+    artist: string | null
+
     @ManyToOne(() => Game, (game) => game.musics)
     @Expose({ groups: ['lobby-answer-reveal'] })
     game: Game
