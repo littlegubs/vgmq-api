@@ -121,6 +121,9 @@ export class GamesController {
             .toLowerCase()
             .normalize('NFD')
             .replace(/\p{Diacritic}/gu, '')
+
+        if (queryStr === '') return []
+
         const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
             index: 'game_name',
             sort: ['_score', 'name'],
