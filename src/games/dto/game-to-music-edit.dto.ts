@@ -1,6 +1,6 @@
 import { IsNotEmpty } from 'class-validator'
 
-export class MusicEditDto {
+export class GameToMusicEditDto {
     @IsNotEmpty()
     title: string
 

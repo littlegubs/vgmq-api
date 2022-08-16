@@ -8,6 +8,7 @@ import {
     Get,
     NotFoundException,
     Param,
+    Patch,
     Post,
     Req,
     Response,
@@ -23,6 +24,7 @@ import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
 import { AddDerivedGameToMusicDto } from './dto/add-derived-game-to-music.dto'
+import { GameToMusicEditDto } from './dto/game-to-music-edit.dto'
 import { GameToMusic, GameToMusicType } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
 import { GamesService } from './services/games.service'
@@ -69,6 +71,25 @@ export class GameToMusicController {
             'Content-Type': 'audio/mpeg',
         })
         return new StreamableFile(file)
+    }
+
+    @Roles(Role.Admin)
+    @Patch('/:id')
+    async edit(
+        @Param('id') id: number,
+        @Body() musicEditDto: GameToMusicEditDto,
+    ): Promise<GameToMusic> {
+        const gameToMusic = await this.gameToMusicRepository.findOneBy({
+            id: id,
+        })
+        if (!gameToMusic) {
+            throw new NotFoundException()
+        }
+        return this.gameToMusicRepository.save({
+            ...gameToMusic,
+            title: musicEditDto.title,
+            artist: musicEditDto.artist,
+        })
     }
 
     @Post('/:id/add-derived')
