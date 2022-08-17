@@ -32,10 +32,11 @@ export class Lobby {
     code: string
 
     @Column()
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     name: string
 
     @Column({ type: 'varchar', nullable: true })
-    @Exclude()
+    @Expose({ groups: ['lobby'] })
     password: string | null
 
     @Column({
@@ -43,15 +44,19 @@ export class Lobby {
         enum: LobbyStatuses,
         default: LobbyStatuses.Waiting,
     })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     status: string
 
     @Column({ type: 'int', default: 20 })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     guessTime: number
 
     @Column({ type: 'int', default: 20 })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     musicNumber: number
 
     @Column({ default: false })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     allowDuplicates: boolean
 
     @Transform(({ value }) => value.length)
@@ -76,7 +81,7 @@ export class Lobby {
         this.password = this.password ? await bcrypt.hash(this.password, 8) : null
     }
 
-    @Expose()
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     get hasPassword(): boolean {
         return this.password !== null
     }
