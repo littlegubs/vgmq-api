@@ -28,7 +28,7 @@ export class WsUnauthorizedExceptionFilter extends BaseWsExceptionFilter {
                     },
                 },
             })
-            if (lobbyUser !== undefined) {
+            if (lobbyUser !== null) {
                 await this.lobbyUserRepository.save({
                     ...lobbyUser,
                     status: LobbyUserStatus.Reconnecting,

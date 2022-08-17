@@ -9,11 +9,13 @@ import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
+import { LobbyListGateway } from './lobby-list.gateway'
 import { LobbyController } from './lobby.controller'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyProcessor } from './lobby.processor'
 import { LobbyService } from './lobby.service'
 import { LobbyUserSubscriber } from './subscribers/lobby-user.subscriber'
+import { LobbySubscriber } from './subscribers/lobby.subscriber'
 
 @Module({
     controllers: [LobbyController],
@@ -24,6 +26,13 @@ import { LobbyUserSubscriber } from './subscribers/lobby-user.subscriber'
             name: 'lobby',
         }),
     ],
-    providers: [LobbyService, LobbyGateway, LobbyProcessor, LobbyUserSubscriber],
+    providers: [
+        LobbyService,
+        LobbyGateway,
+        LobbyListGateway,
+        LobbyProcessor,
+        LobbySubscriber,
+        LobbyUserSubscriber,
+    ],
 })
 export class LobbyModule {}
