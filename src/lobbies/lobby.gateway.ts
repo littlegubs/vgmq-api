@@ -118,7 +118,10 @@ export class LobbyGateway implements OnGatewayConnection {
             await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: false, status: null })
         }
         await client.join(lobby.code)
-        client.emit('lobbyJoined', classToClass<Lobby>(lobby))
+        client.emit(
+            'lobbyJoined',
+            classToClass<Lobby>(lobby, { groups: ['lobby'] }),
+        )
 
         if (
             [LobbyStatuses.PlayingMusic.toString(), LobbyStatuses.AnswerReveal.toString()].includes(
@@ -317,7 +320,10 @@ export class LobbyGateway implements OnGatewayConnection {
     }
 
     sendUpdateToRoom(lobby: Lobby): void {
-        this.server.to(lobby.code).emit('lobby', classToClass<Lobby>(lobby))
+        this.server.to(lobby.code).emit(
+            'lobby',
+            classToClass<Lobby>(lobby, { groups: ['lobby'] }),
+        )
     }
 
     sendLobbyMusicToLoad(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
@@ -372,7 +378,10 @@ export class LobbyGateway implements OnGatewayConnection {
         }
     }
     sendLobbyReset(lobby: Lobby): void {
-        this.server.to(lobby.code).emit('lobbyReset', classToClass<Lobby>(lobby))
+        this.server.to(lobby.code).emit(
+            'lobbyReset',
+            classToClass<Lobby>(lobby, { groups: ['lobby'] }),
+        )
     }
 
     sendLobbyToast(lobby: Lobby, message: string): void {

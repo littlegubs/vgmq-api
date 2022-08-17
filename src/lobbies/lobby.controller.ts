@@ -12,6 +12,7 @@ import {
     Put,
     Query,
     Req,
+    SerializeOptions,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common'
@@ -50,6 +51,7 @@ export class LobbyController {
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
+    @SerializeOptions({ groups: ['lobby-list'] })
     @Get('')
     getAll(@Query() query: LobbySearchDto): Promise<Lobby[]> {
         return this.lobbyService.findByName(query.query)
