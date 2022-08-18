@@ -28,7 +28,9 @@ export class WebhookController {
         console.log(body)
         console.log(request.header('X-Secret'))
 
-        await this.igdbService.importGame(body)
+        if (body.category === 0) {
+            await this.igdbService.importByUrl(body.url)
+        }
         return
     }
 
@@ -37,8 +39,9 @@ export class WebhookController {
     async update(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
         console.log(body)
         console.log(request.header('X-Secret'))
-
-        await this.igdbService.importGame(body)
+        if (body.category === 0) {
+            await this.igdbService.importByUrl(body.url)
+        }
         return
     }
 }
