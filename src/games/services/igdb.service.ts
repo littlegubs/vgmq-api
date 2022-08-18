@@ -15,7 +15,6 @@ import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
 import { Game } from '../entity/game.entity'
 import { IgdbHttpService } from '../http/igdb.http.service'
-import { IgdbGame } from '../igdb.type'
 
 @Injectable()
 export class IgdbService {
@@ -39,7 +38,52 @@ export class IgdbService {
 
                 if (!igdbGame) throw new NotFoundException('the game was not found')
 
-                return this.importGame(igdbGame)
+                const oldGame = await this.gamesRepository.findOne({
+                    where: {
+                        igdbId: igdbGame.id,
+                    },
+                    relations: ['alternativeNames', 'cover'],
+                })
+
+                if (oldGame) {
+                    // TODO stop deleting cover when color palette choice is in place
+                    if (oldGame.cover) {
+                        await this.coversRepository.remove(oldGame.cover)
+                    }
+                }
+
+                let game = this.gamesRepository.create({
+                    igdbId: igdbGame.id,
+                    category: igdbGame.category,
+                    name: igdbGame.name,
+                    url: igdbGame.url,
+                    slug: igdbGame.slug,
+                    firstReleaseDate: igdbGame.first_release_date
+                        ? DateTime.fromSeconds(igdbGame.first_release_date).toISO()
+                        : null,
+                })
+
+                const cover = await this.getCover(game, igdbGame.cover)
+
+                const alternativeNames = await this.handleAlternativeNames(
+                    game,
+                    igdbGame.alternative_names,
+                )
+
+                const [parent, versionParent] = await Promise.all([
+                    this.getParent(igdbGame.parent_game),
+                    this.getParent(igdbGame.version_parent),
+                ])
+
+                game = {
+                    ...game,
+                    parent,
+                    versionParent,
+                    ...(cover ? { cover } : undefined),
+                    ...(alternativeNames ? { alternativeNames } : undefined),
+                }
+
+                return this.updateOrCreateGame(game, oldGame)
             })
             .catch((err: Error | AxiosError) => {
                 if (axios.isAxiosError(err)) {
@@ -52,52 +96,6 @@ export class IgdbService {
                 }
                 throw new InternalServerErrorException()
             })
-    }
-
-    async importGame(igdbGame: IgdbGame): Promise<Game> {
-        const oldGame = await this.gamesRepository.findOne({
-            where: {
-                igdbId: igdbGame.id,
-            },
-            relations: ['alternativeNames', 'cover'],
-        })
-
-        if (oldGame) {
-            // TODO stop deleting cover when color palette choice is in place
-            if (oldGame.cover) {
-                await this.coversRepository.remove(oldGame.cover)
-            }
-        }
-
-        let game = this.gamesRepository.create({
-            igdbId: igdbGame.id,
-            category: igdbGame.category,
-            name: igdbGame.name,
-            url: igdbGame.url,
-            slug: igdbGame.slug,
-            firstReleaseDate: igdbGame.first_release_date
-                ? DateTime.fromSeconds(igdbGame.first_release_date).toISO()
-                : null,
-        })
-
-        const cover = await this.getCover(game, igdbGame.cover)
-
-        const alternativeNames = await this.handleAlternativeNames(game, igdbGame.alternative_names)
-
-        const [parent, versionParent] = await Promise.all([
-            this.getParent(igdbGame.parent_game),
-            this.getParent(igdbGame.version_parent),
-        ])
-
-        game = {
-            ...game,
-            parent,
-            versionParent,
-            ...(cover ? { cover } : undefined),
-            ...(alternativeNames ? { alternativeNames } : undefined),
-        }
-
-        return this.updateOrCreateGame(game, oldGame)
     }
 
     getParent(parent?: { id: number; url: string }): Promise<Game | undefined> | undefined {
