@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Req } from '@nestjs/common'
+import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common'
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
@@ -22,7 +22,8 @@ export class WebhookController {
         private elasticsearchService: ElasticsearchService,
     ) {}
 
-    @Get('/create')
+    @Post('/create')
+    @HttpCode(200)
     async create(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
         console.log(body)
         console.log(request.header('X-Secret'))
@@ -31,7 +32,8 @@ export class WebhookController {
         return
     }
 
-    @Get('/update')
+    @Post('/update')
+    @HttpCode(200)
     async update(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
         console.log(body)
         console.log(request.header('X-Secret'))
