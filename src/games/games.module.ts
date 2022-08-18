@@ -22,9 +22,10 @@ import { IgdbService } from './services/igdb.service'
 import { AlternativeNameSubscriber } from './subscribers/alternative-name.subscriber'
 import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
 import { GameSubscriber } from './subscribers/game.subscriber'
+import { WebhookController } from './webhook.controller'
 
 @Module({
-    controllers: [AdminGamesController, GamesController, GameToMusicController],
+    controllers: [AdminGamesController, GamesController, GameToMusicController, WebhookController],
     imports: [
         TypeOrmModule.forFeature([
             Game,
