@@ -1,5 +1,5 @@
-import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common'
-import { ElasticsearchService } from '@nestjs/elasticsearch'
+import { Body, Controller, HttpCode, Post, Req, UnauthorizedException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
 import { Repository } from 'typeorm'
@@ -19,14 +19,16 @@ export class WebhookController {
         private gamesRepository: Repository<Game>,
         @InjectRepository(User)
         private userRepository: Repository<User>,
-        private elasticsearchService: ElasticsearchService,
+        private configService: ConfigService,
     ) {}
 
+    //todo do everything in queues to reply faster
     @Post('/create')
     @HttpCode(200)
     async create(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
-        console.log(body)
-        console.log(request.header('X-Secret'))
+        if (request.header('X-Secret') !== this.configService.get('IGDB_WEBHOOK_SECRET')) {
+            throw new UnauthorizedException()
+        }
 
         if (body.category === 0) {
             await this.igdbService.importByUrl(body.url)
@@ -37,11 +39,44 @@ export class WebhookController {
     @Post('/update')
     @HttpCode(200)
     async update(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
-        console.log(body)
-        console.log(request.header('X-Secret'))
+        if (request.header('X-Secret') !== this.configService.get('IGDB_WEBHOOK_SECRET')) {
+            throw new UnauthorizedException()
+        }
+
+        const game = await this.gamesRepository.find({
+            where: {
+                igdbId: body.id,
+            },
+        })
+        if (game !== null) {
+            await this.igdbService.importByUrl(body.url)
+            return
+        }
         if (body.category === 0) {
             await this.igdbService.importByUrl(body.url)
         }
+        return
+    }
+
+    @Post('/delete')
+    @HttpCode(200)
+    async delete(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
+        if (request.header('X-Secret') !== this.configService.get('IGDB_WEBHOOK_SECRET')) {
+            throw new UnauthorizedException()
+        }
+
+        // get a game without music, so we don't delete a game with musics
+        const game = await this.gamesRepository
+            .createQueryBuilder('game')
+            .leftJoin('game.musics', 'music')
+            .andWhere('music.id IS NULL')
+            .andWhere('game.igdbId = :igdbId', { igdbId: body.id })
+            .getOne()
+
+        if (game === null) {
+            return
+        }
+        await this.gamesRepository.remove(game)
         return
     }
 }
