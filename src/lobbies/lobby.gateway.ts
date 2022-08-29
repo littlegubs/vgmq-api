@@ -322,7 +322,11 @@ export class LobbyGateway implements OnGatewayConnection {
     sendUpdateToRoom(lobby: Lobby): void {
         this.server.to(lobby.code).emit(
             'lobby',
-            classToClass<Lobby>(lobby, { groups: ['lobby'] }),
+            classToClass<Lobby>(lobby, {
+                groups: ['lobby'],
+                strategy: 'excludeAll',
+                excludeExtraneousValues: false,
+            }),
         )
     }
 
@@ -343,12 +347,15 @@ export class LobbyGateway implements OnGatewayConnection {
 
         if (client) {
             client.emit('lobbyPlayMusic', audioBuffer)
-            client.emit(
-                'lobbyMusicFinishesIn',
-                dayjs(lobbyMusic.musicFinishPlayingAt).diff(dayjs(), 'seconds'),
-            )
+            client.emit('currentLobbyMusic', {
+                contributeToMissingData: lobbyMusic.contributeToMissingData,
+                musicFinishesIn: dayjs(lobbyMusic.musicFinishPlayingAt).diff(dayjs(), 'seconds'),
+            })
         } else {
             this.server.to(lobbyMusic.lobby.code).emit('lobbyPlayMusic', audioBuffer)
+            this.server.to(lobbyMusic.lobby.code).emit('currentLobbyMusic', {
+                contributeToMissingData: lobbyMusic.contributeToMissingData,
+            })
         }
     }
 

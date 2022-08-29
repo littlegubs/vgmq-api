@@ -11,6 +11,7 @@ import {
 
 import { LobbyMusic } from '../../lobbies/entities/lobby-music.entity'
 import { Game } from './game.entity'
+import { MusicAccuracy } from './music-accuracy.entity'
 import { Music } from './music.entity'
 
 export enum GameToMusicType {
@@ -64,6 +65,9 @@ export class GameToMusic {
 
     @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.gameToMusic)
     lobbyMusics: LobbyMusic[]
+
+    @OneToMany(() => MusicAccuracy, (musicAccuracy) => musicAccuracy.gameToMusic)
+    musicAccuracies: MusicAccuracy[]
 
     @Column()
     @CreateDateColumn()

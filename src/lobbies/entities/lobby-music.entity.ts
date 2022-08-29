@@ -28,6 +28,10 @@ export class LobbyMusic {
     @Column({ type: 'float' })
     endAt = 0
 
+    @Column({ type: 'boolean' })
+    @Expose({ groups: ['lobby-answer-reveal'] })
+    contributeToMissingData = false
+
     @ManyToOne(() => Lobby, (lobby) => lobby.lobbyMusics, {
         orphanedRowAction: 'delete',
         onDelete: 'CASCADE',

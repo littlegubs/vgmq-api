@@ -22,6 +22,12 @@ export enum LobbyStatuses {
     FinalStanding = 'final_standing',
 }
 
+export enum LobbyDifficulties {
+    Easy = 'easy',
+    Medium = 'medium',
+    Hard = 'hard',
+}
+
 @Entity()
 export class Lobby {
     @PrimaryGeneratedColumn()
@@ -59,11 +65,33 @@ export class Lobby {
     @Expose({ groups: ['lobby', 'lobby-list'] })
     allowDuplicates: boolean
 
-    @Transform(({ value }) => value.length)
+    @Column({ type: 'boolean', default: false })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
+    customDifficulty = false
+
+    @Column({ type: 'int', default: 0 })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
+    minDifficulty: number
+
+    @Column({ type: 'int', default: 100 })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
+    maxDifficulty: number
+
+    @Column({
+        type: 'set',
+        enum: LobbyDifficulties,
+        default: [LobbyDifficulties.Easy, LobbyDifficulties.Medium, LobbyDifficulties.Hard],
+    })
+    @Expose({ groups: ['lobby'] })
+    difficulty: string[]
+
+    @Transform(({ value }) => value?.length)
     @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.lobby)
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     lobbyMusics: LobbyMusic[]
 
     @Column({ type: 'int', nullable: true })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     currentLobbyMusicPosition: number | null
 
     @OneToMany(() => LobbyUser, (lobbyUser) => lobbyUser.lobby)

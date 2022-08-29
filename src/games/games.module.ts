@@ -13,6 +13,7 @@ import { Cover } from './entity/cover.entity'
 import { GameToMusic } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
 import { IgdbClient } from './entity/igdb.entity'
+import { MusicAccuracy } from './entity/music-accuracy.entity'
 import { Music } from './entity/music.entity'
 import { GameToMusicController } from './game-to-music.controller'
 import { GamesController } from './games.controller'
@@ -22,6 +23,7 @@ import { IgdbService } from './services/igdb.service'
 import { AlternativeNameSubscriber } from './subscribers/alternative-name.subscriber'
 import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
 import { GameSubscriber } from './subscribers/game.subscriber'
+import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber'
 import { WebhookController } from './webhook.controller'
 
 @Module({
@@ -37,6 +39,7 @@ import { WebhookController } from './webhook.controller'
             File,
             User,
             ColorPalette,
+            MusicAccuracy,
         ]),
         HttpModule,
         ElasticsearchModule.registerAsync({
@@ -64,6 +67,7 @@ import { WebhookController } from './webhook.controller'
         GameToMusicSubscriber,
         GameSubscriber,
         AlternativeNameSubscriber,
+        MusicAccuracySubscriber,
     ],
 })
 export class GamesModule {}

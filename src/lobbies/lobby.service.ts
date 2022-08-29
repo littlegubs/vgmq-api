@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
 import { Cache } from 'cache-manager'
-import { In, Repository } from 'typeorm'
+import { Brackets, In, IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm'
 
 import { GameToMusic, GameToMusicType } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
@@ -18,7 +18,7 @@ import { User } from '../users/user.entity'
 import { LobbyCreateDto } from './dto/lobby-create.dto'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
-import { Lobby, LobbyStatuses } from './entities/lobby.entity'
+import { Lobby, LobbyDifficulties, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
 
 @Injectable()
@@ -59,6 +59,7 @@ export class LobbyService {
             musicNumber: data.musicNumber,
             guessTime: data.guessTime,
             allowDuplicates: data.allowDuplicates,
+            difficulty: data.difficulty,
         })
         await this.lobbyUserRepository.save({
             lobby,
@@ -70,13 +71,16 @@ export class LobbyService {
     }
 
     async update(lobby: Lobby, data: LobbyCreateDto): Promise<void> {
-        lobby = await this.lobbyRepository.save({
-            ...lobby,
-            name: data.name,
-            password: data.password,
-            musicNumber: data.musicNumber,
-            guessTime: data.guessTime,
-            allowDuplicates: data.allowDuplicates,
+        lobby = this.lobbyRepository.create({
+            ...(await this.lobbyRepository.save({
+                ...lobby,
+                name: data.name,
+                password: data.password,
+                musicNumber: data.musicNumber,
+                guessTime: data.guessTime,
+                allowDuplicates: data.allowDuplicates,
+                difficulty: data.difficulty,
+            })),
         })
 
         this.lobbyGateway.sendUpdateToRoom(lobby)
@@ -143,6 +147,29 @@ export class LobbyService {
         let blackListGameIds: number[] = []
         let lobbyMusics: LobbyMusic[] = []
         let position = 0
+
+        const countGameToMusic = await this.gameToMusicRepository.count({
+            relations: {
+                music: true,
+            },
+            where: {
+                music: {
+                    duration: MoreThanOrEqual(lobby.guessTime),
+                },
+            },
+        })
+        const countGameToMusicWithAccuracy = await this.gameToMusicRepository.count({
+            relations: {
+                music: true,
+            },
+            where: {
+                music: {
+                    duration: MoreThanOrEqual(lobby.guessTime),
+                },
+                guessAccuracy: Not(IsNull()),
+            },
+        })
+        const gameToMusicAccuracyRatio = countGameToMusicWithAccuracy / countGameToMusic
         while (userIdsRandom.some((userId) => userId !== undefined)) {
             for (const userId of userIdsRandom) {
                 if (userId === undefined) {
@@ -157,7 +184,7 @@ export class LobbyService {
                     .innerJoin('game.users', 'user')
                     .andWhere('game.enabled = 1')
                     .andWhere('user.id in (:userIds)', { userIds: userId })
-                    .andWhere('music.duration > :guessTime')
+                    .andWhere('music.duration >= :guessTime')
                     .setParameter('guessTime', lobby.guessTime)
                     .groupBy('game.id')
                     .orderBy('RAND()')
@@ -173,6 +200,7 @@ export class LobbyService {
                 const game = await qb.getOne()
 
                 if (game !== null) {
+                    const contributeMissingData = Math.random() > gameToMusicAccuracyRatio
                     gameIds = [...gameIds, game.id]
                     const qb = this.gameToMusicRepository
                         .createQueryBuilder('gameToMusic')
@@ -192,7 +220,7 @@ export class LobbyService {
                             'originalDerivedGames',
                         )
                         .andWhere('gameToMusic.game = :game')
-                        .andWhere('music.duration > :guessTime')
+                        .andWhere('music.duration >= :guessTime')
                         .setParameter('game', game.id)
                         .setParameter('guessTime', lobby.guessTime)
                         .orderBy('RAND()')
@@ -202,56 +230,86 @@ export class LobbyService {
                             musicIds: lobbyMusics.map((lobbyMusic) => lobbyMusic.gameToMusic.id),
                         })
                     }
-                    const gameToMusic = await qb.getOne()
-                    if (gameToMusic) {
-                        position += 1
-                        const music = gameToMusic.music
-                        const endAt = this.getRandomFloat(lobby.guessTime, music.duration, 4)
-                        const startAt = endAt - lobby.guessTime
-                        let expectedAnswers: Game[] = []
-                        if (gameToMusic.type === GameToMusicType.Original) {
-                            expectedAnswers = [gameToMusic.game]
-                            if (gameToMusic.derivedGameToMusics) {
+
+                    let gameToMusic: GameToMusic | null = null
+                    if (contributeMissingData) {
+                        const qbContributeToMissingData = qb.clone()
+                        qbContributeToMissingData.andWhere('gameToMusic.guessAccuracy IS NULL')
+
+                        gameToMusic = await qbContributeToMissingData.getOne()
+                    }
+
+                    qb.andWhere(
+                        new Brackets((difficultyQb) => {
+                            if (lobby.difficulty.includes(LobbyDifficulties.Easy))
+                                difficultyQb.orWhere('gameToMusic.guessAccuracy > 0.66')
+                            if (lobby.difficulty.includes(LobbyDifficulties.Medium))
+                                difficultyQb.orWhere(
+                                    'gameToMusic.guessAccuracy BETWEEN 0.33 AND 0.66',
+                                )
+                            if (lobby.difficulty.includes(LobbyDifficulties.Hard))
+                                difficultyQb.orWhere('gameToMusic.guessAccuracy < 0.33')
+                        }),
+                    )
+                    if (!contributeMissingData) {
+                        gameToMusic = await qb.getOne()
+                    }
+
+                    if (!gameToMusic && contributeMissingData) {
+                        gameToMusic = await qb.getOne()
+                    }
+
+                    if (!gameToMusic) {
+                        blackListGameIds = [...blackListGameIds, game.id]
+                        continue
+                    }
+
+                    position += 1
+                    const music = gameToMusic.music
+                    const endAt = this.getRandomFloat(lobby.guessTime, music.duration, 4)
+                    const startAt = endAt - lobby.guessTime
+                    let expectedAnswers: Game[] = []
+                    if (gameToMusic.type === GameToMusicType.Original) {
+                        expectedAnswers = [gameToMusic.game]
+                        if (gameToMusic.derivedGameToMusics) {
+                            expectedAnswers = [
+                                ...expectedAnswers,
+                                ...gameToMusic.derivedGameToMusics.map(
+                                    (derivedGameMusic) => derivedGameMusic.game,
+                                ),
+                            ]
+                        }
+                    } else {
+                        const originalGameToMusic = gameToMusic.originalGameToMusic
+                        if (originalGameToMusic !== null) {
+                            expectedAnswers = [originalGameToMusic.game]
+                            if (originalGameToMusic.derivedGameToMusics) {
                                 expectedAnswers = [
                                     ...expectedAnswers,
-                                    ...gameToMusic.derivedGameToMusics.map(
+                                    ...originalGameToMusic.derivedGameToMusics.map(
                                         (derivedGameMusic) => derivedGameMusic.game,
                                     ),
                                 ]
                             }
-                        } else {
-                            const originalGameToMusic = gameToMusic.originalGameToMusic
-                            if (originalGameToMusic !== null) {
-                                expectedAnswers = [originalGameToMusic.game]
-                                if (originalGameToMusic.derivedGameToMusics) {
-                                    expectedAnswers = [
-                                        ...expectedAnswers,
-                                        ...originalGameToMusic.derivedGameToMusics.map(
-                                            (derivedGameMusic) => derivedGameMusic.game,
-                                        ),
-                                    ]
-                                }
-                            }
                         }
-                        lobbyMusics = [
-                            ...lobbyMusics,
-                            this.lobbyMusicRepository.create({
-                                lobby,
-                                gameToMusic,
-                                position,
-                                startAt,
-                                endAt,
-                                expectedAnswers,
-                            }),
-                        ]
-                        userIdsRandom.splice(i, 1, undefined)
-                        await this.gameToMusicRepository.save({
-                            ...gameToMusic,
-                            playNumber: gameToMusic.playNumber + 1,
-                        })
-                    } else {
-                        blackListGameIds = [...blackListGameIds, game.id]
                     }
+                    lobbyMusics = [
+                        ...lobbyMusics,
+                        this.lobbyMusicRepository.create({
+                            lobby,
+                            gameToMusic,
+                            position,
+                            startAt,
+                            endAt,
+                            expectedAnswers,
+                            contributeToMissingData: contributeMissingData,
+                        }),
+                    ]
+                    userIdsRandom.splice(i, 1, undefined)
+                    await this.gameToMusicRepository.save({
+                        ...gameToMusic,
+                        playNumber: gameToMusic.playNumber + 1,
+                    })
                 } else {
                     if (userId.length === userIds.length) {
                         userIdsRandom.splice(i, 1, undefined)
