@@ -302,7 +302,15 @@ export class LobbyService {
                             startAt,
                             endAt,
                             expectedAnswers,
-                            contributeToMissingData: contributeMissingData,
+                            contributeToMissingData: [
+                                LobbyDifficulties.Easy,
+                                LobbyDifficulties.Medium,
+                                LobbyDifficulties.Hard,
+                            ].every((value) => {
+                                return lobby.difficulty.includes(value)
+                            })
+                                ? false
+                                : contributeMissingData,
                         }),
                     ]
                     userIdsRandom.splice(i, 1, undefined)
