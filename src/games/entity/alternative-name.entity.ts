@@ -20,7 +20,7 @@ export class AlternativeName {
     @Column()
     name: string
 
-    @Column({ default: true })
+    @Column({ default: false })
     enabled: boolean
 
     @ManyToOne(() => Game, (game) => game.alternativeNames, {
