@@ -5,6 +5,8 @@ import { Job, Queue } from 'bull'
 import * as dayjs from 'dayjs'
 import { Repository } from 'typeorm'
 
+import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
+import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from './entities/lobby.entity'
@@ -20,6 +22,10 @@ export class LobbyProcessor {
         private lobbyMusicRepository: Repository<LobbyMusic>,
         @InjectRepository(LobbyUser)
         private lobbyUserRepository: Repository<LobbyUser>,
+        @InjectRepository(User)
+        private userRepository: Repository<User>,
+        @InjectRepository(MusicAccuracy)
+        private musicAccuracyRepository: Repository<MusicAccuracy>,
         @InjectQueue('lobby')
         private lobbyQueue: Queue,
     ) {}
@@ -111,7 +117,12 @@ export class LobbyProcessor {
         this.logger.debug(`Start answer reveal to lobby ${lobbyCode}`)
 
         let lobby = await this.lobbyRepository.findOne({
-            relations: ['lobbyMusics'],
+            relations: {
+                lobbyMusics: true,
+                lobbyUsers: {
+                    user: true,
+                },
+            },
             where: { code: lobbyCode },
         })
         if (lobby === null) {
@@ -165,6 +176,22 @@ export class LobbyProcessor {
                 delay: 10000,
             },
         )
+
+        for (const lobbyUser of lobby.lobbyUsers) {
+            const userPlayedTheGame = await this.userRepository
+                .createQueryBuilder('user')
+                .innerJoin('user.games', 'game')
+                .andWhere('game.id = :gameId', { gameId: currentLobbyMusic.gameToMusic.game.id })
+                .andWhere('user.id = :id', { id: lobbyUser.user.id })
+                .getOne()
+
+            await this.musicAccuracyRepository.save({
+                playedTheGame: !!userPlayedTheGame,
+                correctAnswer: !!lobbyUser.correctAnswer,
+                gameToMusic: currentLobbyMusic.gameToMusic,
+                user: lobbyUser.user,
+            })
+        }
     }
 
     @Process('finalResult')

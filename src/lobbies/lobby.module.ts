@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { GameToMusic } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
+import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { Music } from '../games/entity/music.entity'
 import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
@@ -20,7 +21,16 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
 @Module({
     controllers: [LobbyController],
     imports: [
-        TypeOrmModule.forFeature([Lobby, LobbyMusic, LobbyUser, Game, GameToMusic, Music, User]),
+        TypeOrmModule.forFeature([
+            Lobby,
+            LobbyMusic,
+            LobbyUser,
+            Game,
+            GameToMusic,
+            Music,
+            User,
+            MusicAccuracy,
+        ]),
         CacheModule.register(),
         BullModule.registerQueue({
             name: 'lobby',
