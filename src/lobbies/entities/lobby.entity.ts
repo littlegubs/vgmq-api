@@ -77,6 +77,10 @@ export class Lobby {
     @Expose({ groups: ['lobby', 'lobby-list'] })
     maxDifficulty: number
 
+    @Column({ type: 'boolean', default: true })
+    @Expose({ groups: ['lobby'] })
+    allowContributeToMissingData = true
+
     @Column({
         type: 'set',
         enum: LobbyDifficulties,

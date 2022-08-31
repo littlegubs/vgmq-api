@@ -169,7 +169,10 @@ export class LobbyService {
                 guessAccuracy: Not(IsNull()),
             },
         })
-        const gameToMusicAccuracyRatio = countGameToMusicWithAccuracy / countGameToMusic
+        let gameToMusicAccuracyRatio = countGameToMusicWithAccuracy / countGameToMusic
+        // force at least a 10% chance of contributing missing data
+        if (gameToMusicAccuracyRatio > 0.9) gameToMusicAccuracyRatio = 0.9
+
         while (userIdsRandom.some((userId) => userId !== undefined)) {
             for (const userId of userIdsRandom) {
                 if (userId === undefined) {
@@ -200,7 +203,9 @@ export class LobbyService {
                 const game = await qb.getOne()
 
                 if (game !== null) {
-                    const contributeMissingData = Math.random() > gameToMusicAccuracyRatio
+                    let contributeMissingData = lobby.allowContributeToMissingData
+                        ? Math.random() > gameToMusicAccuracyRatio
+                        : false
                     gameIds = [...gameIds, game.id]
                     const qb = this.gameToMusicRepository
                         .createQueryBuilder('gameToMusic')
@@ -230,16 +235,11 @@ export class LobbyService {
                             musicIds: lobbyMusics.map((lobbyMusic) => lobbyMusic.gameToMusic.id),
                         })
                     }
+                    const qbGuessAccuracyIsNull = qb.clone()
+                    qbGuessAccuracyIsNull.andWhere('gameToMusic.guessAccuracy IS NULL')
 
-                    let gameToMusic: GameToMusic | null = null
-                    if (contributeMissingData) {
-                        const qbContributeToMissingData = qb.clone()
-                        qbContributeToMissingData.andWhere('gameToMusic.guessAccuracy IS NULL')
-
-                        gameToMusic = await qbContributeToMissingData.getOne()
-                    }
-
-                    qb.andWhere(
+                    const qbGuessAccuracyReflectsLobbyDifficulty = qb.clone()
+                    qbGuessAccuracyReflectsLobbyDifficulty.andWhere(
                         new Brackets((difficultyQb) => {
                             if (lobby.difficulty.includes(LobbyDifficulties.Easy))
                                 difficultyQb.orWhere('gameToMusic.guessAccuracy > 0.66')
@@ -251,12 +251,50 @@ export class LobbyService {
                                 difficultyQb.orWhere('gameToMusic.guessAccuracy < 0.33')
                         }),
                     )
-                    if (!contributeMissingData) {
-                        gameToMusic = await qb.getOne()
-                    }
 
-                    if (!gameToMusic && contributeMissingData) {
-                        gameToMusic = await qb.getOne()
+                    let gameToMusic: GameToMusic | null = null
+                    if (contributeMissingData) {
+                        gameToMusic = await qbGuessAccuracyIsNull.getOne()
+
+                        if (!gameToMusic) {
+                            if (
+                                [
+                                    LobbyDifficulties.Easy,
+                                    LobbyDifficulties.Medium,
+                                    LobbyDifficulties.Hard,
+                                ].every((value) => {
+                                    return lobby.difficulty.includes(value)
+                                })
+                            ) {
+                                gameToMusic = await qb.getOne()
+                            } else {
+                                gameToMusic = await qbGuessAccuracyReflectsLobbyDifficulty.getOne()
+                                if (!gameToMusic) {
+                                    gameToMusic = await qb.getOne()
+                                }
+                            }
+                        }
+                    } else {
+                        if (
+                            [
+                                LobbyDifficulties.Easy,
+                                LobbyDifficulties.Medium,
+                                LobbyDifficulties.Hard,
+                            ].every((value) => {
+                                return lobby.difficulty.includes(value)
+                            })
+                        ) {
+                            gameToMusic = await qb.getOne()
+                        } else {
+                            gameToMusic = await qbGuessAccuracyReflectsLobbyDifficulty.getOne()
+                            if (lobby.allowContributeToMissingData && !gameToMusic) {
+                                contributeMissingData = true
+                                gameToMusic = await qbGuessAccuracyIsNull.getOne()
+                                if (!gameToMusic) {
+                                    gameToMusic = await qb.getOne()
+                                }
+                            }
+                        }
                     }
 
                     if (!gameToMusic) {
