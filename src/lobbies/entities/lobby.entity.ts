@@ -34,6 +34,7 @@ export class Lobby {
     @Exclude()
     id: number
 
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     @Column({ unique: true })
     code: string
 

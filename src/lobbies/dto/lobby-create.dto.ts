@@ -34,4 +34,5 @@ export class LobbyCreateDto {
     allowDuplicates: boolean
 
     difficulty: LobbyDifficulties[]
+    allowContributeToMissingData: boolean
 }

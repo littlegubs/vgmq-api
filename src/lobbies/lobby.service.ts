@@ -60,6 +60,7 @@ export class LobbyService {
             guessTime: data.guessTime,
             allowDuplicates: data.allowDuplicates,
             difficulty: data.difficulty,
+            allowContributeToMissingData: data.allowContributeToMissingData,
         })
         await this.lobbyUserRepository.save({
             lobby,
@@ -80,6 +81,7 @@ export class LobbyService {
                 guessTime: data.guessTime,
                 allowDuplicates: data.allowDuplicates,
                 difficulty: data.difficulty,
+                allowContributeToMissingData: data.allowContributeToMissingData,
             })),
         })
 
