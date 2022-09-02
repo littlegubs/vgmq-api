@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
 import * as dayjs from 'dayjs'
-import { Repository } from 'typeorm'
+import { In, Repository } from 'typeorm'
 
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { User } from '../users/user.entity'
@@ -119,9 +119,6 @@ export class LobbyProcessor {
         let lobby = await this.lobbyRepository.findOne({
             relations: {
                 lobbyMusics: true,
-                lobbyUsers: {
-                    user: true,
-                },
             },
             where: { code: lobbyCode },
         })
@@ -177,7 +174,19 @@ export class LobbyProcessor {
             },
         )
 
-        for (const lobbyUser of lobby.lobbyUsers) {
+        const lobbyUsers = await this.lobbyUserRepository.find({
+            relations: {
+                user: true,
+            },
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+                disconnected: false,
+                role: In([LobbyUserRole.Host, LobbyUserRole.Player]),
+            },
+        })
+        for (const lobbyUser of lobbyUsers) {
             const userPlayedTheGame = await this.userRepository
                 .createQueryBuilder('user')
                 .innerJoin('user.games', 'game')
