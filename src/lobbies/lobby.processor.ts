@@ -228,17 +228,21 @@ export class LobbyProcessor {
                 lobbyMusics: [],
             }),
         )
+        const disconnectedLobbyUsers = await this.lobbyUserRepository.find({
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+                disconnected: true,
+            },
+        })
         if (lobby.gameMode !== LobbyGameModes.LocalCouch) {
             // remove disconnected users
-            const disconnectedLobbyUsers = await this.lobbyUserRepository.find({
-                where: {
-                    lobby: {
-                        id: lobby.id,
-                    },
-                    disconnected: true,
-                },
-            })
             await this.lobbyUserRepository.remove(disconnectedLobbyUsers)
+        } else {
+            await this.lobbyUserRepository.save(
+                disconnectedLobbyUsers.map((lobbyUser) => ({ ...lobbyUser, disconnected: false })),
+            )
         }
 
         // set spectators as players
