@@ -9,7 +9,7 @@ import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
-import { Lobby, LobbyStatuses } from './entities/lobby.entity'
+import { Lobby, LobbyGameModes, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
 
 @Processor('lobby')
@@ -174,6 +174,10 @@ export class LobbyProcessor {
             },
         )
 
+        if (lobby.gameMode === LobbyGameModes.LocalCouch) {
+            return
+        }
+
         const lobbyUsers = await this.lobbyUserRepository.find({
             relations: {
                 user: true,
@@ -224,16 +228,18 @@ export class LobbyProcessor {
                 lobbyMusics: [],
             }),
         )
-        // remove disconnected users
-        const disconnectedLobbyUsers = await this.lobbyUserRepository.find({
-            where: {
-                lobby: {
-                    id: lobby.id,
+        if (lobby.gameMode !== LobbyGameModes.LocalCouch) {
+            // remove disconnected users
+            const disconnectedLobbyUsers = await this.lobbyUserRepository.find({
+                where: {
+                    lobby: {
+                        id: lobby.id,
+                    },
+                    disconnected: true,
                 },
-                disconnected: true,
-            },
-        })
-        await this.lobbyUserRepository.remove(disconnectedLobbyUsers)
+            })
+            await this.lobbyUserRepository.remove(disconnectedLobbyUsers)
+        }
 
         // set spectators as players
         const lobbySpectators = await this.lobbyUserRepository.find({

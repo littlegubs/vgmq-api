@@ -28,6 +28,11 @@ export enum LobbyDifficulties {
     Hard = 'hard',
 }
 
+export enum LobbyGameModes {
+    Standard = 'standard',
+    LocalCouch = 'local_couch',
+}
+
 @Entity()
 export class Lobby {
     @PrimaryGeneratedColumn()
@@ -89,6 +94,14 @@ export class Lobby {
     })
     @Expose({ groups: ['lobby'] })
     difficulty: string[]
+
+    @Column({
+        type: 'enum',
+        enum: LobbyGameModes,
+        default: LobbyGameModes.Standard,
+    })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
+    gameMode: string
 
     @Transform(({ value }) => value?.length)
     @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.lobby)
