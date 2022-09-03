@@ -294,7 +294,9 @@ export class LobbyGateway implements OnGatewayConnection {
                 return
             }
             const lobbyUser = await this.lobbyUserRepository.findOne({
-                relations: ['user'],
+                relations: {
+                    user: true,
+                },
                 where: {
                     user: {
                         id: client.user.id,

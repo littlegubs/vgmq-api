@@ -1,7 +1,7 @@
 import { Transform } from 'class-transformer'
 import { IsNotEmpty, IsNumber, Max, Min } from 'class-validator'
 
-import { LobbyDifficulties } from '../entities/lobby.entity'
+import { LobbyDifficulties, LobbyGameModes } from '../entities/lobby.entity'
 
 export class LobbyCreateDto {
     @IsNotEmpty()
@@ -34,5 +34,8 @@ export class LobbyCreateDto {
     allowDuplicates: boolean
 
     difficulty: LobbyDifficulties[]
+
     allowContributeToMissingData: boolean
+
+    gameMode: LobbyGameModes
 }

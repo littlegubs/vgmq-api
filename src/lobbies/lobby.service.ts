@@ -61,6 +61,7 @@ export class LobbyService {
             allowDuplicates: data.allowDuplicates,
             difficulty: data.difficulty,
             allowContributeToMissingData: data.allowContributeToMissingData,
+            gameMode: data.gameMode,
         })
         await this.lobbyUserRepository.save({
             lobby,
@@ -82,6 +83,7 @@ export class LobbyService {
                 allowDuplicates: data.allowDuplicates,
                 difficulty: data.difficulty,
                 allowContributeToMissingData: data.allowContributeToMissingData,
+                gameMode: data.gameMode,
             })),
         })
 
@@ -150,30 +152,7 @@ export class LobbyService {
         let lobbyMusics: LobbyMusic[] = []
         let position = 0
 
-        const countGameToMusic = await this.gameToMusicRepository.count({
-            relations: {
-                music: true,
-            },
-            where: {
-                music: {
-                    duration: MoreThanOrEqual(lobby.guessTime),
-                },
-            },
-        })
-        const countGameToMusicWithAccuracy = await this.gameToMusicRepository.count({
-            relations: {
-                music: true,
-            },
-            where: {
-                music: {
-                    duration: MoreThanOrEqual(lobby.guessTime),
-                },
-                guessAccuracy: Not(IsNull()),
-            },
-        })
-        let gameToMusicAccuracyRatio = countGameToMusicWithAccuracy / countGameToMusic
-        // force at least a 10% chance of contributing missing data
-        if (gameToMusicAccuracyRatio > 0.9) gameToMusicAccuracyRatio = 0.9
+        const gameToMusicAccuracyRatio = await this.getMusicAccuracyRatio(lobby)
 
         while (userIdsRandom.some((userId) => userId !== undefined)) {
             for (const userId of userIdsRandom) {
@@ -390,6 +369,35 @@ export class LobbyService {
         await this.lobbyMusicRepository.save(lobbyMusics)
         await this.lobbyRepository.save(lobby)
         await this.lobbyQueue.add('playMusic', lobby.code)
+    }
+
+    async getMusicAccuracyRatio(lobby?: Lobby): Promise<number> {
+        const countGameToMusic = await this.gameToMusicRepository.count({
+            relations: {
+                music: true,
+            },
+            where: {
+                music: {
+                    duration: MoreThanOrEqual(lobby ? lobby.guessTime : 5),
+                },
+            },
+        })
+        const countGameToMusicWithAccuracy = await this.gameToMusicRepository.count({
+            relations: {
+                music: true,
+            },
+            where: {
+                music: {
+                    duration: MoreThanOrEqual(lobby ? lobby.guessTime : 5),
+                },
+                guessAccuracy: Not(IsNull()),
+            },
+        })
+        let gameToMusicAccuracyRatio = countGameToMusicWithAccuracy / countGameToMusic
+        // force at least a 10% chance of contributing missing data
+        if (gameToMusicAccuracyRatio > 0.9) gameToMusicAccuracyRatio = 0.9
+
+        return gameToMusicAccuracyRatio
     }
 
     getRandomFloat(min: number, max: number, decimals: number): number {

@@ -57,6 +57,22 @@ export class LobbyController {
         return this.lobbyService.findByName(query.query)
     }
 
+    @Get('info')
+    async getGlobalInformation(@Req() request: Request): Promise<number> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: {
+                user: true,
+                lobby: true,
+            },
+            where: {
+                user: {
+                    id: (<User>request.user).id,
+                },
+            },
+        })
+        return 1 - (await this.lobbyService.getMusicAccuracyRatio(lobbyUser?.lobby))
+    }
+
     @Post('/create')
     create(@Body() data: LobbyCreateDto, @Req() request: Request): Promise<Lobby> {
         return this.lobbyService.create(data, request.user as User)
