@@ -10,12 +10,14 @@ import {
     ManyToMany,
     JoinColumn,
     ManyToOne,
+    JoinTable,
 } from 'typeorm'
 
 import { User } from '../../users/user.entity'
 import { AlternativeName } from './alternative-name.entity'
 import { Cover } from './cover.entity'
 import { GameToMusic } from './game-to-music.entity'
+import { Platform } from './platform.entity'
 
 @Entity()
 export class Game {
@@ -26,6 +28,7 @@ export class Game {
     igdbId: number
 
     @Column()
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
     category: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 
     @Column({ type: 'date', nullable: true })
@@ -80,6 +83,13 @@ export class Game {
 
     @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.game)
     musics: GameToMusic[]
+
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
+    @ManyToMany(() => Platform, (platform) => platform.games, {
+        cascade: ['insert', 'update'],
+    })
+    @JoinTable({ name: 'games_platforms' })
+    platforms: Platform[]
 
     @Column()
     @CreateDateColumn()

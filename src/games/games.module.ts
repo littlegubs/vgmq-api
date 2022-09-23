@@ -1,4 +1,5 @@
 import { HttpModule } from '@nestjs/axios'
+import { BullModule } from '@nestjs/bull'
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { ElasticsearchModule } from '@nestjs/elasticsearch'
@@ -15,7 +16,9 @@ import { Game } from './entity/game.entity'
 import { IgdbClient } from './entity/igdb.entity'
 import { MusicAccuracy } from './entity/music-accuracy.entity'
 import { Music } from './entity/music.entity'
+import { Platform } from './entity/platform.entity'
 import { GameToMusicController } from './game-to-music.controller'
+import { WebhookController } from './games-webhook.controller'
 import { GamesController } from './games.controller'
 import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
@@ -24,7 +27,6 @@ import { AlternativeNameSubscriber } from './subscribers/alternative-name.subscr
 import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
 import { GameSubscriber } from './subscribers/game.subscriber'
 import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber'
-import { WebhookController } from './webhook.controller'
 
 @Module({
     controllers: [AdminGamesController, GamesController, GameToMusicController, WebhookController],
@@ -40,6 +42,7 @@ import { WebhookController } from './webhook.controller'
             User,
             ColorPalette,
             MusicAccuracy,
+            Platform,
         ]),
         HttpModule,
         ElasticsearchModule.registerAsync({
@@ -58,6 +61,9 @@ import { WebhookController } from './webhook.controller'
                 }),
             }),
             inject: [ConfigService],
+        }),
+        BullModule.registerQueue({
+            name: 'igdbWebhook',
         }),
     ],
     providers: [

@@ -1,6 +1,8 @@
+import { InjectQueue } from '@nestjs/bull'
 import { Body, Controller, HttpCode, Post, Req, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
+import { Queue } from 'bull'
 import { Request } from 'express'
 import { Repository } from 'typeorm'
 
@@ -20,9 +22,10 @@ export class WebhookController {
         @InjectRepository(User)
         private userRepository: Repository<User>,
         private configService: ConfigService,
+        @InjectQueue('igdbWebhook')
+        private igdbWebhookQueue: Queue,
     ) {}
 
-    //todo do everything in queues to reply faster
     @Post('/create')
     @HttpCode(200)
     async create(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
@@ -30,9 +33,7 @@ export class WebhookController {
             throw new UnauthorizedException()
         }
 
-        if (body.category === 0) {
-            await this.igdbService.importByUrl(body.url)
-        }
+        await this.igdbWebhookQueue.add('gameCreate', body)
         return
     }
 
@@ -43,18 +44,7 @@ export class WebhookController {
             throw new UnauthorizedException()
         }
 
-        const game = await this.gamesRepository.find({
-            where: {
-                igdbId: body.id,
-            },
-        })
-        if (game !== null) {
-            await this.igdbService.importByUrl(body.url)
-            return
-        }
-        if (body.category === 0) {
-            await this.igdbService.importByUrl(body.url)
-        }
+        await this.igdbWebhookQueue.add('gameUpdate', body)
         return
     }
 
@@ -65,18 +55,7 @@ export class WebhookController {
             throw new UnauthorizedException()
         }
 
-        // get a game without music, so we don't delete a game with musics
-        const game = await this.gamesRepository
-            .createQueryBuilder('game')
-            .leftJoin('game.musics', 'music')
-            .andWhere('music.id IS NULL')
-            .andWhere('game.igdbId = :igdbId', { igdbId: body.id })
-            .getOne()
-
-        if (game === null) {
-            return
-        }
-        await this.gamesRepository.remove(game)
+        await this.igdbWebhookQueue.add('gameRemove', body)
         return
     }
 }

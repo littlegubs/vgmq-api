@@ -15,6 +15,11 @@ export type IgdbGame = {
         url: string
     }
     name: string
+    platforms?: {
+        id: number
+        name: string
+        abbreviation: string
+    }[]
     url: string
     slug: string
     version_parent?: {
