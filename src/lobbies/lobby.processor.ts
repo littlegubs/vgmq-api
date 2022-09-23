@@ -37,7 +37,10 @@ export class LobbyProcessor {
         this.logger.debug(`Start playing music to lobby ${lobbyCode}`)
         let lobby = await this.lobbyRepository.findOne({
             relations: ['lobbyMusics'],
-            where: { code: lobbyCode },
+            where: {
+                code: lobbyCode,
+                status: In([LobbyStatuses.Playing, LobbyStatuses.AnswerReveal]),
+            },
         })
         if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
@@ -120,7 +123,7 @@ export class LobbyProcessor {
             relations: {
                 lobbyMusics: true,
             },
-            where: { code: lobbyCode },
+            where: { code: lobbyCode, status: LobbyStatuses.PlayingMusic },
         })
         if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)

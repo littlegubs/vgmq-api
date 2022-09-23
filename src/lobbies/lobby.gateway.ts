@@ -285,6 +285,26 @@ export class LobbyGateway implements OnGatewayConnection {
         return
     }
 
+    @SubscribeMessage('restart')
+    async restart(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: {
+                user: true,
+                lobby: true,
+            },
+            where: {
+                user: {
+                    id: client.user.id,
+                },
+                role: LobbyUserRole.Host,
+            },
+        })
+        if (lobbyUser === null) {
+            return
+        }
+        await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code)
+    }
+
     @SubscribeMessage('leave')
     async leave(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
         const lobbyUser = await this.lobbyUserRepository.findOne({
