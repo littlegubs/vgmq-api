@@ -14,6 +14,7 @@ import { AlternativeName } from '../entity/alternative-name.entity'
 import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
 import { Game } from '../entity/game.entity'
+import { Platform } from '../entity/platform.entity'
 import { IgdbHttpService } from '../http/igdb.http.service'
 
 @Injectable()
@@ -28,6 +29,8 @@ export class IgdbService {
         private alternativeNamesRepository: Repository<AlternativeName>,
         @InjectRepository(ColorPalette)
         private colorPaletteRepository: Repository<ColorPalette>,
+        @InjectRepository(Platform)
+        private platformRepository: Repository<Platform>,
     ) {}
 
     async importByUrl(url: string): Promise<Game> {
@@ -69,6 +72,7 @@ export class IgdbService {
                     game,
                     igdbGame.alternative_names,
                 )
+                const platforms = await this.handlePlatforms(game, igdbGame.platforms)
 
                 const [parent, versionParent] = await Promise.all([
                     this.getParent(igdbGame.parent_game),
@@ -81,6 +85,7 @@ export class IgdbService {
                     versionParent,
                     ...(cover ? { cover } : undefined),
                     ...(alternativeNames ? { alternativeNames } : undefined),
+                    ...(platforms ? { platforms } : undefined),
                 }
 
                 return this.updateOrCreateGame(game, oldGame)
@@ -156,6 +161,39 @@ export class IgdbService {
                     return this.alternativeNamesRepository.save<AlternativeName>({
                         ...alternativeName,
                         name: igdbAlternativeName.name,
+                    })
+                }),
+            )
+        }
+        return Promise.resolve([])
+    }
+
+    handlePlatforms(
+        game: Game,
+        igdbPlatforms?: Array<{
+            id: number
+            name: string
+            abbreviation: string
+        }>,
+    ): Promise<Platform[]> {
+        console.log(igdbPlatforms)
+        if (Array.isArray(igdbPlatforms) && igdbPlatforms.length > 0) {
+            return Promise.all(
+                igdbPlatforms.map(async (igdbPlatform) => {
+                    const platform = await this.platformRepository.findOneBy({
+                        igdbId: igdbPlatform.id,
+                    })
+                    if (platform === null) {
+                        return this.platformRepository.create({
+                            igdbId: igdbPlatform.id,
+                            name: igdbPlatform.name,
+                            abbreviation: igdbPlatform.abbreviation,
+                        })
+                    }
+                    return this.platformRepository.save<Platform>({
+                        ...platform,
+                        name: igdbPlatform.name,
+                        abbreviation: igdbPlatform.abbreviation,
                     })
                 }),
             )

@@ -137,7 +137,9 @@ export class LobbyProcessor {
                 lobby: true,
                 gameToMusic: {
                     music: true,
-                    game: true,
+                    game: {
+                        platforms: true,
+                    },
                 },
             },
             where: {
