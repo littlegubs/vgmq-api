@@ -191,7 +191,7 @@ export class LobbyGateway implements OnGatewayConnection {
         if (lobbyUser === undefined) {
             throw new WsException('Not found')
         }
-        await this.lobbyUserRepository.save({ ...lobbyUser, status: null })
+        await this.lobbyUserRepository.save({ ...lobbyUser, status: null, toDisconnect: false })
         await client.join(lobby.code)
     }
 
@@ -285,6 +285,25 @@ export class LobbyGateway implements OnGatewayConnection {
         return
     }
 
+    @SubscribeMessage('leave')
+    async leave(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: {
+                user: true,
+            },
+            where: {
+                user: {
+                    id: client.user.id,
+                },
+            },
+        })
+        if (lobbyUser === null) {
+            return
+        }
+        await this.lobbyUserRepository.save({ ...lobbyUser, toDisconnect: true })
+        await this.lobbyQueue.add('disconnectUser', lobbyUser.id)
+    }
+
     handleConnection(client: AuthenticatedSocket, ...args: any): any {
         client.on('disconnecting', async (reason) => {
             if (reason === 'server namespace disconnect') {
@@ -310,14 +329,10 @@ export class LobbyGateway implements OnGatewayConnection {
                 // don't disconnect if reconnecting
                 return
             }
-            if (
-                lobbyUser.lobby.status === LobbyStatuses.Waiting ||
-                lobbyUser.role === LobbyUserRole.Spectator
-            ) {
-                await this.lobbyUserRepository.remove(lobbyUser)
-            } else {
-                await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: true })
-            }
+            await this.lobbyUserRepository.save({ ...lobbyUser, toDisconnect: true })
+            await this.lobbyQueue.add('disconnectUser', lobbyUser.id, {
+                delay: 30 * 1000, // 30 seconds
+            })
         })
     }
 

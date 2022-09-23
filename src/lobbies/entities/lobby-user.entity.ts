@@ -43,6 +43,9 @@ export class LobbyUser {
     @Expose({ groups: ['wsLobby'] })
     disconnected: boolean
 
+    @Column({ type: 'boolean', default: false })
+    toDisconnect: boolean
+
     @Column({ nullable: true, type: 'enum', enum: LobbyUserStatus })
     @Expose({ groups: ['wsLobby'] })
     status: string | null

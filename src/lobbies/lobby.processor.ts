@@ -287,6 +287,27 @@ export class LobbyProcessor {
         this.lobbyGateway.sendLobbyReset(lobby)
     }
 
+    @Process('disconnectUser')
+    async disconnectUser(job: Job<number>): Promise<void> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            where: {
+                id: job.data,
+                toDisconnect: true,
+            },
+        })
+        if (lobbyUser === null) {
+            return
+        }
+        if (
+            lobbyUser.lobby.status === LobbyStatuses.Waiting ||
+            lobbyUser.role === LobbyUserRole.Spectator
+        ) {
+            await this.lobbyUserRepository.remove(lobbyUser)
+        } else {
+            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: true })
+        }
+    }
+
     @OnGlobalQueueStalled()
     onStalled(job: Job): void {
         this.logger.error(`Job stalled ${job.id} of type ${job.name} with data ${job.data}...`)
