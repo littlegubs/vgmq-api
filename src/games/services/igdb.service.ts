@@ -72,12 +72,13 @@ export class IgdbService {
                     game,
                     igdbGame.alternative_names,
                 )
-                const platforms = await this.handlePlatforms(game, igdbGame.platforms)
 
                 const [parent, versionParent] = await Promise.all([
                     this.getParent(igdbGame.parent_game),
                     this.getParent(igdbGame.version_parent),
                 ])
+
+                const platforms = await this.handlePlatforms(game, igdbGame.platforms)
 
                 game = {
                     ...game,
