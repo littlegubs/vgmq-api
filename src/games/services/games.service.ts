@@ -203,9 +203,7 @@ export class GamesService {
             .delete({
                 index: 'game_name',
             })
-            .catch((err) => {
-                console.log(err)
-            })
+            .catch(() => {})
         await this.elasticsearchService.indices.create({
             index: 'game_name',
             settings: {
