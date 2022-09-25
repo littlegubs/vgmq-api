@@ -206,20 +206,18 @@ export class GamesService {
             .catch(() => {})
         await this.elasticsearchService.indices.create({
             index: 'game_name',
-            timeout: '300s',
-            master_timeout: '300s',
             settings: {
                 max_ngram_diff: 20,
                 analysis: {
                     normalizer: {
                         lobby_autocomplete_normalizer: {
                             type: 'custom',
-                            filter: ['lowercase'],
+                            filter: ['lowercase', 'custom_icu_folding'],
                         },
                         lobby_autocomplete_normalizer_slug: {
                             type: 'custom',
                             char_filter: ['my_char_filter'],
-                            filter: ['lowercase'],
+                            filter: ['lowercase', 'custom_icu_folding'],
                         },
                     },
                     analyzer: {
@@ -227,7 +225,13 @@ export class GamesService {
                             type: 'custom',
                             tokenizer: 'lobby_autocomplete_tokenizer',
                             char_filter: ['my_char_filter'],
-                            filter: ['lowercase'],
+                            filter: ['lowercase', 'custom_icu_folding'],
+                        },
+                    },
+                    filter: {
+                        custom_icu_folding: {
+                            type: 'icu_folding',
+                            unicode_set_filter: '[^²]',
                         },
                     },
                     char_filter: {
