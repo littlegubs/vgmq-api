@@ -60,6 +60,8 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
                     },
                 }),
                 requestTimeout: 300000,
+                pingTimeout: 300000,
+                maxRetries: 5,
             }),
             inject: [ConfigService],
         }),
