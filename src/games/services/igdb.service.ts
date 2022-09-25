@@ -78,7 +78,7 @@ export class IgdbService {
                     this.getParent(igdbGame.version_parent),
                 ])
 
-                const platforms = await this.handlePlatforms(game, igdbGame.platforms)
+                // const platforms = await this.handlePlatforms(game, igdbGame.platforms)
 
                 game = {
                     ...game,
@@ -86,7 +86,7 @@ export class IgdbService {
                     versionParent,
                     ...(cover ? { cover } : undefined),
                     ...(alternativeNames ? { alternativeNames } : undefined),
-                    ...(platforms ? { platforms } : undefined),
+                    // ...(platforms ? { platforms } : undefined),
                 }
 
                 return this.updateOrCreateGame(game, oldGame)
