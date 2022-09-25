@@ -71,6 +71,10 @@ export class Lobby {
     @Expose({ groups: ['lobby', 'lobby-list'] })
     allowDuplicates: boolean
 
+    @Column({ default: false })
+    @Expose({ groups: ['lobby'] })
+    playMusicOnAnswerReveal: boolean
+
     @Column({ type: 'boolean', default: false })
     @Expose({ groups: ['lobby', 'lobby-list'] })
     customDifficulty = false
