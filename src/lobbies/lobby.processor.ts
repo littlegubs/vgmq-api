@@ -111,6 +111,7 @@ export class LobbyProcessor {
         })
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
+            jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
         })
     }
 
@@ -169,15 +170,18 @@ export class LobbyProcessor {
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.lobbyGateway.sendAnswer(currentLobbyMusic)
 
-        await this.lobbyQueue.add(
-            lobby.currentLobbyMusicPosition === lobby.lobbyMusics.length
-                ? 'finalResult'
-                : 'playMusic',
-            lobby.code,
-            {
+        if (lobby.currentLobbyMusicPosition === lobby.lobbyMusics.length) {
+            await this.lobbyQueue.add('finalResult', lobby.code, {
                 delay: 10000,
-            },
-        )
+                jobId: `lobby${lobby.code}finalResult`,
+            })
+        }
+        await this.lobbyQueue.add('playMusic', lobby.code, {
+            delay: 10000,
+            jobId: `lobby${lobby.code}playMusic${
+                lobby.currentLobbyMusicPosition === null ? 1 : lobby.currentLobbyMusicPosition + 1
+            }`,
+        })
 
         if (lobby.gameMode === LobbyGameModes.LocalCouch) {
             return
@@ -288,6 +292,9 @@ export class LobbyProcessor {
             }),
         )
         this.lobbyGateway.sendLobbyReset(lobby)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}playMusic*`)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}revealAnswer*`)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}finalResult`)
     }
 
     @Process('disconnectUser')

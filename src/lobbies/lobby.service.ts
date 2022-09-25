@@ -62,6 +62,7 @@ export class LobbyService {
             difficulty: data.difficulty,
             allowContributeToMissingData: data.allowContributeToMissingData,
             gameMode: data.gameMode,
+            playMusicOnAnswerReveal: data.playMusicOnAnswerReveal,
         })
         await this.lobbyUserRepository.save({
             lobby,
@@ -84,6 +85,7 @@ export class LobbyService {
                 difficulty: data.difficulty,
                 allowContributeToMissingData: data.allowContributeToMissingData,
                 gameMode: data.gameMode,
+                playMusicOnAnswerReveal: data.playMusicOnAnswerReveal,
             })),
         })
 
@@ -285,8 +287,15 @@ export class LobbyService {
 
                     position += 1
                     const music = gameToMusic.music
-                    const endAt = this.getRandomFloat(lobby.guessTime, music.duration, 4)
-                    const startAt = endAt - lobby.guessTime
+                    const lobbyMusicDuration = lobby.playMusicOnAnswerReveal
+                        ? lobby.guessTime + 10
+                        : lobby.guessTime
+                    const endAt =
+                        lobbyMusicDuration > music.duration
+                            ? music.duration
+                            : this.getRandomFloat(lobbyMusicDuration, music.duration, 4)
+                    const startAt =
+                        lobbyMusicDuration > music.duration ? 0 : endAt - lobbyMusicDuration
                     let expectedAnswers: Game[] = []
                     if (gameToMusic.type === GameToMusicType.Original) {
                         expectedAnswers = [gameToMusic.game]
@@ -368,7 +377,9 @@ export class LobbyService {
         lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Playing })
         await this.lobbyMusicRepository.save(lobbyMusics)
         await this.lobbyRepository.save(lobby)
-        await this.lobbyQueue.add('playMusic', lobby.code)
+        await this.lobbyQueue.add('playMusic', lobby.code, {
+            jobId: `lobby${lobby.code}playMusic1`,
+        })
     }
 
     async getMusicAccuracyRatio(lobby?: Lobby): Promise<number> {

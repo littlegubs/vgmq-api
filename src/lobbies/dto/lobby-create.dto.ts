@@ -32,10 +32,8 @@ export class LobbyCreateDto {
     guessTime: number
 
     allowDuplicates: boolean
-
     difficulty: LobbyDifficulties[]
-
     allowContributeToMissingData: boolean
-
     gameMode: LobbyGameModes
+    playMusicOnAnswerReveal: boolean
 }
