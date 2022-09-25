@@ -59,6 +59,7 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
                         rejectUnauthorized: false,
                     },
                 }),
+                requestTimeout: 300000,
             }),
             inject: [ConfigService],
         }),
