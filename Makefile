@@ -1,14 +1,14 @@
 start:
 	$(info Make: Starting containers.)
-	@docker-compose up -d
+	@docker compose up -d
 
 stop:
 	$(info Make: Stopping containers.)
-	@docker-compose stop
+	@docker compose stop
 
 restart:
 	$(info Make: Restarting containers.)
-	@docker-compose restart
+	@docker compose restart
 
 clean:
 	@docker system prune --volumes --force
