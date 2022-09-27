@@ -102,9 +102,9 @@ export class LobbyProcessor {
                 lobbyUsers.map((lobbyUser) => ({ ...lobbyUser, correctAnswer: null })),
             ),
         )
+        await this.lobbyGateway.sendLobbyMusicToLoad(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
-        this.lobbyGateway.sendLobbyMusicToLoad(lobbyMusic)
         await this.lobbyMusicRepository.save({
             ...lobbyMusic,
             musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),

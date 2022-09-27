@@ -1,4 +1,3 @@
-import * as fs from 'fs'
 import * as path from 'path'
 
 import {
@@ -14,6 +13,7 @@ import Vibrant = require('node-vibrant')
 import { Brackets, Repository } from 'typeorm'
 
 import { File } from '../../entity/file.entity'
+import { S3Service } from '../../s3/s3.service'
 import { User } from '../../users/user.entity'
 import { AlternativeName } from '../entity/alternative-name.entity'
 import { ColorPalette } from '../entity/color-palette.entity'
@@ -41,6 +41,7 @@ export class GamesService {
         @InjectRepository(AlternativeName)
         private alternativeNameRepository: Repository<AlternativeName>,
         private elasticsearchService: ElasticsearchService,
+        private s3Service: S3Service,
     ) {}
     async findByName(
         query: string,
@@ -143,15 +144,10 @@ export class GamesService {
                 skipCovers: true,
                 skipPostHeaders: true,
             })
-
-            const dir = `./upload/${game.slug}`
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir)
-            }
-            const filePath = `${dir}/${Math.random().toString(36).substr(2, 9)}${path.extname(
+            const filePath = `${game.slug}/${Math.random().toString(36).slice(2, 9)}${path.extname(
                 file.originalname,
             )}`
-            fs.writeFileSync(filePath, file.buffer)
+            await this.s3Service.putObject(filePath, file.buffer)
             musics = [
                 ...musics,
                 await this.gameToMusicRepository.save({
@@ -172,30 +168,6 @@ export class GamesService {
             i = i + 1
         }
         return { ...game, musics: [...game.musics, ...musics] }
-    }
-
-    async getNamesForQuery(query: string): Promise<string[]> {
-        const games = await this.gameRepository
-            .createQueryBuilder('game')
-            .andWhere('game.enabled = 1')
-            .andWhere('game.name LIKE REPLACE(REPLACE(:query, ":", "_"), "-", "_") ', {
-                query: `%${query}%`,
-            })
-            .orderBy('game.name')
-            .getMany()
-
-        const alternativeNames = await this.alternativeNameRepository
-            .createQueryBuilder('alternativeName')
-            .andWhere('alternativeName.enabled = 1')
-            .andWhere('REPLACE(REPLACE(alternativeName.name, ":", ""), "-", " ") LIKE :query', {
-                query: `%${query}%`,
-            })
-            .orderBy('alternativeName.name')
-            .getMany()
-
-        return [
-            ...new Set([...games.map((g) => g.name), ...alternativeNames.map((a) => a.name)]),
-        ].sort((a, b) => a.localeCompare(b))
     }
 
     async populateElasticSearch(): Promise<void> {

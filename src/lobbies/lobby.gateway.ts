@@ -1,4 +1,4 @@
-import { openSync, readSync, statSync } from 'fs'
+import { Readable } from 'stream'
 
 import { InjectQueue } from '@nestjs/bull'
 import {
@@ -30,6 +30,7 @@ import { WsUnauthorizedExceptionFilter } from '../auth/exception-filter/ws-unaut
 import { WsGuard } from '../auth/guards/ws.guard'
 import { Game } from '../games/entity/game.entity'
 import { Music } from '../games/entity/music.entity'
+import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
@@ -69,6 +70,7 @@ export class LobbyGateway implements OnGatewayConnection {
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyService))
         private lobbyService: LobbyService,
+        private s3Service: S3Service,
     ) {}
 
     @SubscribeMessage('join')
@@ -367,20 +369,30 @@ export class LobbyGateway implements OnGatewayConnection {
         )
     }
 
-    sendLobbyMusicToLoad(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
+    async sendLobbyMusicToLoad(
+        lobbyMusic: LobbyMusic,
+        client?: AuthenticatedSocket,
+    ): Promise<void> {
         const gameToMusic = lobbyMusic.gameToMusic
-        const stat = statSync(gameToMusic.music.file.path)
-        const size = stat.size
+        const s3Object = await this.s3Service.getObject(gameToMusic.music.file.path)
 
-        // for some reason, the Duration class returns an incorrect duration value, I'm afraid it might also return an incorrect offset value
-        const { offset } = Duration.getDuration(gameToMusic.music.file.path)
-        const valuePerSecond = (size - offset) / gameToMusic.music.duration
+        const streamToBuffer = async (stream: Readable): Promise<Buffer> =>
+            new Promise((resolve, reject) => {
+                const chunks: any[] = []
+                stream.on('data', (chunk: any) => {
+                    chunks.push(chunk)
+                })
+                stream.on('error', reject)
+                stream.on('end', () => resolve(Buffer.concat(chunks)))
+            })
+
+        const bodyContents = await streamToBuffer(s3Object.Body as Readable)
+        const { offset } = Duration.getDurationFromBuffer(bodyContents)
+
+        const valuePerSecond = (bodyContents.length - offset) / gameToMusic.music.duration
         const startBit = lobbyMusic.startAt * valuePerSecond
         const endBit = lobbyMusic.endAt * valuePerSecond
-        const fd = openSync(gameToMusic.music.file.path, 'r')
-
-        const audioBuffer = Buffer.alloc(endBit - startBit)
-        readSync(fd, audioBuffer, 0, audioBuffer.length, parseInt(String(startBit + offset)))
+        const audioBuffer = bodyContents.slice(startBit + offset, endBit + offset)
 
         if (client) {
             client.emit('lobbyPlayMusic', audioBuffer)
