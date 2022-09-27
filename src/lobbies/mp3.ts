@@ -45,7 +45,7 @@ const versions = ['2.5', 'x', '2', '1'],
     }
 
 export abstract class Duration {
-    static getDuration(filename: string): { duration: number; offset: number } {
+    static getDurationFromPath(filename: string): { duration: number; offset: number } {
         const fd = openSync(filename, 'r')
         const buffer = Buffer.alloc(100)
         let block = readSync(fd, buffer, 0, 100, 0)
@@ -96,6 +96,47 @@ export abstract class Duration {
         }
 
         return { duration: parseFloat(duration.toFixed(2)), offset: _offset }
+    }
+
+    static getDurationFromBuffer(buffer: Buffer): { duration: number; offset: number } {
+        const scratch = Buffer.alloc(100)
+        const block = buffer.copy(scratch, 0, 0, 100)
+
+        let duration = 0
+        let _offset = 0
+        try {
+            calculateDuration: {
+                if (block < 100) break calculateDuration
+
+                let offset = (_offset = this.skipID3v2Tag(buffer))
+
+                while (offset < buffer.length) {
+                    const bytesRead = buffer.copy(scratch, 0, offset, offset + 10)
+                    if (bytesRead < 10) break calculateDuration
+
+                    // looking for 1111 1111 111 (frame synchronization bits)
+                    if (scratch[0] === 0xff && (scratch[1] & 0xe0) === 0xe0) {
+                        const header = this.parseFrameHeader(scratch)
+
+                        if (header.frameSize && header.samples) {
+                            offset += header.frameSize
+                            duration += header.samples / header.sampleRate
+                        } else {
+                            offset++ // corrupt file?
+                        }
+                    } else if (scratch[0] === 0x54 && scratch[1] === 0x41 && scratch[2] === 0x47) {
+                        // TAG
+                        offset += 128 // skip over id3v1 tag size
+                    } else {
+                        offset++ // corrupt file?
+                    }
+                }
+            }
+        } catch (e) {
+            console.log(e)
+        }
+
+        return { duration: this.round(duration), offset: _offset }
     }
 
     /**
@@ -174,5 +215,9 @@ export abstract class Duration {
         } else {
             return parseInt((144 * bitRate * 1000) / sampleRate + paddingBit)
         }
+    }
+
+    static round(duration: number): number {
+        return Math.round(duration * 1000) // round to nearest ms
     }
 }

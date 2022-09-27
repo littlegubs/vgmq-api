@@ -6,6 +6,7 @@ import { GameToMusic } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { Music } from '../games/entity/music.entity'
+import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser } from './entities/lobby-user.entity'
@@ -43,6 +44,7 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
         LobbyProcessor,
         LobbySubscriber,
         LobbyUserSubscriber,
+        S3Service,
     ],
 })
 export class LobbyModule {}

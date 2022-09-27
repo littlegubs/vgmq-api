@@ -186,6 +186,7 @@ export class LobbyService {
                 const game = await qb.getOne()
 
                 if (game !== null) {
+                    // TODO maybe move this code before choosing a game
                     let contributeMissingData = lobby.allowContributeToMissingData
                         ? Math.random() > gameToMusicAccuracyRatio
                         : false

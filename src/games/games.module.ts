@@ -6,6 +6,7 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { File } from '../entity/file.entity'
+import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { AdminGamesController } from './admin-games.controller'
 import { AlternativeName } from './entity/alternative-name.entity'
@@ -77,6 +78,7 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
         GameSubscriber,
         AlternativeNameSubscriber,
         MusicAccuracySubscriber,
+        S3Service,
     ],
 })
 export class GamesModule {}
