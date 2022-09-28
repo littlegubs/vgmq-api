@@ -1,12 +1,11 @@
-import * as fs from 'fs'
-
-import { Connection, EntitySubscriberInterface, EventSubscriber, RemoveEvent } from 'typeorm'
+import { DataSource, EntitySubscriberInterface, EventSubscriber, RemoveEvent } from 'typeorm'
 
 import { File } from '../entity/file.entity'
+import { S3Service } from '../s3/s3.service'
 
 @EventSubscriber()
 export class FileSubscriber implements EntitySubscriberInterface<File> {
-    constructor(connection: Connection) {
+    constructor(connection: DataSource, private s3Service: S3Service) {
         connection.subscribers.push(this)
     }
 
@@ -14,9 +13,9 @@ export class FileSubscriber implements EntitySubscriberInterface<File> {
         return File
     }
 
-    afterRemove(event: RemoveEvent<File>): void {
-        if (event.entity?.path && fs.existsSync(event.entity.path)) {
-            fs.unlinkSync(event.entity.path)
+    async afterRemove(event: RemoveEvent<File>): Promise<void> {
+        if (event.entity?.path) {
+            await this.s3Service.deleteObject(event.entity?.path)
         }
     }
 }
