@@ -1,4 +1,4 @@
-import { createReadStream } from 'fs'
+import { Readable } from 'stream'
 
 import {
     BadRequestException,
@@ -20,6 +20,7 @@ import { Request, Response as ExpressReponse } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { S3Service } from '../s3/s3.service'
 import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
@@ -41,6 +42,7 @@ export class GameToMusicController {
         private gameToMusicRepository: Repository<GameToMusic>,
         @InjectRepository(Game)
         private gameRepository: Repository<Game>,
+        private s3Service: S3Service,
     ) {}
 
     @Delete('/:id')
@@ -66,11 +68,12 @@ export class GameToMusicController {
         if (!gameToMusic) {
             throw new NotFoundException()
         }
-        const file = createReadStream(gameToMusic.music.file.path)
+        const file = await this.s3Service.getObject(gameToMusic.music.file.path)
+        const buffer = await this.s3Service.streamToBuffer(file.Body as Readable)
         res.set({
             'Content-Type': 'audio/mpeg',
         })
-        return new StreamableFile(file)
+        return new StreamableFile(buffer)
     }
 
     @Roles(Role.Admin)
