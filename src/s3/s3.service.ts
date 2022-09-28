@@ -1,6 +1,8 @@
 import { Readable } from 'stream'
 
 import {
+    DeleteObjectCommand,
+    DeleteObjectCommandOutput,
     GetObjectCommand,
     GetObjectCommandOutput,
     PutObjectCommand,
@@ -42,6 +44,15 @@ export class S3Service {
     async getObject(filePath: string): Promise<GetObjectCommandOutput> {
         return this.client.send(
             new GetObjectCommand({
+                Bucket: this.bucketName,
+                Key: filePath,
+            }),
+        )
+    }
+
+    async deleteObject(filePath: string): Promise<DeleteObjectCommandOutput> {
+        return this.client.send(
+            new DeleteObjectCommand({
                 Bucket: this.bucketName,
                 Key: filePath,
             }),

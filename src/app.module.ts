@@ -14,6 +14,7 @@ import { LimitedAccessModule } from './limited-access/limited-access.module'
 import { LobbyModule } from './lobbies/lobby.module'
 import { MailModule } from './mail/mail.module'
 import { MusicsModule } from './musics/musics.module'
+import { S3Service } from './s3/s3.service'
 import { FileSubscriber } from './subscribers/file.subscriber'
 import { UsersModule } from './users/users.module'
 
@@ -55,7 +56,7 @@ import { UsersModule } from './users/users.module'
         MailModule,
     ],
     controllers: [AppController],
-    providers: [AppService, FileSubscriber],
+    providers: [AppService, FileSubscriber, S3Service],
 })
 export class AppModule {
     constructor(private dataSource: DataSource) {}
