@@ -376,17 +376,7 @@ export class LobbyGateway implements OnGatewayConnection {
         const gameToMusic = lobbyMusic.gameToMusic
         const s3Object = await this.s3Service.getObject(gameToMusic.music.file.path)
 
-        const streamToBuffer = async (stream: Readable): Promise<Buffer> =>
-            new Promise((resolve, reject) => {
-                const chunks: any[] = []
-                stream.on('data', (chunk: any) => {
-                    chunks.push(chunk)
-                })
-                stream.on('error', reject)
-                stream.on('end', () => resolve(Buffer.concat(chunks)))
-            })
-
-        const bodyContents = await streamToBuffer(s3Object.Body as Readable)
+        const bodyContents = await this.s3Service.streamToBuffer(s3Object.Body as Readable)
         const { offset } = Duration.getDurationFromBuffer(bodyContents)
 
         const valuePerSecond = (bodyContents.length - offset) / gameToMusic.music.duration

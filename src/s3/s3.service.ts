@@ -1,3 +1,5 @@
+import { Readable } from 'stream'
+
 import {
     GetObjectCommand,
     GetObjectCommandOutput,
@@ -44,5 +46,16 @@ export class S3Service {
                 Key: filePath,
             }),
         )
+    }
+
+    async streamToBuffer(stream: Readable): Promise<Buffer> {
+        return new Promise((resolve, reject) => {
+            const chunks: any[] = []
+            stream.on('data', (chunk: any) => {
+                chunks.push(chunk)
+            })
+            stream.on('error', reject)
+            stream.on('end', () => resolve(Buffer.concat(chunks)))
+        })
     }
 }
