@@ -30,7 +30,7 @@ import { LobbyCreateDto } from './dto/lobby-create.dto'
 import { LobbySearchDto } from './dto/lobby-search.dto'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
-import { LobbyService } from './services/lobby.service'
+import { LobbyService } from './lobby.service'
 
 @Controller('lobbies')
 @UseGuards(JwtAuthGuard)
