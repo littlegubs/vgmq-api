@@ -8,7 +8,6 @@ import * as cookieParser from 'cookie-parser'
 
 import { AppModule } from './app.module'
 import { exceptionPipe } from './exception.pipe'
-import { LobbyFileModule } from './lobbies/lobby-file.module'
 import { RedisIoAdapter } from './redis-adapter'
 
 async function bootstrap(): Promise<void> {
@@ -42,14 +41,7 @@ async function bootstrap(): Promise<void> {
     if (port === undefined) {
         throw new Error('PORT not defined')
     }
-    const appLobbyFile = await NestFactory.create(LobbyFileModule, { httpsOptions })
-    const configServiceLobbyFile = appLobbyFile.get(ConfigService)
-    const redisIoAdapterLobbyFile = new RedisIoAdapter(appLobbyFile, configServiceLobbyFile)
-    await redisIoAdapterLobbyFile.connectToRedis()
-    appLobbyFile.useWebSocketAdapter(redisIoAdapter)
-
     await app.listen(port)
-    await appLobbyFile.listen(3001)
 }
 
 void bootstrap()
