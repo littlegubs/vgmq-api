@@ -11,11 +11,13 @@ import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
+import { LobbyFileGateway } from './lobby-file.gateway'
 import { LobbyListGateway } from './lobby-list.gateway'
 import { LobbyController } from './lobby.controller'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyProcessor } from './lobby.processor'
-import { LobbyService } from './lobby.service'
+import { LobbyUserService } from './services/lobby-user.service'
+import { LobbyService } from './services/lobby.service'
 import { LobbyUserSubscriber } from './subscribers/lobby-user.subscriber'
 import { LobbySubscriber } from './subscribers/lobby.subscriber'
 
@@ -45,6 +47,8 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
         LobbySubscriber,
         LobbyUserSubscriber,
         S3Service,
+        LobbyFileGateway,
+        LobbyUserService,
     ],
 })
 export class LobbyModule {}

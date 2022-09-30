@@ -19,7 +19,8 @@ export enum LobbyUserRole {
 }
 
 export enum LobbyUserStatus {
-    Reconnecting = 'reconnecting',
+    Buffering = 'buffering',
+    ReadyToPlayMusic = 'ready_to_play_music',
 }
 
 @Entity()
@@ -45,6 +46,9 @@ export class LobbyUser {
 
     @Column({ type: 'boolean', default: false })
     toDisconnect: boolean
+
+    @Column({ type: 'boolean', default: false })
+    isReconnecting: boolean
 
     @Column({ nullable: true, type: 'enum', enum: LobbyUserStatus })
     @Expose({ groups: ['wsLobby'] })

@@ -3,14 +3,15 @@ import { Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
 import * as dayjs from 'dayjs'
-import { In, Repository } from 'typeorm'
+import { In, Not, Repository } from 'typeorm'
 
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { User } from '../users/user.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
-import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
+import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
 import { Lobby, LobbyGameModes, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
+import { LobbyUserService } from './services/lobby-user.service'
 
 @Processor('lobby')
 export class LobbyProcessor {
@@ -28,13 +29,14 @@ export class LobbyProcessor {
         private musicAccuracyRepository: Repository<MusicAccuracy>,
         @InjectQueue('lobby')
         private lobbyQueue: Queue,
+        private lobbyUserService: LobbyUserService,
     ) {}
     private readonly logger = new Logger(LobbyProcessor.name)
 
-    @Process('playMusic')
-    async playMusic(job: Job<string>): Promise<void> {
+    @Process('bufferMusic')
+    async buffer(job: Job<string>): Promise<void> {
         const lobbyCode = job.data
-        this.logger.debug(`Start playing music to lobby ${lobbyCode}`)
+        this.logger.debug(`Start buffering music to lobby ${lobbyCode}`)
         let lobby = await this.lobbyRepository.findOne({
             relations: ['lobbyMusics'],
             where: {
@@ -46,11 +48,139 @@ export class LobbyProcessor {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
-        lobby = this.lobbyRepository.create({
-            ...lobby,
-            currentLobbyMusicPosition:
-                lobby.currentLobbyMusicPosition === null ? 1 : lobby.currentLobbyMusicPosition + 1,
+        if (lobby.status === LobbyStatuses.Playing) {
+            lobby = this.lobbyRepository.create({
+                ...lobby,
+                currentLobbyMusicPosition: 1,
+                status: LobbyStatuses.Buffering,
+            })
+        }
+
+        const lobbyMusic = await this.lobbyMusicRepository.findOne({
+            relations: {
+                lobby: true,
+                gameToMusic: {
+                    music: true,
+                },
+            },
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+                position:
+                    lobby.status === LobbyStatuses.Buffering
+                        ? 1
+                        : lobby.currentLobbyMusicPosition! + 1,
+            },
         })
+        if (!lobbyMusic) {
+            await this.lobbyQueue.add('finalResult', lobby.code)
+            return
+        }
+
+        lobby = this.lobbyRepository.create(
+            await this.lobbyRepository.save({
+                ...lobby,
+            }),
+        )
+
+        // reset answers
+        let lobbyUsers = await this.lobbyUserRepository.find({
+            relations: {
+                user: true,
+                lobby: true,
+            },
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+            },
+        })
+        lobbyUsers = this.lobbyUserRepository.create(
+            await this.lobbyUserRepository.save(
+                lobbyUsers.map((lobbyUser) => ({
+                    ...lobbyUser,
+                    status: LobbyUserStatus.Buffering,
+                })),
+            ),
+        )
+        this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
+        await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
+            delay: 5 * 1000,
+        })
+        if (lobby.status === LobbyStatuses.Buffering) {
+            this.lobbyGateway.sendUpdateToRoom(lobby)
+        }
+        await this.lobbyGateway.sendLobbyMusicToLoad(lobbyMusic)
+    }
+
+    @Process('playMusic')
+    async playMusic(job: Job<string>): Promise<void> {
+        const lobbyCode = job.data
+        this.logger.debug(`Start playing music to lobby ${lobbyCode}`)
+        let lobby = await this.lobbyRepository.findOne({
+            relations: ['lobbyMusics'],
+            where: {
+                code: lobbyCode,
+                status: Not(LobbyStatuses.PlayingMusic),
+            },
+        })
+        if (lobby === null) {
+            this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
+            return
+        }
+
+        let lobbyUsers = await this.lobbyUserRepository.find({
+            relations: {
+                lobby: true,
+                user: true,
+            },
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+            },
+        })
+
+        if (lobby.status === LobbyStatuses.AnswerReveal) {
+            lobby = this.lobbyRepository.create({
+                ...lobby,
+                currentLobbyMusicPosition:
+                    lobby.currentLobbyMusicPosition === null
+                        ? 1
+                        : lobby.currentLobbyMusicPosition + 1,
+            })
+            if (!(await this.lobbyUserService.areAllUsersReadyToPlay(lobby))) {
+                lobby = this.lobbyRepository.create(
+                    await this.lobbyRepository.save({
+                        ...lobby,
+                        status: LobbyStatuses.Buffering,
+                    }),
+                )
+                lobbyUsers = this.lobbyUserRepository.create(
+                    await this.lobbyUserRepository.save(
+                        lobbyUsers.map((lobbyUser) => ({
+                            ...lobbyUser,
+                            correctAnswer: null,
+                        })),
+                    ),
+                )
+                this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
+                this.lobbyGateway.sendUpdateToRoom(lobby)
+                await this.lobbyQueue.add('playMusic', lobby.code, {
+                    delay: 5 * 1000,
+                    jobId: `lobby${lobby.code}playMusic${lobby.currentLobbyMusicPosition}`,
+                })
+                return
+            }
+        }
+
+        lobby = this.lobbyRepository.create(
+            await this.lobbyRepository.save({
+                ...lobby,
+                status: LobbyStatuses.PlayingMusic,
+            }),
+        )
 
         const lobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: {
@@ -66,52 +196,30 @@ export class LobbyProcessor {
                 position: lobby.currentLobbyMusicPosition!,
             },
         })
-        if (lobbyMusic === null) {
-            this.logger.error(
-                `lobby ${lobby.code} ERROR: Trying to get a music that does not exist`,
-            )
-            lobby = this.lobbyRepository.create(
-                await this.lobbyRepository.save({
-                    ...lobby,
-                    currentLobbyMusicPosition: null,
-                    status: LobbyStatuses.Waiting,
-                }),
-            )
-            this.lobbyGateway.sendUpdateToRoom(lobby)
+        if (!lobbyMusic) {
+            await this.lobbyQueue.add('finalResult', lobby.code)
             return
         }
 
-        lobby = this.lobbyRepository.create(
-            await this.lobbyRepository.save({
-                ...lobby,
-                status: LobbyStatuses.PlayingMusic,
-            }),
-        )
-
-        // reset answers
-        let lobbyUsers = await this.lobbyUserRepository.find({
-            relations: ['user', 'lobby'],
-            where: {
-                lobby: {
-                    id: lobby.id,
-                },
-            },
-        })
         lobbyUsers = this.lobbyUserRepository.create(
             await this.lobbyUserRepository.save(
-                lobbyUsers.map((lobbyUser) => ({ ...lobbyUser, correctAnswer: null })),
+                lobbyUsers.map((lobbyUser) => ({
+                    ...lobbyUser,
+                    correctAnswer: null,
+                    ...(lobbyUser.status === LobbyUserStatus.ReadyToPlayMusic && { status: null }),
+                })),
             ),
         )
-        await this.lobbyGateway.sendLobbyMusicToLoad(lobbyMusic)
+        this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
-        await this.lobbyMusicRepository.save({
-            ...lobbyMusic,
-            musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
-        })
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
+        })
+        await this.lobbyMusicRepository.save({
+            ...lobbyMusic,
+            musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
         })
     }
 
@@ -173,15 +281,18 @@ export class LobbyProcessor {
         if (lobby.currentLobbyMusicPosition === lobby.lobbyMusics.length) {
             await this.lobbyQueue.add('finalResult', lobby.code, {
                 delay: 10000,
-                jobId: `lobby${lobby.code}finalResult`,
+                jobId: `lobby${lobby.code}finalResult${Date.now()}`,
+            })
+        } else {
+            await this.lobbyQueue.add('bufferMusic', lobby.code, {
+                delay: 5 * 1000,
+                jobId: `lobby${lobby.code}bufferMusic${
+                    lobby.currentLobbyMusicPosition === null
+                        ? 1
+                        : lobby.currentLobbyMusicPosition + 1
+                }`,
             })
         }
-        await this.lobbyQueue.add('playMusic', lobby.code, {
-            delay: 10000,
-            jobId: `lobby${lobby.code}playMusic${
-                lobby.currentLobbyMusicPosition === null ? 1 : lobby.currentLobbyMusicPosition + 1
-            }`,
-        })
 
         if (lobby.gameMode === LobbyGameModes.LocalCouch) {
             return
@@ -292,9 +403,10 @@ export class LobbyProcessor {
             }),
         )
         this.lobbyGateway.sendLobbyReset(lobby)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}bufferMusic*`)
         await this.lobbyQueue.removeJobs(`lobby${lobby.code}playMusic*`)
         await this.lobbyQueue.removeJobs(`lobby${lobby.code}revealAnswer*`)
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}finalResult`)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}finalResult*`)
     }
 
     @Process('disconnectUser')

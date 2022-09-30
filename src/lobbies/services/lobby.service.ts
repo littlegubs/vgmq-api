@@ -11,15 +11,15 @@ import { Queue } from 'bull'
 import { Cache } from 'cache-manager'
 import { Brackets, In, IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm'
 
-import { GameToMusic, GameToMusicType } from '../games/entity/game-to-music.entity'
-import { Game } from '../games/entity/game.entity'
-import { Music } from '../games/entity/music.entity'
-import { User } from '../users/user.entity'
-import { LobbyCreateDto } from './dto/lobby-create.dto'
-import { LobbyMusic } from './entities/lobby-music.entity'
-import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
-import { Lobby, LobbyDifficulties, LobbyStatuses } from './entities/lobby.entity'
-import { LobbyGateway } from './lobby.gateway'
+import { GameToMusic, GameToMusicType } from '../../games/entity/game-to-music.entity'
+import { Game } from '../../games/entity/game.entity'
+import { Music } from '../../games/entity/music.entity'
+import { User } from '../../users/user.entity'
+import { LobbyCreateDto } from '../dto/lobby-create.dto'
+import { LobbyMusic } from '../entities/lobby-music.entity'
+import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
+import { Lobby, LobbyDifficulties, LobbyStatuses } from '../entities/lobby.entity'
+import { LobbyGateway } from '../lobby.gateway'
 
 @Injectable()
 export class LobbyService {
@@ -378,8 +378,8 @@ export class LobbyService {
         lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Playing })
         await this.lobbyMusicRepository.save(lobbyMusics)
         await this.lobbyRepository.save(lobby)
-        await this.lobbyQueue.add('playMusic', lobby.code, {
-            jobId: `lobby${lobby.code}playMusic1`,
+        await this.lobbyQueue.add('bufferMusic', lobby.code, {
+            jobId: `lobby${lobby.code}bufferMusic1`,
         })
     }
 

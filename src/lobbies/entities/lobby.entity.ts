@@ -17,6 +17,7 @@ export enum LobbyStatuses {
     Waiting = 'waiting',
     Loading = 'loading',
     Playing = 'playing',
+    Buffering = 'buffering',
     PlayingMusic = 'playing_music',
     AnswerReveal = 'answer_reveal',
     FinalStanding = 'final_standing',
