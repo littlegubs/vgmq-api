@@ -37,8 +37,10 @@ import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user
 import { Lobby, LobbyStatuses } from './entities/lobby.entity'
 import { InvalidPasswordException } from './exceptions/invalid-password.exception'
 import { MissingPasswordException } from './exceptions/missing-password.exception'
-import { LobbyService } from './lobby.service'
+import { LobbyFileGateway } from './lobby-file.gateway'
 import { Duration } from './mp3'
+import { LobbyUserService } from './services/lobby-user.service'
+import { LobbyService } from './services/lobby.service'
 
 export class AuthenticatedSocket extends Socket {
     user: User
@@ -71,6 +73,8 @@ export class LobbyGateway implements OnGatewayConnection {
         @Inject(forwardRef(() => LobbyService))
         private lobbyService: LobbyService,
         private s3Service: S3Service,
+        private lobbyFileGateway: LobbyFileGateway,
+        private lobbyUserService: LobbyUserService,
     ) {}
 
     @SubscribeMessage('join')
@@ -117,7 +121,11 @@ export class LobbyGateway implements OnGatewayConnection {
             })
         } else {
             // if user was previously in lobby, set them connected
-            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: false, status: null })
+            await this.lobbyUserRepository.save({
+                ...lobbyUser,
+                disconnected: false,
+                isReconnecting: false,
+            })
         }
         await client.join(lobby.code)
         client.emit(
@@ -144,8 +152,7 @@ export class LobbyGateway implements OnGatewayConnection {
                 },
             })
             if (lobbyMusic !== null) {
-                if (lobby.status === LobbyStatuses.PlayingMusic)
-                    this.sendLobbyMusicToLoad(lobbyMusic, client)
+                if (lobby.status === LobbyStatuses.PlayingMusic) this.playMusic(lobbyMusic, client)
                 if (lobby.status === LobbyStatuses.AnswerReveal) this.sendAnswer(lobbyMusic, client)
             }
         }
@@ -193,7 +200,11 @@ export class LobbyGateway implements OnGatewayConnection {
         if (lobbyUser === undefined) {
             throw new WsException('Not found')
         }
-        await this.lobbyUserRepository.save({ ...lobbyUser, status: null, toDisconnect: false })
+        await this.lobbyUserRepository.save({
+            ...lobbyUser,
+            isReconnecting: false,
+            toDisconnect: false,
+        })
         await client.join(lobby.code)
     }
 
@@ -326,6 +337,59 @@ export class LobbyGateway implements OnGatewayConnection {
         await this.lobbyQueue.add('disconnectUser', lobbyUser.id)
     }
 
+    @SubscribeMessage('readyToPlayMusic')
+    async readyToPlayMusic(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: {
+                user: true,
+                lobby: true,
+            },
+            where: {
+                user: {
+                    id: client.user.id,
+                },
+                status: LobbyUserStatus.Buffering,
+            },
+        })
+        if (lobbyUser === null) {
+            return
+        }
+
+        // We do not care if the user is ready or not
+        if (lobbyUser.lobby.status === LobbyStatuses.PlayingMusic) {
+            await this.lobbyUserRepository.save({
+                ...lobbyUser,
+                status: null,
+            })
+            this.sendLobbyUsers(
+                lobbyUser.lobby,
+                await this.lobbyUserRepository.find({
+                    relations: { lobby: true, user: true },
+                    where: { lobby: { id: lobbyUser.lobby.id } },
+                }),
+            )
+            return
+        }
+
+        await this.lobbyUserRepository.save({
+            ...lobbyUser,
+            status: LobbyUserStatus.ReadyToPlayMusic,
+        })
+        this.sendLobbyUsers(
+            lobbyUser.lobby,
+            await this.lobbyUserRepository.find({
+                relations: { lobby: true, user: true },
+                where: { lobby: { id: lobbyUser.lobby.id } },
+            }),
+        )
+
+        if (lobbyUser.lobby.status === LobbyStatuses.Buffering) {
+            if (await this.lobbyUserService.areAllUsersReadyToPlay(lobbyUser.lobby)) {
+                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code)
+            }
+        }
+    }
+
     handleConnection(client: AuthenticatedSocket, ...args: any): any {
         client.on('disconnecting', async (reason) => {
             if (reason === 'server namespace disconnect') {
@@ -347,7 +411,7 @@ export class LobbyGateway implements OnGatewayConnection {
             if (lobbyUser === null) {
                 return
             }
-            if (lobbyUser.status === LobbyUserStatus.Reconnecting) {
+            if (lobbyUser.isReconnecting) {
                 // don't disconnect if reconnecting
                 return
             }
@@ -369,10 +433,7 @@ export class LobbyGateway implements OnGatewayConnection {
         )
     }
 
-    async sendLobbyMusicToLoad(
-        lobbyMusic: LobbyMusic,
-        client?: AuthenticatedSocket,
-    ): Promise<void> {
+    async sendLobbyMusicToLoad(lobbyMusic: LobbyMusic): Promise<void> {
         const gameToMusic = lobbyMusic.gameToMusic
         const s3Object = await this.s3Service.getObject(gameToMusic.music.file.path)
 
@@ -384,14 +445,16 @@ export class LobbyGateway implements OnGatewayConnection {
         const endBit = lobbyMusic.endAt * valuePerSecond
         const audioBuffer = bodyContents.slice(startBit + offset, endBit + offset)
 
+        this.lobbyFileGateway.sendBuffer(audioBuffer)
+    }
+
+    playMusic(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
         if (client) {
-            client.emit('lobbyPlayMusic', audioBuffer)
             client.emit('currentLobbyMusic', {
                 contributeToMissingData: lobbyMusic.contributeToMissingData,
                 musicFinishesIn: dayjs(lobbyMusic.musicFinishPlayingAt).diff(dayjs(), 'seconds'),
             })
         } else {
-            this.server.to(lobbyMusic.lobby.code).emit('lobbyPlayMusic', audioBuffer)
             this.server.to(lobbyMusic.lobby.code).emit('currentLobbyMusic', {
                 contributeToMissingData: lobbyMusic.contributeToMissingData,
             })

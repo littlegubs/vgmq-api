@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { BaseWsExceptionFilter } from '@nestjs/websockets'
 import { Repository } from 'typeorm'
 
-import { LobbyUser, LobbyUserStatus } from '../../lobbies/entities/lobby-user.entity'
+import { LobbyUser } from '../../lobbies/entities/lobby-user.entity'
 import { AuthenticatedSocket } from '../../lobbies/lobby.gateway'
 
 @Catch(UnauthorizedException)
@@ -31,7 +31,7 @@ export class WsUnauthorizedExceptionFilter extends BaseWsExceptionFilter {
             if (lobbyUser !== null) {
                 await this.lobbyUserRepository.save({
                     ...lobbyUser,
-                    status: LobbyUserStatus.Reconnecting,
+                    isReconnecting: true,
                 })
             }
         }

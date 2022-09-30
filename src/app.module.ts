@@ -35,7 +35,6 @@ import { UsersModule } from './users/users.module'
             password: process.env.DATABASE_PASSWORD,
             database: process.env.DATABASE_NAME,
             autoLoadEntities: true,
-            logging: true,
         }),
         BullModule.forRootAsync({
             useFactory: (configService: ConfigService) => ({
