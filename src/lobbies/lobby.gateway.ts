@@ -1,14 +1,8 @@
 import { Readable } from 'stream'
 
 import { InjectQueue } from '@nestjs/bull'
-import {
-    forwardRef,
-    Inject,
-    Logger,
-    NotFoundException,
-    UseFilters,
-    UseGuards,
-} from '@nestjs/common'
+import { forwardRef, Inject, Logger, NotFoundException, UseFilters } from '@nestjs/common'
+import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
     ConnectedSocket,
@@ -19,19 +13,19 @@ import {
     WebSocketServer,
     WsException,
 } from '@nestjs/websockets'
+import { NestGateway } from '@nestjs/websockets/interfaces/nest-gateway.interface'
 import { Queue } from 'bull'
 import { classToClass } from 'class-transformer'
 import * as dayjs from 'dayjs'
-import { Server, Socket } from 'socket.io'
+import { Server } from 'socket.io'
 import { Brackets, Not, Repository } from 'typeorm'
 
 import { WsNotFoundExceptionFilter } from '../auth/exception-filter/ws-not-found.exception-filter'
 import { WsUnauthorizedExceptionFilter } from '../auth/exception-filter/ws-unauthorized.exception-filter'
-import { WsGuard } from '../auth/guards/ws.guard'
 import { Game } from '../games/entity/game.entity'
 import { Music } from '../games/entity/music.entity'
 import { S3Service } from '../s3/s3.service'
-import { User } from '../users/user.entity'
+import { UsersService } from '../users/users.service'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
 import { Lobby, LobbyStatuses } from './entities/lobby.entity'
@@ -41,10 +35,7 @@ import { LobbyFileGateway } from './lobby-file.gateway'
 import { Duration } from './mp3'
 import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyService } from './services/lobby.service'
-
-export class AuthenticatedSocket extends Socket {
-    user: User
-}
+import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
 
 @UseFilters(WsUnauthorizedExceptionFilter, WsNotFoundExceptionFilter)
 @WebSocketGateway({
@@ -52,8 +43,7 @@ export class AuthenticatedSocket extends Socket {
         origin: '*',
     },
 })
-@UseGuards(WsGuard)
-export class LobbyGateway implements OnGatewayConnection {
+export class LobbyGateway implements NestGateway, OnGatewayConnection {
     @WebSocketServer()
     server: Server
     private readonly logger = new Logger(LobbyGateway.name)
@@ -73,8 +63,10 @@ export class LobbyGateway implements OnGatewayConnection {
         @Inject(forwardRef(() => LobbyService))
         private lobbyService: LobbyService,
         private s3Service: S3Service,
-        private lobbyFileGateway: LobbyFileGateway,
         private lobbyUserService: LobbyUserService,
+        private readonly jwtService: JwtService,
+        private readonly userService: UsersService,
+        private lobbyFileGateway: LobbyFileGateway,
     ) {}
 
     @SubscribeMessage('join')
@@ -128,10 +120,7 @@ export class LobbyGateway implements OnGatewayConnection {
             })
         }
         await client.join(lobby.code)
-        client.emit(
-            'lobbyJoined',
-            classToClass<Lobby>(lobby, { groups: ['lobby'] }),
-        )
+        client.emit('lobbyJoined', classToClass<Lobby>(lobby, { groups: ['lobby'] }))
 
         if (
             [LobbyStatuses.PlayingMusic.toString(), LobbyStatuses.AnswerReveal.toString()].includes(
@@ -170,42 +159,6 @@ export class LobbyGateway implements OnGatewayConnection {
         )
 
         return
-    }
-
-    @SubscribeMessage('reconnect')
-    async reconnect(
-        @ConnectedSocket() client: AuthenticatedSocket,
-        @MessageBody() code: string,
-    ): Promise<void> {
-        const lobby = await this.lobbyRepository.findOne({
-            relations: ['lobbyMusics'],
-            where: {
-                code: code,
-            },
-        })
-        if (lobby === null) {
-            throw new WsException('Not found')
-        }
-        const lobbyUser = await this.lobbyUserRepository.findOne({
-            relations: ['user', 'lobby'],
-            where: {
-                user: {
-                    id: client.user.id,
-                },
-                lobby: {
-                    id: lobby.id,
-                },
-            },
-        })
-        if (lobbyUser === undefined) {
-            throw new WsException('Not found')
-        }
-        await this.lobbyUserRepository.save({
-            ...lobbyUser,
-            isReconnecting: false,
-            toDisconnect: false,
-        })
-        await client.join(lobby.code)
     }
 
     @SubscribeMessage('play')
@@ -390,6 +343,11 @@ export class LobbyGateway implements OnGatewayConnection {
         }
     }
 
+    afterInit(): void {
+        const middle = WSAuthMiddleware(this.jwtService, this.userService, this.lobbyUserRepository)
+        this.server.use(middle)
+    }
+
     handleConnection(client: AuthenticatedSocket, ...args: any): any {
         client.on('disconnecting', async (reason) => {
             if (reason === 'server namespace disconnect') {
@@ -445,7 +403,7 @@ export class LobbyGateway implements OnGatewayConnection {
         const endBit = lobbyMusic.endAt * valuePerSecond
         const audioBuffer = bodyContents.slice(startBit + offset, endBit + offset)
 
-        this.lobbyFileGateway.sendBuffer(audioBuffer)
+        this.lobbyFileGateway.sendBuffer(lobbyMusic.lobby.code, audioBuffer)
     }
 
     playMusic(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
@@ -487,10 +445,9 @@ export class LobbyGateway implements OnGatewayConnection {
         }
     }
     sendLobbyReset(lobby: Lobby): void {
-        this.server.to(lobby.code).emit(
-            'lobbyReset',
-            classToClass<Lobby>(lobby, { groups: ['lobby'] }),
-        )
+        this.server
+            .to(lobby.code)
+            .emit('lobbyReset', classToClass<Lobby>(lobby, { groups: ['lobby'] }))
     }
 
     sendLobbyToast(lobby: Lobby, message: string): void {

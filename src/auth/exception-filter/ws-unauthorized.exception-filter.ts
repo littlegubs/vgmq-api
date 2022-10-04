@@ -4,7 +4,7 @@ import { BaseWsExceptionFilter } from '@nestjs/websockets'
 import { Repository } from 'typeorm'
 
 import { LobbyUser } from '../../lobbies/entities/lobby-user.entity'
-import { AuthenticatedSocket } from '../../lobbies/lobby.gateway'
+import { AuthenticatedSocket } from '../../lobbies/socket-middleware'
 
 @Catch(UnauthorizedException)
 export class WsUnauthorizedExceptionFilter extends BaseWsExceptionFilter {

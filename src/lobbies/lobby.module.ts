@@ -1,5 +1,7 @@
 import { BullModule } from '@nestjs/bull'
 import { CacheModule, Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { JwtModule } from '@nestjs/jwt'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
 import { GameToMusic } from '../games/entity/game-to-music.entity'
@@ -8,6 +10,7 @@ import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { Music } from '../games/entity/music.entity'
 import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
+import { UsersService } from '../users/users.service'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
@@ -38,17 +41,26 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
         BullModule.registerQueue({
             name: 'lobby',
         }),
+        JwtModule.registerAsync({
+            imports: [ConfigModule],
+            useFactory: () => {
+                return {
+                    secret: process.env.JWT_SECRET,
+                }
+            },
+        }),
     ],
     providers: [
         LobbyService,
         LobbyGateway,
         LobbyListGateway,
+        LobbyFileGateway,
         LobbyProcessor,
         LobbySubscriber,
         LobbyUserSubscriber,
         S3Service,
-        LobbyFileGateway,
         LobbyUserService,
+        UsersService,
     ],
 })
 export class LobbyModule {}
