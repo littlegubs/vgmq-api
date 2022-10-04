@@ -1,27 +1,55 @@
-import { UseFilters, UseGuards } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets'
+import { JwtService } from '@nestjs/jwt'
+import { InjectRepository } from '@nestjs/typeorm'
+import {
+    ConnectedSocket,
+    SubscribeMessage,
+    WebSocketGateway,
+    WebSocketServer,
+} from '@nestjs/websockets'
+import { NestGateway } from '@nestjs/websockets/interfaces/nest-gateway.interface'
 import { Server } from 'socket.io'
+import { Repository } from 'typeorm'
 
-import { WsNotFoundExceptionFilter } from '../auth/exception-filter/ws-not-found.exception-filter'
-import { WsUnauthorizedExceptionFilter } from '../auth/exception-filter/ws-unauthorized.exception-filter'
-import { WsGuard } from '../auth/guards/ws.guard'
+import { UsersService } from '../users/users.service'
+import { LobbyUser } from './entities/lobby-user.entity'
+import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
 
-@UseFilters(WsUnauthorizedExceptionFilter, WsNotFoundExceptionFilter)
-@WebSocketGateway(3001, {
+@WebSocketGateway({
     cors: {
         origin: '*',
     },
     namespace: '/file',
 })
-@UseGuards(WsGuard)
-export class LobbyFileGateway {
+export class LobbyFileGateway implements NestGateway {
     @WebSocketServer()
     server: Server
 
-    constructor(private configService: ConfigService) {}
+    constructor(
+        @InjectRepository(LobbyUser)
+        private lobbyUserRepository: Repository<LobbyUser>,
+        private readonly jwtService: JwtService,
+        private readonly userService: UsersService,
+    ) {}
 
-    sendBuffer(buffer: Buffer): void {
-        this.server.emit('buffer', buffer)
+    sendBuffer(lobbyCode: string, buffer: Buffer): void {
+        this.server.to(lobbyCode).emit('buffer', buffer)
+    }
+
+    afterInit(): void {
+        const middle = WSAuthMiddleware(this.jwtService, this.userService, this.lobbyUserRepository)
+        this.server.use(middle)
+    }
+
+    @SubscribeMessage('join')
+    async join(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        if (client.user) {
+            const lobbyUser = await this.lobbyUserRepository.findOne({
+                relations: { lobby: true, user: true },
+                where: { user: { id: client.user.id } },
+            })
+            if (lobbyUser) {
+                void client.join(lobbyUser.lobby.code)
+            }
+        }
     }
 }
