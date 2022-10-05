@@ -38,6 +38,7 @@ export class Game {
     @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
     name: string
 
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
     @Column()
     slug: string
 

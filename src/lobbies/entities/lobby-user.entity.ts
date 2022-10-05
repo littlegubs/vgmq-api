@@ -61,6 +61,10 @@ export class LobbyUser {
     @Expose({ groups: ['wsLobby'] })
     correctAnswer: boolean | null
 
+    @Column({ type: 'boolean', nullable: true })
+    @Expose({ groups: ['wsLobby'] })
+    playedTheGame: boolean | null
+
     @OneToOne(() => User, (user) => user.currentLobby, { onDelete: 'CASCADE' })
     @Expose({ groups: ['wsLobby'] })
     user: User
