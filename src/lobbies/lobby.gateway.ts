@@ -145,18 +145,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 if (lobby.status === LobbyStatuses.AnswerReveal) this.sendAnswer(lobbyMusic, client)
             }
         }
-
-        this.sendLobbyUsers(
-            lobby,
-            await this.lobbyUserRepository.find({
-                relations: ['user'],
-                where: {
-                    lobby: {
-                        id: lobby.id,
-                    },
-                },
-            }),
-        )
+        await this.sendLobbyUsers(lobby)
 
         return
     }
@@ -241,7 +230,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             // give points with queue
         }
         this.server.to(lobby.code).emit(
-            'lobbyUserAnswer',
+            'lobbyUser',
             classToClass<LobbyUser>(lobbyUser, {
                 groups: ['wsLobby'],
                 strategy: 'excludeAll',
@@ -314,11 +303,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 ...lobbyUser,
                 status: null,
             })
-            this.sendLobbyUsers(
-                lobbyUser.lobby,
-                await this.lobbyUserRepository.find({
-                    relations: { lobby: true, user: true },
-                    where: { lobby: { id: lobbyUser.lobby.id } },
+            this.server.to(lobbyUser.lobby.code).emit(
+                'lobbyUser',
+                classToClass<LobbyUser>(lobbyUser, {
+                    groups: ['wsLobby'],
+                    strategy: 'excludeAll',
                 }),
             )
             return
@@ -328,11 +317,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             ...lobbyUser,
             status: LobbyUserStatus.ReadyToPlayMusic,
         })
-        this.sendLobbyUsers(
-            lobbyUser.lobby,
-            await this.lobbyUserRepository.find({
-                relations: { lobby: true, user: true },
-                where: { lobby: { id: lobbyUser.lobby.id } },
+        this.server.to(lobbyUser.lobby.code).emit(
+            'lobbyUser',
+            classToClass<LobbyUser>(lobbyUser, {
+                groups: ['wsLobby'],
+                strategy: 'excludeAll',
             }),
         )
 
@@ -423,7 +412,20 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         this.server.in(lobby.code).disconnectSockets()
     }
 
-    sendLobbyUsers(lobby: Lobby, lobbyUsers: LobbyUser[]): void {
+    async sendLobbyUsers(lobby: Lobby, lobbyUsers?: LobbyUser[]): Promise<void> {
+        if (!lobbyUsers) {
+            lobbyUsers = await this.lobbyUserRepository.find({
+                relations: {
+                    lobby: true,
+                    user: true,
+                },
+                where: {
+                    lobby: {
+                        id: lobby.id,
+                    },
+                },
+            })
+        }
         this.server.to(lobby.code).emit(
             'lobbyUsers',
             classToClass<LobbyUser[]>(lobbyUsers, {
