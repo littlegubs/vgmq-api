@@ -181,7 +181,10 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 role: Not(LobbyUserRole.Spectator),
             },
         })
-        const lobby = lobbyUser?.lobby
+        if (!lobbyUser) {
+            throw new WsException('Not found')
+        }
+        const lobby = lobbyUser.lobby
         if (lobby === undefined || lobby.status !== LobbyStatuses.PlayingMusic) {
             throw new WsException('Not found')
         }
@@ -226,8 +229,12 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             correctAnswer: !!lobbyMusic,
         })
         if (lobbyUser.correctAnswer) {
+            lobbyUser = this.lobbyUserRepository.create({
+                ...lobbyUser,
+                points: lobbyUser.points + 10,
+                musicGuessedRight: lobbyUser.points + 1,
+            })
             await this.lobbyUserRepository.save(lobbyUser)
-            // give points with queue
         }
         this.server.to(lobby.code).emit(
             'lobbyUser',

@@ -424,6 +424,8 @@ export class LobbyProcessor {
                 correctAnswer: null,
                 status: null,
                 playedTheGame: null,
+                points: 0,
+                musicGuessedRight: 0,
             })),
         )
 

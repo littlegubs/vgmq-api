@@ -40,6 +40,10 @@ export class LobbyUser {
     @Expose({ groups: ['wsLobby'] })
     points: number
 
+    @Column({ type: 'int', default: 0 })
+    @Expose({ groups: ['wsLobby'] })
+    musicGuessedRight: number
+
     @Column({ type: 'boolean', default: false })
     @Expose({ groups: ['wsLobby'] })
     disconnected: boolean
