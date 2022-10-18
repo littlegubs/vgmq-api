@@ -232,7 +232,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             lobbyUser = this.lobbyUserRepository.create({
                 ...lobbyUser,
                 points: lobbyUser.points + 10,
-                musicGuessedRight: lobbyUser.points + 1,
+                musicGuessedRight: lobbyUser.musicGuessedRight + 1,
             })
             await this.lobbyUserRepository.save(lobbyUser)
         }
