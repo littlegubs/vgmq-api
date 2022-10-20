@@ -7,6 +7,7 @@ import { In, Not, Repository } from 'typeorm'
 
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { User } from '../users/user.entity'
+import { UsersService } from '../users/users.service'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
 import { Lobby, LobbyGameModes, LobbyStatuses } from './entities/lobby.entity'
@@ -30,6 +31,7 @@ export class LobbyProcessor {
         @InjectQueue('lobby')
         private lobbyQueue: Queue,
         private lobbyUserService: LobbyUserService,
+        private userService: UsersService,
     ) {}
     private readonly logger = new Logger(LobbyProcessor.name)
 
@@ -206,6 +208,7 @@ export class LobbyProcessor {
                     ...lobbyUser,
                     correctAnswer: null,
                     playedTheGame: null,
+                    tries: 0,
                     ...(lobbyUser.status === LobbyUserStatus.ReadyToPlayMusic && { status: null }),
                 })),
             ),
@@ -291,12 +294,10 @@ export class LobbyProcessor {
         })
 
         for (const lobbyUser of lobbyUsers) {
-            const userPlayedTheGame = await this.userRepository
-                .createQueryBuilder('user')
-                .innerJoin('user.games', 'game')
-                .andWhere('game.id = :gameId', { gameId: currentLobbyMusic.gameToMusic.game.id })
-                .andWhere('user.id = :id', { id: lobbyUser.user.id })
-                .getOne()
+            const userPlayedTheGame = await this.userService.userHasPlayedTheGame(
+                lobbyUser.user,
+                currentLobbyMusic.gameToMusic.game,
+            )
 
             await this.lobbyUserRepository.save({
                 ...lobbyUser,
@@ -340,12 +341,10 @@ export class LobbyProcessor {
             },
         })
         for (const lobbyUser of lobbyUsers) {
-            const userPlayedTheGame = await this.userRepository
-                .createQueryBuilder('user')
-                .innerJoin('user.games', 'game')
-                .andWhere('game.id = :gameId', { gameId: currentLobbyMusic.gameToMusic.game.id })
-                .andWhere('user.id = :id', { id: lobbyUser.user.id })
-                .getOne()
+            const userPlayedTheGame = await this.userService.userHasPlayedTheGame(
+                lobbyUser.user,
+                currentLobbyMusic.gameToMusic.game,
+            )
 
             if (!lobbyUser.disconnected && lobby.gameMode !== LobbyGameModes.LocalCouch) {
                 await this.musicAccuracyRepository.save({
@@ -426,6 +425,7 @@ export class LobbyProcessor {
                 playedTheGame: null,
                 points: 0,
                 musicGuessedRight: 0,
+                tries: 0,
             })),
         )
 

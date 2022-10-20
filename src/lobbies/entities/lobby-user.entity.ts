@@ -65,6 +65,9 @@ export class LobbyUser {
     @Expose({ groups: ['wsLobby'] })
     correctAnswer: boolean | null
 
+    @Column({ type: 'int', default: 0 })
+    tries: number
+
     @Column({ type: 'boolean', nullable: true })
     @Expose({ groups: ['wsLobby'] })
     playedTheGame: boolean | null
