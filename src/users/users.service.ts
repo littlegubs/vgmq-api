@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 
 import { AuthRegisterDto } from '../auth/dto/auth-register.dto'
+import { Game } from '../games/entity/game.entity'
 import { User } from './user.entity'
 
 @Injectable()
@@ -61,5 +62,14 @@ export class UsersService {
                 confirmationToken: token,
             },
         })
+    }
+
+    userHasPlayedTheGame(user: User, game: Game): Promise<User | null> {
+        return this.userRepository
+            .createQueryBuilder('user')
+            .innerJoin('user.games', 'game')
+            .andWhere('game.id = :gameId', { gameId: game.id })
+            .andWhere('user.id = :id', { id: user.id })
+            .getOne()
     }
 }

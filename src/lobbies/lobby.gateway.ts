@@ -193,6 +193,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             .createQueryBuilder('lobbyMusic')
             .innerJoinAndSelect('lobbyMusic.expectedAnswers', 'expectedAnswers')
             .leftJoinAndSelect('expectedAnswers.alternativeNames', 'expectedAnswerAlternativeName')
+            .leftJoinAndSelect('lobbyMusic.gameToMusic', 'gameToMusic')
+            .leftJoinAndSelect('gameToMusic.game', 'game')
             .andWhere('expectedAnswers.enabled = 1')
             .andWhere('lobbyMusic.lobby = :lobby', { lobby: lobby.id })
             .andWhere('lobbyMusic.position = :position', {
@@ -227,11 +229,23 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         lobbyUser = this.lobbyUserRepository.create({
             ...lobbyUser,
             correctAnswer: !!lobbyMusic,
+            tries: lobbyUser.tries + 1,
         })
-        if (lobbyUser.correctAnswer) {
+
+        if (lobbyUser.correctAnswer && lobbyMusic) {
+            let pointsToWin = 11
+            if (
+                !(await this.userService.userHasPlayedTheGame(
+                    lobbyUser.user,
+                    lobbyMusic.gameToMusic.game,
+                ))
+            ) {
+                pointsToWin += 5
+            }
+            pointsToWin -= lobbyUser.tries
             lobbyUser = this.lobbyUserRepository.create({
                 ...lobbyUser,
-                points: lobbyUser.points + 10,
+                points: lobbyUser.points + (pointsToWin < 1 ? 1 : pointsToWin),
                 musicGuessedRight: lobbyUser.musicGuessedRight + 1,
             })
             await this.lobbyUserRepository.save(lobbyUser)
@@ -243,6 +257,9 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 strategy: 'excludeAll',
             }),
         )
+        if (!lobbyUser.correctAnswer) {
+            await this.lobbyUserRepository.save({ ...lobbyUser, correctAnswer: null }) // set correct answer to null to prevent bugs
+        }
 
         return
     }
