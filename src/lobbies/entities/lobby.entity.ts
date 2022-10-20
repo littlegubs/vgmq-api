@@ -72,7 +72,7 @@ export class Lobby {
     @Expose({ groups: ['lobby', 'lobby-list'] })
     allowDuplicates: boolean
 
-    @Column({ default: false })
+    @Column({ default: true })
     @Expose({ groups: ['lobby'] })
     playMusicOnAnswerReveal: boolean
 

@@ -249,22 +249,30 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
     @SubscribeMessage('restart')
     async restart(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
-        const lobbyUser = await this.lobbyUserRepository.findOne({
-            relations: {
-                user: true,
-                lobby: true,
-            },
-            where: {
-                user: {
-                    id: client.user.id,
-                },
-                role: LobbyUserRole.Host,
-            },
-        })
+        const lobbyUser = await this.lobbyUserService.getLobbyHostByUser(client.user)
         if (lobbyUser === null) {
             return
         }
         await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code)
+    }
+
+    @SubscribeMessage('kick')
+    async kick(
+        @ConnectedSocket() client: AuthenticatedSocket,
+        @MessageBody() username: string,
+    ): Promise<void> {
+        const lobbyHost = await this.lobbyUserService.getLobbyHostByUser(client.user)
+        if (lobbyHost === null) {
+            return
+        }
+        const lobbyUser = await this.lobbyUserService.getLobbyUserByUsername(
+            username,
+            lobbyHost.lobby,
+        )
+        if (!lobbyUser) {
+            throw new WsException('Not found')
+        }
+        await this.lobbyUserRepository.remove(lobbyUser)
     }
 
     @SubscribeMessage('leave')

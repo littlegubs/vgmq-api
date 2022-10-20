@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { FindManyOptions, Not, Repository } from 'typeorm'
 
+import { User } from '../../users/user.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from '../entities/lobby-user.entity'
 import { Lobby } from '../entities/lobby.entity'
 
@@ -32,5 +33,37 @@ export class LobbyUserService {
         })
 
         return countLobbyUsersReady === countLobbyUsersPlaying
+    }
+
+    getLobbyUserByUsername(username: string, lobby: Lobby): Promise<LobbyUser | null> {
+        return this.lobbyUserRepository.findOne({
+            relations: {
+                user: true,
+                lobby: true,
+            },
+            where: {
+                user: {
+                    username: username,
+                },
+                lobby: {
+                    id: lobby.id,
+                },
+            },
+        })
+    }
+
+    getLobbyHostByUser(user: User): Promise<LobbyUser | null> {
+        return this.lobbyUserRepository.findOne({
+            relations: {
+                user: true,
+                lobby: true,
+            },
+            where: {
+                user: {
+                    id: user.id,
+                },
+                role: LobbyUserRole.Host,
+            },
+        })
     }
 }

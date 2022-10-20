@@ -74,6 +74,16 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 this.lobbyGateway.sendLobbyClosed(event.entity?.lobby, 'The host left the lobby!')
             }
         }
-        await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby)
+        await this.lobbyGateway.sendLobbyUsers(
+            event.entity?.lobby,
+            await event.manager.find(LobbyUser, {
+                relations: ['user', 'lobby'],
+                where: {
+                    lobby: {
+                        id: event.entity?.lobby.id,
+                    },
+                },
+            }),
+        )
     }
 }
