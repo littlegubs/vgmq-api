@@ -1,7 +1,10 @@
 import {
+    BadRequestException,
     ClassSerializerInterceptor,
     Controller,
     Get,
+    HttpCode,
+    InternalServerErrorException,
     NotFoundException,
     Param,
     Query,
@@ -18,8 +21,10 @@ import { Repository } from 'typeorm'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
+import { GamesImportDto } from './dto/games-import.dto'
 import { GamesSearchDto } from './dto/games-search.dto'
 import { Game } from './entity/game.entity'
+import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
 import GameNameSearchBody from './types/game-name-search-body.interface'
@@ -35,6 +40,7 @@ export class GamesController {
         @InjectRepository(User)
         private userRepository: Repository<User>,
         private elasticsearchService: ElasticsearchService,
+        private igdbHttpService: IgdbHttpService,
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
@@ -69,6 +75,33 @@ export class GamesController {
             data: games,
             count,
         }
+    }
+
+    @Get('import')
+    @HttpCode(201)
+    async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
+        let [igdbGame] = await this.igdbHttpService.importByUrl(query.url)
+
+        if (!igdbGame) throw new NotFoundException('the game was not found')
+        if (igdbGame.category !== 0) throw new BadRequestException('The game is not a main game')
+        if (igdbGame.version_parent) {
+            igdbGame = (await this.igdbHttpService.importByUrl(query.url))[0]
+            if (!igdbGame) throw new InternalServerErrorException()
+        }
+
+        const game = await this.igdbService.import(igdbGame)
+        let gamesImported = [game.name]
+        let { parent, versionParent } = game
+        while (parent) {
+            gamesImported = [...gamesImported, parent.name]
+            parent = parent.parent
+        }
+        while (versionParent) {
+            gamesImported = [...gamesImported, versionParent.name]
+            versionParent = versionParent.versionParent
+        }
+
+        return gamesImported
     }
 
     @Get('/:slug/add')

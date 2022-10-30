@@ -22,6 +22,7 @@ import { GameToMusicController } from './game-to-music.controller'
 import { WebhookController } from './games-webhook.controller'
 import { GamesController } from './games.controller'
 import { IgdbHttpService } from './http/igdb.http.service'
+import { IgdbWebhookProcessor } from './igdb-webhook.processor'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
 import { AlternativeNameSubscriber } from './subscribers/alternative-name.subscriber'
@@ -79,6 +80,7 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
         AlternativeNameSubscriber,
         MusicAccuracySubscriber,
         S3Service,
+        IgdbWebhookProcessor,
     ],
 })
 export class GamesModule {}

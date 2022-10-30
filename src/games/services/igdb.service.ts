@@ -1,11 +1,5 @@
-import {
-    HttpException,
-    Injectable,
-    InternalServerErrorException,
-    NotFoundException,
-} from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import axios, { AxiosError } from 'axios'
 import { DateTime } from 'luxon'
 import Vibrant = require('node-vibrant')
 import { Repository } from 'typeorm'
@@ -16,6 +10,7 @@ import { Cover } from '../entity/cover.entity'
 import { Game } from '../entity/game.entity'
 import { Platform } from '../entity/platform.entity'
 import { IgdbHttpService } from '../http/igdb.http.service'
+import { IgdbGame } from '../igdb.type'
 
 @Injectable()
 export class IgdbService {
@@ -33,79 +28,64 @@ export class IgdbService {
         private platformRepository: Repository<Platform>,
     ) {}
 
-    async importByUrl(url: string): Promise<Game> {
-        return this.igdbHttpService
-            .importByUrl(url)
-            .then(async (res) => {
-                const igdbGame = res[0]
+    async import(igdbGame: IgdbGame): Promise<Game> {
+        const oldGame = await this.gamesRepository.findOne({
+            where: {
+                igdbId: igdbGame.id,
+            },
+            relations: ['alternativeNames', 'cover'],
+        })
 
-                if (!igdbGame) throw new NotFoundException('the game was not found')
+        if (oldGame) {
+            // TODO stop deleting cover when color palette choice is in place
+            if (oldGame.cover) {
+                await this.coversRepository.remove(oldGame.cover)
+            }
+        }
 
-                const oldGame = await this.gamesRepository.findOne({
-                    where: {
-                        igdbId: igdbGame.id,
-                    },
-                    relations: ['alternativeNames', 'cover'],
-                })
+        let game = this.gamesRepository.create({
+            igdbId: igdbGame.id,
+            category: igdbGame.category,
+            name: igdbGame.name,
+            url: igdbGame.url,
+            slug: igdbGame.slug,
+            firstReleaseDate: igdbGame.first_release_date
+                ? DateTime.fromSeconds(igdbGame.first_release_date).toISO()
+                : null,
+        })
 
-                if (oldGame) {
-                    // TODO stop deleting cover when color palette choice is in place
-                    if (oldGame.cover) {
-                        await this.coversRepository.remove(oldGame.cover)
-                    }
-                }
+        const cover = await this.getCover(game, igdbGame.cover)
 
-                let game = this.gamesRepository.create({
-                    igdbId: igdbGame.id,
-                    category: igdbGame.category,
-                    name: igdbGame.name,
-                    url: igdbGame.url,
-                    slug: igdbGame.slug,
-                    firstReleaseDate: igdbGame.first_release_date
-                        ? DateTime.fromSeconds(igdbGame.first_release_date).toISO()
-                        : null,
-                })
+        const alternativeNames = await this.handleAlternativeNames(game, igdbGame.alternative_names)
 
-                const cover = await this.getCover(game, igdbGame.cover)
+        const [parent, versionParent] = await Promise.all([
+            this.getParent(igdbGame.parent_game),
+            this.getParent(igdbGame.version_parent),
+        ])
 
-                const alternativeNames = await this.handleAlternativeNames(
-                    game,
-                    igdbGame.alternative_names,
-                )
+        const platforms = await this.handlePlatforms(game, igdbGame.platforms)
 
-                const [parent, versionParent] = await Promise.all([
-                    this.getParent(igdbGame.parent_game),
-                    this.getParent(igdbGame.version_parent),
-                ])
+        game = {
+            ...game,
+            parent,
+            versionParent,
+            ...(cover ? { cover } : undefined),
+            ...(alternativeNames ? { alternativeNames } : undefined),
+            ...(platforms ? { platforms } : undefined),
+        }
 
-                const platforms = await this.handlePlatforms(game, igdbGame.platforms)
-
-                game = {
-                    ...game,
-                    parent,
-                    versionParent,
-                    ...(cover ? { cover } : undefined),
-                    ...(alternativeNames ? { alternativeNames } : undefined),
-                    ...(platforms ? { platforms } : undefined),
-                }
-
-                return this.updateOrCreateGame(game, oldGame)
-            })
-            .catch((err: Error | AxiosError) => {
-                if (axios.isAxiosError(err)) {
-                    if (err.response?.status === 429) {
-                        throw new HttpException(
-                            'IGDB api limit reached, please try again later',
-                            429,
-                        )
-                    }
-                }
-                throw new InternalServerErrorException()
-            })
+        return this.updateOrCreateGame(game, oldGame)
     }
 
-    getParent(parent?: { id: number; url: string }): Promise<Game | undefined> | undefined {
-        return parent ? this.importByUrl(parent.url).catch(() => undefined) : undefined
+    async getParent(parent?: {
+        id: number
+        url: string
+    }): Promise<Promise<Game | undefined> | undefined> {
+        if (parent) {
+            const [igdbGame] = await this.igdbHttpService.importByUrl(parent.url)
+
+            return igdbGame ? this.import(igdbGame) : undefined
+        }
     }
 
     async getCover(
@@ -177,7 +157,6 @@ export class IgdbService {
             abbreviation: string
         }>,
     ): Promise<Platform[]> {
-        console.log(igdbPlatforms)
         if (Array.isArray(igdbPlatforms) && igdbPlatforms.length > 0) {
             return Promise.all(
                 igdbPlatforms.map(async (igdbPlatform) => {
@@ -188,13 +167,13 @@ export class IgdbService {
                         return this.platformRepository.create({
                             igdbId: igdbPlatform.id,
                             name: igdbPlatform.name,
-                            abbreviation: igdbPlatform.abbreviation,
+                            abbreviation: igdbPlatform.abbreviation ?? igdbPlatform.name,
                         })
                     }
                     return this.platformRepository.save<Platform>({
                         ...platform,
                         name: igdbPlatform.name,
-                        abbreviation: igdbPlatform.abbreviation,
+                        abbreviation: igdbPlatform.abbreviation ?? igdbPlatform.name,
                     })
                 }),
             )
