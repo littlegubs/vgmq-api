@@ -60,7 +60,7 @@ export class GamesService {
             .loadRelationCountAndMap('game.countUsers', 'game.users', 'countUsers')
             .leftJoinAndSelect('game.cover', 'cover')
             .leftJoinAndSelect('cover.colorPalette', 'colorPalette')
-            .leftJoinAndSelect('game.platforms', 'platform')
+            .loadRelationIdAndMap('game.platformIds', 'game.platforms')
             .where(
                 new Brackets((qb) => {
                     qb.orWhere('game.name LIKE :name').orWhere(
@@ -74,7 +74,7 @@ export class GamesService {
             )
             .setParameter('name', `%${query}%`)
             .orderBy('game.name')
-            .groupBy('game.id, platform.id')
+            .groupBy('game.id')
         if (options?.showDisabled === false) {
             qb.andWhere('game.enabled = 1')
         }

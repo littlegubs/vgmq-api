@@ -24,6 +24,7 @@ import { User } from '../users/user.entity'
 import { GamesImportDto } from './dto/games-import.dto'
 import { GamesSearchDto } from './dto/games-search.dto'
 import { Game } from './entity/game.entity'
+import { Platform } from './entity/platform.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
@@ -41,9 +42,10 @@ export class GamesController {
         private userRepository: Repository<User>,
         private elasticsearchService: ElasticsearchService,
         private igdbHttpService: IgdbHttpService,
+        @InjectRepository(Platform)
+        private platformRepository: Repository<Platform>,
     ) {}
 
-    @UseInterceptors(ClassSerializerInterceptor)
     @Get('')
     @UseInterceptors(ClassSerializerInterceptor)
     @SerializeOptions({
@@ -61,11 +63,21 @@ export class GamesController {
             ...(query.filterByUser && { filterByUser: user }),
         })
 
+        // TODO try mikrORM because i'm writing some mad bullshit to make things work with TypeORM
+        // mapping on every game to get a platform name is ridiculous
+        // @ts-ignore
         games = await Promise.all(
             games.map(async (game) => {
                 const gameIds = await this.gamesService.getGamesIdsForUser(user)
                 return {
                     ...game,
+                    platforms: await Promise.all(
+                        game.platformIds.map(async (id) => {
+                            return this.platformRepository.findOneBy({
+                                id,
+                            })
+                        }),
+                    ),
                     selectedByUser: gameIds.includes(game.id),
                 }
             }),

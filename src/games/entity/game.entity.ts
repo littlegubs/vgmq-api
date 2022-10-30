@@ -48,6 +48,8 @@ export class Game {
     @Column({ default: true })
     enabled: boolean
 
+    platformIds: number[]
+
     @OneToMany(() => AlternativeName, (alternativeName) => alternativeName.game, {
         cascade: true,
     })
