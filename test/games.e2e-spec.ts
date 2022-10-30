@@ -225,7 +225,7 @@ describe('GamesController (e2e)', () => {
             jest.spyOn(jwtStrategy, 'validate').mockImplementation(() =>
                 Promise.resolve({ roles: [Role.User, Role.Admin] } as User),
             )
-            jest.spyOn(igdbService, 'importByUrl').mockImplementationOnce(() => {
+            jest.spyOn(igdbService, 'import').mockImplementationOnce(() => {
                 throw new NotFoundException('the game was not found')
             })
             return request(app.getHttpServer())
@@ -244,7 +244,7 @@ describe('GamesController (e2e)', () => {
             jest.spyOn(jwtStrategy, 'validate').mockImplementation(() =>
                 Promise.resolve({ roles: [Role.User, Role.Admin] } as User),
             )
-            jest.spyOn(igdbService, 'importByUrl').mockImplementationOnce(() => {
+            jest.spyOn(igdbService, 'import').mockImplementationOnce(() => {
                 throw new BadRequestException('the game has no release date')
             })
             return request(app.getHttpServer())
@@ -263,7 +263,7 @@ describe('GamesController (e2e)', () => {
             jest.spyOn(jwtStrategy, 'validate').mockImplementation(() =>
                 Promise.resolve({ roles: [Role.User, Role.Admin] } as User),
             )
-            jest.spyOn(igdbService, 'importByUrl').mockImplementationOnce(() => {
+            jest.spyOn(igdbService, 'import').mockImplementationOnce(() => {
                 throw new HttpException('IGDB api limit reached, please try again later', 429)
             })
             return request(app.getHttpServer())
@@ -281,7 +281,7 @@ describe('GamesController (e2e)', () => {
             jest.spyOn(jwtStrategy, 'validate').mockImplementation(() =>
                 Promise.resolve({ roles: [Role.User, Role.Admin] } as User),
             )
-            jest.spyOn(igdbService, 'importByUrl').mockImplementationOnce(() => {
+            jest.spyOn(igdbService, 'import').mockImplementationOnce(() => {
                 throw new InternalServerErrorException()
             })
             return request(app.getHttpServer())

@@ -7,12 +7,13 @@ import { Repository } from 'typeorm'
 
 import { User } from '../users/user.entity'
 import { Game } from './entity/game.entity'
+import { IgdbHttpService } from './http/igdb.http.service'
 import { IgdbGame } from './igdb.type'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
 
 @Processor('igdbWebhook')
-export class LobbyProcessor {
+export class IgdbWebhookProcessor {
     constructor(
         private gamesService: GamesService,
         private igdbService: IgdbService,
@@ -21,15 +22,9 @@ export class LobbyProcessor {
         @InjectRepository(User)
         private userRepository: Repository<User>,
         private elasticsearchService: ElasticsearchService,
+        private igdbHttpService: IgdbHttpService,
     ) {}
-    private readonly logger = new Logger(LobbyProcessor.name)
-
-    @Process('gameCreate')
-    async gameCreate(job: Job<IgdbGame>): Promise<void> {
-        if (job.data.category === 0) {
-            await this.igdbService.importByUrl(job.data.url)
-        }
-    }
+    private readonly logger = new Logger(IgdbWebhookProcessor.name)
 
     @Process('gameUpdate')
     async gameUpdate(job: Job<IgdbGame>): Promise<void> {
@@ -39,11 +34,10 @@ export class LobbyProcessor {
             },
         })
         if (game !== null) {
-            await this.igdbService.importByUrl(job.data.url)
-            return
-        }
-        if (job.data.category === 0) {
-            await this.igdbService.importByUrl(job.data.url)
+            const [igdbGame] = await this.igdbHttpService.importByUrl(job.data.url)
+
+            if (!igdbGame) return
+            await this.igdbService.import(igdbGame)
         }
     }
 

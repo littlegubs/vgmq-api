@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios'
 import { HttpException, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import axios, { AxiosError } from 'axios'
 import { MoreThan } from 'typeorm'
 
 import { IgdbClient } from '../entity/igdb.entity'
@@ -84,6 +85,13 @@ export class IgdbHttpService {
                 .subscribe((res) => {
                     resolve(res.data)
                 })
+        }).catch((err: Error | AxiosError) => {
+            if (axios.isAxiosError(err)) {
+                if (err.response?.status === 429) {
+                    throw new HttpException('IGDB api limit reached, please try again later', 429)
+                }
+            }
+            throw new InternalServerErrorException()
         })
     }
 }

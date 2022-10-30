@@ -27,6 +27,7 @@ import { RolesGuard } from '../users/roles.guard'
 import { GamesImportDto } from './dto/games-import.dto'
 import { GamesSearchAdminDto } from './dto/games-search-admin.dto'
 import { Game } from './entity/game.entity'
+import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
 
@@ -39,6 +40,7 @@ export class AdminGamesController {
         @InjectRepository(Game)
         private gamesRepository: Repository<Game>,
         private configService: ConfigService,
+        private igdbHttpService: IgdbHttpService,
     ) {}
 
     @Roles(Role.Admin)
@@ -64,7 +66,11 @@ export class AdminGamesController {
     @Get('import')
     @HttpCode(201)
     async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
-        const game = await this.igdbService.importByUrl(query.url)
+        const [igdbGame] = await this.igdbHttpService.importByUrl(query.url)
+
+        if (!igdbGame) throw new NotFoundException('the game was not found')
+
+        const game = await this.igdbService.import(igdbGame)
         let gamesImported = [game.name]
         let { parent, versionParent } = game
         while (parent) {

@@ -26,17 +26,6 @@ export class WebhookController {
         private igdbWebhookQueue: Queue,
     ) {}
 
-    @Post('/create')
-    @HttpCode(200)
-    async create(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
-        if (request.header('X-Secret') !== this.configService.get('IGDB_WEBHOOK_SECRET')) {
-            throw new UnauthorizedException()
-        }
-
-        await this.igdbWebhookQueue.add('gameCreate', body)
-        return
-    }
-
     @Post('/update')
     @HttpCode(200)
     async update(@Body() body: IgdbGame, @Req() request: Request): Promise<void> {
