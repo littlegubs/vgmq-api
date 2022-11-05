@@ -167,6 +167,23 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         await this.lobbyService.loadMusics(lobby)
     }
 
+    @SubscribeMessage('chat')
+    async chat(
+        @ConnectedSocket() client: AuthenticatedSocket,
+        @MessageBody() message: string,
+    ): Promise<void> {
+        const lobbyUser = await this.lobbyUserService.getLobbyUserByUsername(client.user.username)
+        if (lobbyUser === null) {
+            throw new WsException('Not found')
+        }
+        message = message.trim()
+        if (message !== '') {
+            this.server
+                .to(lobbyUser.lobby.code)
+                .emit('chat', { username: lobbyUser.user.username, message })
+        }
+    }
+
     @SubscribeMessage('answer')
     async answer(
         @ConnectedSocket() client: AuthenticatedSocket,
