@@ -35,7 +35,7 @@ export class LobbyUserService {
         return countLobbyUsersReady === countLobbyUsersPlaying
     }
 
-    getLobbyUserByUsername(username: string, lobby: Lobby): Promise<LobbyUser | null> {
+    getLobbyUserByUsername(username: string, lobby?: Lobby): Promise<LobbyUser | null> {
         return this.lobbyUserRepository.findOne({
             relations: {
                 user: true,
@@ -45,9 +45,11 @@ export class LobbyUserService {
                 user: {
                     username: username,
                 },
-                lobby: {
-                    id: lobby.id,
-                },
+                ...(lobby && {
+                    lobby: {
+                        id: lobby.id,
+                    },
+                }),
             },
         })
     }
