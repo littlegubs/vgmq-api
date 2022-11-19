@@ -270,4 +270,37 @@ export class GamesController {
             [],
         )
     }
+
+    @Get('/:slug')
+    async get(@Param('slug') slug: string): Promise<Game> {
+        const game = await this.gamesRepository.findOne({
+            relations: {
+                cover: {
+                    colorPalette: true,
+                },
+                alternativeNames: true,
+                musics: {
+                    derivedGameToMusics: {
+                        game: true,
+                    },
+                    originalGameToMusic: {
+                        game: true,
+                    },
+                },
+                platforms: true,
+            },
+            where: {
+                slug,
+            },
+            order: {
+                musics: {
+                    id: 'ASC',
+                },
+            },
+        })
+        if (game === null) {
+            throw new NotFoundException()
+        }
+        return game
+    }
 }
