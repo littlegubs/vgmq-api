@@ -29,6 +29,12 @@ export enum LobbyDifficulties {
     Hard = 'hard',
 }
 
+export enum LobbyHintMode {
+    Disabled = 'disabled',
+    Allowed = 'allowed',
+    Always = 'always',
+}
+
 export enum LobbyGameModes {
     Standard = 'standard',
     LocalCouch = 'local_couch',
@@ -107,6 +113,14 @@ export class Lobby {
     })
     @Expose({ groups: ['lobby', 'lobby-list'] })
     gameMode: string
+
+    @Column({
+        type: 'enum',
+        enum: LobbyHintMode,
+        default: LobbyHintMode.Allowed,
+    })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
+    hintMode: LobbyHintMode
 
     @Transform(({ value }) => value?.length)
     @OneToMany(() => LobbyMusic, (lobbyMusic) => lobbyMusic.lobby)

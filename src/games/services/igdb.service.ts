@@ -1,5 +1,7 @@
+import { InjectQueue } from '@nestjs/bull'
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { Queue } from 'bull'
 import { DateTime } from 'luxon'
 import Vibrant = require('node-vibrant')
 import { Repository } from 'typeorm'
@@ -26,6 +28,9 @@ export class IgdbService {
         private colorPaletteRepository: Repository<ColorPalette>,
         @InjectRepository(Platform)
         private platformRepository: Repository<Platform>,
+
+        @InjectQueue('game')
+        private gameQueue: Queue,
     ) {}
 
     async import(igdbGame: IgdbGame): Promise<Game> {
@@ -74,7 +79,10 @@ export class IgdbService {
             ...(platforms ? { platforms } : undefined),
         }
 
-        return this.updateOrCreateGame(game, oldGame)
+        game = await this.updateOrCreateGame(game, oldGame)
+
+        await this.gameQueue.add('getSimilarGames', game.id)
+        return game
     }
 
     async getParent(parent?: {
@@ -86,6 +94,18 @@ export class IgdbService {
 
             return igdbGame ? this.import(igdbGame) : undefined
         }
+    }
+
+    async getSimilarGame(similarGame: {
+        id: number
+        url: string
+    }): Promise<Promise<Game | undefined>> {
+        const game = await this.gamesRepository.findOne({ where: { igdbId: similarGame.id } })
+        if (game) return game
+        //only retrieve game if it does not exist to prevent infinite loop
+        const [igdbGame] = await this.igdbHttpService.importByUrl(similarGame.url)
+
+        return igdbGame && igdbGame.category === 0 ? this.import(igdbGame) : undefined
     }
 
     async getCover(

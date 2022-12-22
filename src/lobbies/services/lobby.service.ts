@@ -54,15 +54,7 @@ export class LobbyService {
     async create(data: LobbyCreateDto, user: User): Promise<Lobby> {
         const lobby = await this.lobbyRepository.save({
             code: await this.generateCode(),
-            name: data.name,
-            password: data.password,
-            musicNumber: data.musicNumber,
-            guessTime: data.guessTime,
-            allowDuplicates: data.allowDuplicates,
-            difficulty: data.difficulty,
-            allowContributeToMissingData: data.allowContributeToMissingData,
-            gameMode: data.gameMode,
-            playMusicOnAnswerReveal: data.playMusicOnAnswerReveal,
+            ...data,
         })
         await this.lobbyUserRepository.save({
             lobby,
@@ -77,15 +69,7 @@ export class LobbyService {
         lobby = this.lobbyRepository.create({
             ...(await this.lobbyRepository.save({
                 ...lobby,
-                name: data.name,
-                password: data.password,
-                musicNumber: data.musicNumber,
-                guessTime: data.guessTime,
-                allowDuplicates: data.allowDuplicates,
-                difficulty: data.difficulty,
-                allowContributeToMissingData: data.allowContributeToMissingData,
-                gameMode: data.gameMode,
-                playMusicOnAnswerReveal: data.playMusicOnAnswerReveal,
+                ...data,
             })),
         })
 
@@ -208,6 +192,9 @@ export class LobbyService {
                             'originalDerivedGameToMusics.game',
                             'originalDerivedGames',
                         )
+                        .leftJoinAndSelect('game.similarGames', 'similarGames')
+                        .leftJoinAndSelect('similarGames.musics', 'similarGamesMusics')
+                        .leftJoinAndSelect('similarGames.users', 'similarGamesUsers')
                         .andWhere('gameToMusic.game = :game')
                         .andWhere('music.duration >= :guessTime')
                         .setParameter('game', game.id)
@@ -322,6 +309,8 @@ export class LobbyService {
                             }
                         }
                     }
+                    const hintModeGames = await this.getHintModeGames(gameToMusic, userIds)
+
                     lobbyMusics = [
                         ...lobbyMusics,
                         this.lobbyMusicRepository.create({
@@ -331,6 +320,7 @@ export class LobbyService {
                             startAt,
                             endAt,
                             expectedAnswers,
+                            hintModeGames,
                             contributeToMissingData: [
                                 LobbyDifficulties.Easy,
                                 LobbyDifficulties.Medium,
@@ -381,6 +371,107 @@ export class LobbyService {
         await this.lobbyQueue.add('bufferMusic', lobby.code, {
             jobId: `lobby${lobby.code}bufferMusic1`,
         })
+    }
+
+    private async getHintModeGames(gameToMusic: GameToMusic, userIds: number[]): Promise<Game[]> {
+        let hintModeGames: Game[] = [gameToMusic.game]
+        let excludedGamesIds = [gameToMusic.game.id]
+        if (gameToMusic.type === GameToMusicType.Original) {
+            if (gameToMusic.derivedGameToMusics) {
+                excludedGamesIds = [
+                    ...excludedGamesIds,
+                    ...gameToMusic.derivedGameToMusics.map(
+                        (derivedGameMusic) => derivedGameMusic.game.id,
+                    ),
+                ]
+            }
+        } else {
+            const originalGameToMusic = gameToMusic.originalGameToMusic
+            if (originalGameToMusic !== null) {
+                if (originalGameToMusic.derivedGameToMusics) {
+                    excludedGamesIds = [
+                        ...excludedGamesIds,
+                        ...originalGameToMusic.derivedGameToMusics.map(
+                            (derivedGameMusic) => derivedGameMusic.game.id,
+                        ),
+                    ]
+                }
+            }
+        }
+        const similarPlayedGamesWithMusics = await this.gameRepository
+            .createQueryBuilder('game')
+            .select('game.id')
+            .innerJoin('game.musics', 'gameToMusic')
+            .innerJoin('game.users', 'user')
+            .innerJoin('game.isSimilarTo', 'similarGame')
+            .andWhere('similarGame.id = :id', { id: gameToMusic.game.id })
+            .andWhere('game.enabled = 1')
+            .andWhere('user.id in (:userIds)', { userIds })
+            .andWhere('game.id not in (:ids)', { ids: excludedGamesIds })
+            .groupBy('game.id')
+            .limit(3)
+            .orderBy('RAND()')
+            .getMany()
+        hintModeGames = [...hintModeGames, ...similarPlayedGamesWithMusics]
+        if (hintModeGames.length === 4) return hintModeGames
+        excludedGamesIds = [...excludedGamesIds, ...hintModeGames.map((game) => game.id)]
+        const playedGamesWithMusics = await this.gameRepository
+            .createQueryBuilder('game')
+            .select('game.id')
+            .innerJoin('game.musics', 'gameToMusic')
+            .innerJoin('game.users', 'user')
+            .andWhere('game.enabled = 1')
+            .andWhere('user.id in (:userIds)', { userIds })
+            .andWhere('game.id not in (:ids)', { ids: excludedGamesIds })
+            .groupBy('game.id')
+            .limit(4 - hintModeGames.length)
+            .orderBy('RAND()')
+            .getMany()
+        hintModeGames = [...hintModeGames, ...playedGamesWithMusics]
+        if (hintModeGames.length === 4) return hintModeGames
+        excludedGamesIds = [...excludedGamesIds, ...hintModeGames.map((game) => game.id)]
+        const similarPlayedGames = await this.gameRepository
+            .createQueryBuilder('game')
+            .select('game.id')
+            .innerJoin('game.users', 'user')
+            .innerJoin('game.isSimilarTo', 'similarGame')
+            .andWhere('similarGame.id = :id', { id: gameToMusic.game.id })
+            .andWhere('game.enabled = 1')
+            .andWhere('user.id in (:userIds)', { userIds })
+            .andWhere('game.id not in (:ids)', { ids: excludedGamesIds })
+            .groupBy('game.id')
+            .limit(4 - hintModeGames.length)
+            .orderBy('RAND()')
+            .getMany()
+        hintModeGames = [...hintModeGames, ...similarPlayedGames]
+        if (hintModeGames.length === 4) return hintModeGames
+        excludedGamesIds = [...excludedGamesIds, ...hintModeGames.map((game) => game.id)]
+        const playedGames = await this.gameRepository
+            .createQueryBuilder('game')
+            .select('game.id')
+            .innerJoin('game.users', 'user')
+            .andWhere('game.enabled = 1')
+            .andWhere('user.id in (:userIds)', { userIds })
+            .andWhere('game.id not in (:ids)', { ids: excludedGamesIds })
+            .groupBy('game.id')
+            .limit(4 - hintModeGames.length)
+            .orderBy('RAND()')
+            .getMany()
+        hintModeGames = [...hintModeGames, ...playedGames]
+        if (hintModeGames.length === 4) return hintModeGames
+        excludedGamesIds = [...excludedGamesIds, ...hintModeGames.map((game) => game.id)]
+        const gamesWithMusics = await this.gameRepository
+            .createQueryBuilder('game')
+            .select('game.id')
+            .innerJoin('game.musics', 'gameToMusic')
+            .andWhere('game.id not in (:ids)', { ids: excludedGamesIds })
+            .groupBy('game.id')
+            .limit(4 - hintModeGames.length)
+            .orderBy('RAND()')
+            .getMany()
+        hintModeGames = [...hintModeGames, ...gamesWithMusics]
+        if (hintModeGames.length === 4) return hintModeGames
+        throw new InternalServerErrorException()
     }
 
     async getMusicAccuracyRatio(lobby?: Lobby): Promise<number> {

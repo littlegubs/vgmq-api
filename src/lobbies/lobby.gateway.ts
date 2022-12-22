@@ -1,7 +1,7 @@
 import { Readable } from 'stream'
 
 import { InjectQueue } from '@nestjs/bull'
-import { forwardRef, Inject, Logger, NotFoundException, UseFilters } from '@nestjs/common'
+import { forwardRef, Inject, NotFoundException, UseFilters } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -26,9 +26,10 @@ import { Game } from '../games/entity/game.entity'
 import { Music } from '../games/entity/music.entity'
 import { S3Service } from '../s3/s3.service'
 import { UsersService } from '../users/users.service'
+import { shuffle } from '../utils/utils'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
-import { Lobby, LobbyStatuses } from './entities/lobby.entity'
+import { Lobby, LobbyHintMode, LobbyStatuses } from './entities/lobby.entity'
 import { InvalidPasswordException } from './exceptions/invalid-password.exception'
 import { MissingPasswordException } from './exceptions/missing-password.exception'
 import { LobbyFileGateway } from './lobby-file.gateway'
@@ -36,6 +37,10 @@ import { Duration } from './mp3'
 import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyService } from './services/lobby.service'
 import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
+
+export function getHintModeGameNames(lobbyMusic: LobbyMusic): string[] {
+    return shuffle(lobbyMusic.hintModeGames.map((game) => game.name))
+}
 
 @UseFilters(WsUnauthorizedExceptionFilter, WsNotFoundExceptionFilter)
 @WebSocketGateway({
@@ -46,7 +51,6 @@ import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
 export class LobbyGateway implements NestGateway, OnGatewayConnection {
     @WebSocketServer()
     server: Server
-    private readonly logger = new Logger(LobbyGateway.name)
 
     constructor(
         @InjectRepository(Lobby)
@@ -83,7 +87,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (lobby === null) {
             throw new NotFoundException()
         }
-        const lobbyUser = await this.lobbyUserRepository.findOne({
+        let lobbyUser = await this.lobbyUserRepository.findOne({
             relations: ['user', 'lobby'],
             where: {
                 user: {
@@ -103,25 +107,32 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                     throw new InvalidPasswordException()
                 }
             }
-            await this.lobbyUserRepository.save({
-                lobby: lobby,
-                user: client.user,
-                role:
-                    lobby.status === LobbyStatuses.Waiting
-                        ? LobbyUserRole.Player
-                        : LobbyUserRole.Spectator,
-            })
+            lobbyUser = this.lobbyUserRepository.create(
+                await this.lobbyUserRepository.save({
+                    lobby: lobby,
+                    user: client.user,
+                    role:
+                        lobby.status === LobbyStatuses.Waiting
+                            ? LobbyUserRole.Player
+                            : LobbyUserRole.Spectator,
+                }),
+            )
         } else {
             // if user was previously in lobby, set them connected
-            await this.lobbyUserRepository.save({
-                ...lobbyUser,
-                disconnected: false,
-                isReconnecting: false,
-            })
+            lobbyUser = this.lobbyUserRepository.create(
+                await this.lobbyUserRepository.save({
+                    ...lobbyUser,
+                    disconnected: false,
+                    isReconnecting: false,
+                }),
+            )
         }
         await client.join(lobby.code)
+        await client.join(`lobbyUser${lobbyUser.id}`)
         client.emit('lobbyJoined', classToClass<Lobby>(lobby, { groups: ['lobby'] }))
-
+        if (lobbyUser.hintMode) {
+            await this.showHintModeGames(lobbyUser, client, false)
+        }
         if (
             [LobbyStatuses.PlayingMusic.toString(), LobbyStatuses.AnswerReveal.toString()].includes(
                 lobby.status,
@@ -206,6 +217,40 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             throw new WsException('Not found')
         }
 
+        if (lobbyUser.hintMode) {
+            lobbyUser = this.lobbyUserRepository.create(
+                await this.lobbyUserRepository.save({ ...lobbyUser, answer }),
+            )
+            this.server.to(lobby.code).emit(
+                'lobbyUser',
+                classToClass<LobbyUser>(lobbyUser, {
+                    groups: ['wsLobby'],
+                    strategy: 'excludeAll',
+                }),
+            )
+            return
+        }
+
+        lobbyUser = await this.verifyAnswer(lobby, answer, lobbyUser)
+        this.server.to(lobby.code).emit(
+            'lobbyUser',
+            classToClass<LobbyUser>(lobbyUser, {
+                groups: ['wsLobby'],
+                strategy: 'excludeAll',
+            }),
+        )
+        if (!lobbyUser.correctAnswer) {
+            await this.lobbyUserRepository.save({ ...lobbyUser, correctAnswer: null }) // set correct answer to null to prevent bugs
+        }
+
+        return
+    }
+
+    public async verifyAnswer(
+        lobby: Lobby,
+        answer: string,
+        lobbyUser: LobbyUser,
+    ): Promise<LobbyUser> {
         const lobbyMusic = await this.lobbyMusicRepository
             .createQueryBuilder('lobbyMusic')
             .innerJoinAndSelect('lobbyMusic.expectedAnswers', 'expectedAnswers')
@@ -262,23 +307,13 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             pointsToWin -= lobbyUser.tries
             lobbyUser = this.lobbyUserRepository.create({
                 ...lobbyUser,
-                points: lobbyUser.points + (pointsToWin < 1 ? 1 : pointsToWin),
+                points:
+                    lobbyUser.points + (lobbyUser.hintMode ? 5 : pointsToWin < 6 ? 6 : pointsToWin),
                 musicGuessedRight: lobbyUser.musicGuessedRight + 1,
             })
-            await this.lobbyUserRepository.save(lobbyUser)
+            this.lobbyUserRepository.create(await this.lobbyUserRepository.save(lobbyUser))
         }
-        this.server.to(lobby.code).emit(
-            'lobbyUser',
-            classToClass<LobbyUser>(lobbyUser, {
-                groups: ['wsLobby'],
-                strategy: 'excludeAll',
-            }),
-        )
-        if (!lobbyUser.correctAnswer) {
-            await this.lobbyUserRepository.save({ ...lobbyUser, correctAnswer: null }) // set correct answer to null to prevent bugs
-        }
-
-        return
+        return lobbyUser
     }
 
     @SubscribeMessage('restart')
@@ -379,6 +414,76 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code)
             }
         }
+    }
+
+    @SubscribeMessage('enableHintMode')
+    async enableHintMode(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        let lobbyUser = await this.lobbyUserService.getLobbyUserByUsername(client.user.username)
+        if (lobbyUser === null) {
+            throw new WsException('Not found')
+        }
+        if (lobbyUser.lobby.hintMode === LobbyHintMode.Disabled) {
+            throw new WsException('')
+        }
+        lobbyUser = this.lobbyUserRepository.create(
+            await this.lobbyUserRepository.save({ ...lobbyUser, hintMode: true }),
+        )
+        await this.showHintModeGames(lobbyUser, client)
+    }
+
+    private async showHintModeGames(
+        lobbyUser: LobbyUser,
+        client: AuthenticatedSocket,
+        emitToLobby = true,
+    ): Promise<void> {
+        const lobbyMusic = await this.lobbyMusicRepository.findOne({
+            relations: {
+                lobby: true,
+                gameToMusic: {
+                    music: true,
+                },
+                hintModeGames: true,
+            },
+            where: {
+                lobby: {
+                    id: lobbyUser.lobby.id,
+                },
+                position: lobbyUser.lobby.currentLobbyMusicPosition!,
+            },
+        })
+        if (lobbyMusic) {
+            client.emit('hintModeGames', getHintModeGameNames(lobbyMusic))
+            if (emitToLobby) {
+                this.server.to(lobbyUser.lobby.code).emit(
+                    'lobbyUser',
+                    classToClass<LobbyUser>(lobbyUser, {
+                        groups: ['wsLobby'],
+                        strategy: 'excludeAll',
+                    }),
+                )
+            }
+        }
+    }
+
+    public showHintModeGamesToHintModeUsers(lobbyMusic: LobbyMusic, lobbyUsers: LobbyUser[]): void {
+        this.server
+            .to(lobbyUsers.map((lobbyUser) => `lobbyUser${lobbyUser.id}`))
+            .emit('hintModeGames', getHintModeGameNames(lobbyMusic))
+    }
+
+    @SubscribeMessage('toggleKeepHintMode')
+    async toggleKeepHintMode(
+        @ConnectedSocket() client: AuthenticatedSocket,
+        @MessageBody() bool: boolean,
+    ): Promise<void> {
+        const lobbyUser = await this.lobbyUserService.getLobbyUserByUsername(client.user.username)
+        if (lobbyUser === null) {
+            throw new WsException('Not found')
+        }
+        if (lobbyUser.lobby.hintMode === LobbyHintMode.Disabled) {
+            throw new WsException('')
+        }
+        await this.lobbyUserRepository.save({ ...lobbyUser, keepHintMode: bool })
     }
 
     afterInit(): void {

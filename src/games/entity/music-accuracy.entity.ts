@@ -21,6 +21,9 @@ export class MusicAccuracy {
     @Column({ type: 'boolean' })
     playedTheGame: boolean
 
+    @Column({ type: 'boolean' })
+    hintMode: boolean
+
     @ManyToOne(() => GameToMusic, (gameToMusic) => gameToMusic.musicAccuracies, {
         onDelete: 'CASCADE',
     })

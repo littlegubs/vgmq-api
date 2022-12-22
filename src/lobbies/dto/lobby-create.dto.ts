@@ -1,7 +1,7 @@
 import { Transform } from 'class-transformer'
 import { IsNotEmpty, IsNumber, Max, Min } from 'class-validator'
 
-import { LobbyDifficulties, LobbyGameModes } from '../entities/lobby.entity'
+import { LobbyDifficulties, LobbyGameModes, LobbyHintMode } from '../entities/lobby.entity'
 
 export class LobbyCreateDto {
     @IsNotEmpty()
@@ -36,4 +36,6 @@ export class LobbyCreateDto {
     allowContributeToMissingData: boolean
     gameMode: LobbyGameModes
     playMusicOnAnswerReveal: boolean
+    @IsNotEmpty()
+    hintMode: LobbyHintMode
 }

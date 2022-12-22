@@ -94,6 +94,15 @@ export class Game {
     @JoinTable({ name: 'games_platforms' })
     platforms: Platform[]
 
+    @ManyToMany(() => Game, (game) => game.isSimilarTo, {
+        cascade: ['insert', 'update'],
+    })
+    @JoinTable({ name: 'games_similar_games', inverseJoinColumn: { name: 'similarGameId' } })
+    similarGames: Game[]
+
+    @ManyToMany(() => Game, (game) => game.similarGames)
+    isSimilarTo: Game[]
+
     @Column()
     @CreateDateColumn()
     createdAt: Date

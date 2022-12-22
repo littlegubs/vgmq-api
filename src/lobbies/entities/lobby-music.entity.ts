@@ -51,6 +51,10 @@ export class LobbyMusic {
     @Column({ type: 'datetime', nullable: true })
     musicFinishPlayingAt: Date
 
+    @ManyToMany(() => Game, { onDelete: 'CASCADE' })
+    @JoinTable()
+    hintModeGames: Game[]
+
     @Column()
     @CreateDateColumn()
     createdAt: Date
