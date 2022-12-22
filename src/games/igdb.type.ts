@@ -26,4 +26,8 @@ export type IgdbGame = {
         id: number
         url: string
     }
+    similar_games?: {
+        id: number
+        url: string
+    }[]
 }

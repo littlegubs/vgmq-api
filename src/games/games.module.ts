@@ -19,6 +19,7 @@ import { MusicAccuracy } from './entity/music-accuracy.entity'
 import { Music } from './entity/music.entity'
 import { Platform } from './entity/platform.entity'
 import { GameToMusicController } from './game-to-music.controller'
+import { GameProcessor } from './game.processor'
 import { WebhookController } from './games-webhook.controller'
 import { GamesController } from './games.controller'
 import { IgdbHttpService } from './http/igdb.http.service'
@@ -70,6 +71,9 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
         BullModule.registerQueue({
             name: 'igdbWebhook',
         }),
+        BullModule.registerQueue({
+            name: 'game',
+        }),
     ],
     providers: [
         GamesService,
@@ -81,6 +85,7 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
         MusicAccuracySubscriber,
         S3Service,
         IgdbWebhookProcessor,
+        GameProcessor,
     ],
 })
 export class GamesModule {}

@@ -1,5 +1,4 @@
 import { Process, Processor } from '@nestjs/bull'
-import { Logger } from '@nestjs/common'
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job } from 'bull'
@@ -24,7 +23,6 @@ export class IgdbWebhookProcessor {
         private elasticsearchService: ElasticsearchService,
         private igdbHttpService: IgdbHttpService,
     ) {}
-    private readonly logger = new Logger(IgdbWebhookProcessor.name)
 
     @Process('gameUpdate')
     async gameUpdate(job: Job<IgdbGame>): Promise<void> {

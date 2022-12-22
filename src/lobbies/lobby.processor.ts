@@ -10,7 +10,7 @@ import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
-import { Lobby, LobbyGameModes, LobbyStatuses } from './entities/lobby.entity'
+import { Lobby, LobbyGameModes, LobbyHintMode, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyUserService } from './services/lobby-user.service'
 
@@ -86,7 +86,7 @@ export class LobbyProcessor {
             }),
         )
 
-        const lobbyUsers = await this.lobbyUserRepository.find({
+        let lobbyUsers = await this.lobbyUserRepository.find({
             relations: {
                 user: true,
                 lobby: true,
@@ -98,13 +98,16 @@ export class LobbyProcessor {
                 disconnected: false,
             },
         })
-        await this.lobbyUserRepository.save(
-            lobbyUsers.map((lobbyUser) => ({
-                ...lobbyUser,
-                status: LobbyUserStatus.Buffering,
-            })),
+        lobbyUsers = this.lobbyUserRepository.create(
+            await this.lobbyUserRepository.save(
+                lobbyUsers.map((lobbyUser) => ({
+                    ...lobbyUser,
+                    status: LobbyUserStatus.Buffering,
+                    correctAnswer: lobbyUser.correctAnswer || null,
+                })),
+            ),
         )
-        await this.lobbyGateway.sendLobbyUsers(lobby)
+        await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
         })
@@ -163,6 +166,9 @@ export class LobbyProcessor {
                             ...lobbyUser,
                             correctAnswer: null,
                             playedTheGame: null,
+                            hintMode:
+                                lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode, // why do I have to use '!' here ??
+                            answer: null,
                         })),
                     ),
                 )
@@ -189,6 +195,7 @@ export class LobbyProcessor {
                 gameToMusic: {
                     music: true,
                 },
+                hintModeGames: true,
             },
             where: {
                 lobby: {
@@ -210,11 +217,18 @@ export class LobbyProcessor {
                     playedTheGame: null,
                     tries: 0,
                     ...(lobbyUser.status === LobbyUserStatus.ReadyToPlayMusic && { status: null }),
+                    hintMode: lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode, // why do I have to use '!' here ??
+                    answer: null,
                 })),
             ),
         )
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
+        const lobbyUsersHintMode = lobbyUsers.filter((lobbyUser) => lobbyUser.hintMode)
+        if (lobbyUsersHintMode.length > 0) {
+            this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobbyUsersHintMode)
+        }
+
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
@@ -241,6 +255,7 @@ export class LobbyProcessor {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
+
         lobby = this.lobbyRepository.create(
             await this.lobbyRepository.save({
                 ...lobby,
@@ -293,7 +308,10 @@ export class LobbyProcessor {
             },
         })
 
-        for (const lobbyUser of lobbyUsers) {
+        for (let lobbyUser of lobbyUsers) {
+            if (lobbyUser.hintMode && lobbyUser.answer) {
+                lobbyUser = await this.lobbyGateway.verifyAnswer(lobby, lobbyUser.answer, lobbyUser)
+            }
             const userPlayedTheGame = await this.userService.userHasPlayedTheGame(
                 lobbyUser.user,
                 currentLobbyMusic.gameToMusic.game,
@@ -351,6 +369,7 @@ export class LobbyProcessor {
                     playedTheGame: !!userPlayedTheGame,
                     correctAnswer: !!lobbyUser.correctAnswer,
                     gameToMusic: currentLobbyMusic.gameToMusic,
+                    hintMode: lobbyUser.hintMode,
                     user: lobbyUser.user,
                 })
             }
@@ -378,6 +397,44 @@ export class LobbyProcessor {
                 lobbyMusics: [],
             }),
         )
+        await this.removeDisconnectedUsers(lobby)
+        await this.setSpectatorsAsPlayer(lobby)
+        await this.resetUserState(lobby)
+
+        await this.lobbyGateway.sendLobbyUsers(lobby)
+        this.lobbyGateway.sendLobbyReset(lobby)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}bufferMusic*`)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}playMusic*`)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}revealAnswer*`)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}finalResult*`)
+    }
+
+    private async resetUserState(lobby: Lobby): Promise<void> {
+        const lobbyUsers = await this.lobbyUserRepository.find({
+            relations: ['user', 'lobby'],
+            where: {
+                lobby: {
+                    id: lobby.id,
+                },
+            },
+        })
+        await this.lobbyUserRepository.save(
+            lobbyUsers.map((lobbyUser) => ({
+                ...lobbyUser,
+                correctAnswer: null,
+                answer: null,
+                status: null,
+                playedTheGame: null,
+                points: 0,
+                musicGuessedRight: 0,
+                tries: 0,
+                hintMode: false,
+                keepHintMode: false,
+            })),
+        )
+    }
+
+    private async removeDisconnectedUsers(lobby: Lobby): Promise<void> {
         const disconnectedLobbyUsers = await this.lobbyUserRepository.find({
             where: {
                 lobby: {
@@ -394,8 +451,9 @@ export class LobbyProcessor {
                 disconnectedLobbyUsers.map((lobbyUser) => ({ ...lobbyUser, disconnected: false })),
             )
         }
+    }
 
-        // set spectators as players
+    private async setSpectatorsAsPlayer(lobby: Lobby): Promise<void> {
         const lobbySpectators = await this.lobbyUserRepository.find({
             where: {
                 lobby: {
@@ -407,34 +465,6 @@ export class LobbyProcessor {
         await this.lobbyUserRepository.save(
             lobbySpectators.map((lobbyUser) => ({ ...lobbyUser, role: LobbyUserRole.Player })),
         )
-
-        // set answers back to null
-        const lobbyUsers = await this.lobbyUserRepository.find({
-            relations: ['user', 'lobby'],
-            where: {
-                lobby: {
-                    id: lobby.id,
-                },
-            },
-        })
-        await this.lobbyUserRepository.save(
-            lobbyUsers.map((lobbyUser) => ({
-                ...lobbyUser,
-                correctAnswer: null,
-                status: null,
-                playedTheGame: null,
-                points: 0,
-                musicGuessedRight: 0,
-                tries: 0,
-            })),
-        )
-
-        await this.lobbyGateway.sendLobbyUsers(lobby)
-        this.lobbyGateway.sendLobbyReset(lobby)
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}bufferMusic*`)
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}playMusic*`)
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}revealAnswer*`)
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}finalResult*`)
     }
 
     @Process('disconnectUser')

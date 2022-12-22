@@ -1,4 +1,4 @@
-import { Expose } from 'class-transformer'
+import { Expose, Transform } from 'class-transformer'
 import {
     Column,
     CreateDateColumn,
@@ -58,8 +58,10 @@ export class LobbyUser {
     @Expose({ groups: ['wsLobby'] })
     status: string | null
 
-    @Column({ nullable: true })
-    answer?: string
+    @Column({ type: 'varchar', nullable: true })
+    @Expose({ groups: ['wsLobby'] })
+    @Transform(({ value }) => !!value)
+    answer: string | null
 
     @Column({ type: 'boolean', nullable: true })
     @Expose({ groups: ['wsLobby'] })
@@ -71,6 +73,14 @@ export class LobbyUser {
     @Column({ type: 'boolean', nullable: true })
     @Expose({ groups: ['wsLobby'] })
     playedTheGame: boolean | null
+
+    @Column({ type: 'boolean', default: false })
+    @Expose({ groups: ['wsLobby'] })
+    hintMode = false
+
+    @Column({ type: 'boolean', default: false })
+    @Expose({ groups: ['wsLobby'] })
+    keepHintMode = false
 
     @OneToOne(() => User, (user) => user.currentLobby, { onDelete: 'CASCADE' })
     @Expose({ groups: ['wsLobby'] })

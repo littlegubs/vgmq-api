@@ -5,9 +5,11 @@ import {
     IndexResponse,
     UpdateByQueryResponse,
 } from '@elastic/elasticsearch/lib/api/types'
+import { InjectQueue } from '@nestjs/bull'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
+import { Queue } from 'bull'
 import * as mm from 'music-metadata'
 import Vibrant = require('node-vibrant')
 import { Brackets, Repository } from 'typeorm'
@@ -42,6 +44,8 @@ export class GamesService {
         private alternativeNameRepository: Repository<AlternativeName>,
         private elasticsearchService: ElasticsearchService,
         private s3Service: S3Service,
+        @InjectQueue('game')
+        private gameQueue: Queue,
     ) {}
     async findByName(
         query: string,
@@ -167,6 +171,7 @@ export class GamesService {
             ]
             i = i + 1
         }
+        await this.gameQueue.add('getSimilarGames', game.id)
         return { ...game, musics: [...game.musics, ...musics] }
     }
 
