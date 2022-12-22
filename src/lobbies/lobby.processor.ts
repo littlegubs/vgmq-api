@@ -222,14 +222,14 @@ export class LobbyProcessor {
                 })),
             ),
         )
-        this.lobbyGateway.playMusic(lobbyMusic)
-        this.lobbyGateway.sendUpdateToRoom(lobby)
         const lobbyUsersHintMode = lobbyUsers.filter((lobbyUser) => lobbyUser.hintMode)
         if (lobbyUsersHintMode.length > 0) {
             this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobbyUsersHintMode)
         }
 
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
+        this.lobbyGateway.playMusic(lobbyMusic)
+        this.lobbyGateway.sendUpdateToRoom(lobby)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,

@@ -130,7 +130,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         await client.join(lobby.code)
         await client.join(`lobbyUser${lobbyUser.id}`)
         client.emit('lobbyJoined', classToClass<Lobby>(lobby, { groups: ['lobby'] }))
-        if (lobbyUser.hintMode) {
+        if (lobby.hintMode === LobbyHintMode.Always || lobbyUser.hintMode) {
             await this.showHintModeGames(lobbyUser, client, false)
         }
         if (
@@ -142,7 +142,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 relations: {
                     lobby: true,
                     gameToMusic: {
-                        game: true,
+                        game: {
+                            cover: {
+                                colorPalette: true,
+                            },
+                        },
                         music: true,
                     },
                 },
@@ -209,7 +213,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 role: Not(LobbyUserRole.Spectator),
             },
         })
-        if (!lobbyUser) {
+        if (!lobbyUser || lobbyUser.correctAnswer) {
             throw new WsException('Not found')
         }
         const lobby = lobbyUser.lobby
