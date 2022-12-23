@@ -299,7 +299,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         })
 
         if (lobbyUser.correctAnswer && lobbyMusic) {
-            let pointsToWin = 11
+            let pointsToWin = 10
             if (
                 !(await this.userService.userHasPlayedTheGame(
                     lobbyUser.user,
@@ -308,11 +308,10 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             ) {
                 pointsToWin += 5
             }
-            pointsToWin -= lobbyUser.tries
+            if (lobbyUser.tries === 1) pointsToWin += 5
             lobbyUser = this.lobbyUserRepository.create({
                 ...lobbyUser,
-                points:
-                    lobbyUser.points + (lobbyUser.hintMode ? 5 : pointsToWin < 6 ? 6 : pointsToWin),
+                points: lobbyUser.points + (lobbyUser.hintMode ? 5 : pointsToWin),
                 musicGuessedRight: lobbyUser.musicGuessedRight + 1,
             })
             this.lobbyUserRepository.create(await this.lobbyUserRepository.save(lobbyUser))
