@@ -96,18 +96,6 @@ export class IgdbService {
         }
     }
 
-    async getSimilarGame(similarGame: {
-        id: number
-        url: string
-    }): Promise<Promise<Game | undefined>> {
-        const game = await this.gamesRepository.findOne({ where: { igdbId: similarGame.id } })
-        if (game) return game
-        //only retrieve game if it does not exist to prevent infinite loop
-        const [igdbGame] = await this.igdbHttpService.importByUrl(similarGame.url)
-        console.log(igdbGame?.category)
-        return igdbGame && igdbGame.category === 0 ? this.import(igdbGame) : undefined
-    }
-
     async getCover(
         game: Game,
         igdbCover?: {
