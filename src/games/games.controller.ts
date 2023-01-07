@@ -57,10 +57,12 @@ export class GamesController {
     ): Promise<{ data: Game[]; count: number }> {
         const user = request.user as User
         let [games, count] = await this.gamesService.findByName(query.query, {
-            showDisabled: false,
             limit: query.limit,
             skip: query.skip,
             ...(query.filterByUser && { filterByUser: user }),
+            showDisabled: query.showDisabled,
+            onlyShowWithoutMusics: query.onlyShowWithoutMusics,
+            sortBy: query.sortBy,
         })
 
         // TODO try mikrORM because i'm writing some mad bullshit to make things work with TypeORM

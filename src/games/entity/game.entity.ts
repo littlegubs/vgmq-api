@@ -67,6 +67,8 @@ export class Game {
     @ManyToMany(() => User, (user) => user.games)
     users: User[]
 
+    countUsers: number
+
     selectedByUser = false
 
     @ManyToOne(() => Game, (game) => game.children, {

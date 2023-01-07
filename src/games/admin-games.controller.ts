@@ -1,6 +1,5 @@
 import {
     BadRequestException,
-    ClassSerializerInterceptor,
     Controller,
     Get,
     HttpCode,
@@ -9,7 +8,6 @@ import {
     Patch,
     Post,
     Query,
-    SerializeOptions,
     UploadedFiles,
     UseGuards,
     UseInterceptors,
@@ -25,7 +23,6 @@ import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
 import { GamesImportDto } from './dto/games-import.dto'
-import { GamesSearchAdminDto } from './dto/games-search-admin.dto'
 import { Game } from './entity/game.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
@@ -42,25 +39,6 @@ export class AdminGamesController {
         private configService: ConfigService,
         private igdbHttpService: IgdbHttpService,
     ) {}
-
-    @Roles(Role.Admin)
-    @Get('')
-    @UseInterceptors(ClassSerializerInterceptor)
-    @SerializeOptions({
-        groups: ['game-list'],
-    })
-    getAll(@Query() query: GamesSearchAdminDto): Promise<{ data: Game[]; count: number }> {
-        return this.gamesService
-            .findByName(query.query, {
-                showDisabled: query.showDisabled,
-                onlyShowWithoutMusics: query.onlyShowWithoutMusics,
-                limit: query.limit,
-                skip: query.skip,
-            })
-            .then(([data, count]) => {
-                return { data, count }
-            })
-    }
 
     @Roles(Role.Admin)
     @Get('import')
