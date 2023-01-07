@@ -24,7 +24,7 @@ export class GameProcessor {
     ) {}
 
     @Process('getSimilarGames')
-    async gameUpdate(job: Job<number>): Promise<void> {
+    async getSimilarGames(job: Job<number>): Promise<void> {
         const game = await this.gamesRepository.findOne({
             relations: {
                 musics: true,

@@ -104,7 +104,7 @@ export class IgdbService {
         if (game) return game
         //only retrieve game if it does not exist to prevent infinite loop
         const [igdbGame] = await this.igdbHttpService.importByUrl(similarGame.url)
-
+        console.log(igdbGame?.category)
         return igdbGame && igdbGame.category === 0 ? this.import(igdbGame) : undefined
     }
 
