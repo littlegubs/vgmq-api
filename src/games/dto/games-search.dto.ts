@@ -9,4 +9,19 @@ export class GamesSearchDto {
     limit?: number
 
     skip?: number
+
+    showDisabled = false
+
+    onlyShowWithoutMusics = false
+
+    sortBy: GameSearchSortBy
+}
+
+export enum GameSearchSortBy {
+    NameAsc = 'name_asc',
+    NameDesc = 'name_desc',
+    CountUsersAsc = 'count_user_asc',
+    CountUsersDesc = 'count_user_desc',
+    CountMusicsAsc = 'count_music_asc',
+    CountMusicsDesc = 'count_music_desc',
 }

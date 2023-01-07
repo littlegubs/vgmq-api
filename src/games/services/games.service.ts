@@ -17,6 +17,7 @@ import { Brackets, Repository } from 'typeorm'
 import { File } from '../../entity/file.entity'
 import { S3Service } from '../../s3/s3.service'
 import { User } from '../../users/user.entity'
+import { GameSearchSortBy } from '../dto/games-search.dto'
 import { AlternativeName } from '../entity/alternative-name.entity'
 import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
@@ -53,12 +54,25 @@ export class GamesService {
             showDisabled?: boolean
             onlyShowWithoutMusics?: boolean
             filterByUser?: User
+            sortBy: GameSearchSortBy
             limit?: number
             skip?: number
         },
     ): Promise<[Game[], number]> {
         const qb = this.gameRepository
             .createQueryBuilder('game')
+            .addSelect((sbq) => {
+                return sbq
+                    .select('COUNT(*)', 'count')
+                    .from('user_games', 'ug')
+                    .where('ug.gameId = game.id')
+            }, 'countUsers')
+            .addSelect((sbq) => {
+                return sbq
+                    .select('COUNT(*)', 'count')
+                    .from(GameToMusic, 'gtm')
+                    .where('gtm.gameId = game.id')
+            }, 'countMusics')
             .leftJoin('game.alternativeNames', 'alternativeName')
             .loadRelationCountAndMap('game.countMusics', 'game.musics', 'countMusics')
             .loadRelationCountAndMap('game.countUsers', 'game.users', 'countUsers')
@@ -77,7 +91,6 @@ export class GamesService {
                 }),
             )
             .setParameter('name', `%${query}%`)
-            .orderBy('game.name')
             .groupBy('game.id')
         if (options?.showDisabled === false) {
             qb.andWhere('game.enabled = 1')
@@ -94,6 +107,26 @@ export class GamesService {
             qb.leftJoin('game.users', 'user').andWhere('user.id = :userId', {
                 userId: options.filterByUser.id,
             })
+        }
+
+        if (options?.sortBy === GameSearchSortBy.NameDesc) {
+            qb.addOrderBy('game.name', 'DESC')
+        } else {
+            switch (options?.sortBy) {
+                case GameSearchSortBy.CountUsersAsc:
+                    qb.addOrderBy('countUsers', 'ASC')
+                    break
+                case GameSearchSortBy.CountUsersDesc:
+                    qb.addOrderBy('countUsers', 'DESC')
+                    break
+                case GameSearchSortBy.CountMusicsAsc:
+                    qb.addOrderBy('countMusics', 'ASC')
+                    break
+                case GameSearchSortBy.CountMusicsDesc:
+                    qb.addOrderBy('countMusics', 'DESC')
+                    break
+            }
+            qb.addOrderBy('game.name')
         }
 
         if (options?.limit !== undefined) {
