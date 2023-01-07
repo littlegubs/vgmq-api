@@ -19,6 +19,7 @@ import { LobbyListGateway } from './lobby-list.gateway'
 import { LobbyController } from './lobby.controller'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyProcessor } from './lobby.processor'
+import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyService } from './services/lobby.service'
 import { LobbyUserSubscriber } from './subscribers/lobby-user.subscriber'
@@ -61,6 +62,7 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
         S3Service,
         LobbyUserService,
         UsersService,
+        LobbyMusicLoaderService,
     ],
 })
 export class LobbyModule {}

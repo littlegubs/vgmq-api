@@ -34,6 +34,7 @@ import { InvalidPasswordException } from './exceptions/invalid-password.exceptio
 import { MissingPasswordException } from './exceptions/missing-password.exception'
 import { LobbyFileGateway } from './lobby-file.gateway'
 import { Duration } from './mp3'
+import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyService } from './services/lobby.service'
 import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
@@ -66,6 +67,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyService))
         private lobbyService: LobbyService,
+        @Inject(forwardRef(() => LobbyMusicLoaderService))
+        private lobbyMusicLoaderService: LobbyMusicLoaderService,
         private s3Service: S3Service,
         private lobbyUserService: LobbyUserService,
         private readonly jwtService: JwtService,
@@ -179,7 +182,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Loading })
         await this.lobbyRepository.save(lobby)
         this.sendUpdateToRoom(lobby)
-        await this.lobbyService.loadMusics(lobby)
+        await this.lobbyMusicLoaderService.loadMusics(lobby)
     }
 
     @SubscribeMessage('chat')
