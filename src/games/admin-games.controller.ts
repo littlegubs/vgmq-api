@@ -44,7 +44,7 @@ export class AdminGamesController {
     @Get('import')
     @HttpCode(201)
     async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
-        const [igdbGame] = await this.igdbHttpService.importByUrl(query.url)
+        const [igdbGame] = await this.igdbHttpService.getDataFromUrl(query.url)
 
         if (!igdbGame) throw new NotFoundException('the game was not found')
 

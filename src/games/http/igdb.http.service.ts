@@ -64,7 +64,7 @@ export class IgdbHttpService {
         })
     }
 
-    async importByUrl(url: string): Promise<IgdbGame[]> {
+    async getDataFromUrl(url: string): Promise<IgdbGame[]> {
         const accessToken = await this.getAccessToken()
         return new Promise<IgdbGame[]>((resolve) => {
             this.httpService

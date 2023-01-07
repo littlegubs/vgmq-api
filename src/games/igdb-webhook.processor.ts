@@ -32,7 +32,7 @@ export class IgdbWebhookProcessor {
             },
         })
         if (game !== null) {
-            const [igdbGame] = await this.igdbHttpService.importByUrl(job.data.url)
+            const [igdbGame] = await this.igdbHttpService.getDataFromUrl(job.data.url)
 
             if (!igdbGame) return
             await this.igdbService.import(igdbGame)

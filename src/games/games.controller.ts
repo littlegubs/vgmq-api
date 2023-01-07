@@ -94,12 +94,12 @@ export class GamesController {
     @Get('import')
     @HttpCode(201)
     async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
-        let [igdbGame] = await this.igdbHttpService.importByUrl(query.url)
+        let [igdbGame] = await this.igdbHttpService.getDataFromUrl(query.url)
 
         if (!igdbGame) throw new NotFoundException('the game was not found')
         if (igdbGame.category !== 0) throw new BadRequestException('The game is not a main game')
         if (igdbGame.version_parent) {
-            igdbGame = (await this.igdbHttpService.importByUrl(query.url))[0]
+            igdbGame = (await this.igdbHttpService.getDataFromUrl(query.url))[0]
             if (!igdbGame) throw new InternalServerErrorException()
         }
 
