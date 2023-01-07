@@ -40,7 +40,9 @@ export class GameProcessor {
             let similarGames: Game[] = []
             if (igdbGame.similar_games) {
                 for (const igdbSimilarGame of igdbGame.similar_games) {
-                    const similarGame = await this.igdbService.getSimilarGame(igdbSimilarGame)
+                    const similarGame = await this.gamesRepository.findOne({
+                        where: { igdbId: igdbSimilarGame.id },
+                    })
                     if (similarGame) similarGames = [...similarGames, similarGame]
                 }
             }
