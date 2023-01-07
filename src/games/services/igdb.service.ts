@@ -57,6 +57,7 @@ export class IgdbService {
             firstReleaseDate: igdbGame.first_release_date
                 ? DateTime.fromSeconds(igdbGame.first_release_date).toISO()
                 : null,
+            enabled: true,
         })
 
         const cover = await this.getCover(game, igdbGame.cover)
@@ -90,7 +91,7 @@ export class IgdbService {
         url: string
     }): Promise<Promise<Game | undefined> | undefined> {
         if (parent) {
-            const [igdbGame] = await this.igdbHttpService.importByUrl(parent.url)
+            const [igdbGame] = await this.igdbHttpService.getDataFromUrl(parent.url)
 
             return igdbGame ? this.import(igdbGame) : undefined
         }

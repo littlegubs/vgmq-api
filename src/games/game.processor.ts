@@ -34,7 +34,7 @@ export class GameProcessor {
             },
         })
         if (game !== null && game.musics.length > 0) {
-            const [igdbGame] = await this.igdbHttpService.importByUrl(game.url)
+            const [igdbGame] = await this.igdbHttpService.getDataFromUrl(game.url)
 
             if (!igdbGame) return
             let similarGames: Game[] = []
