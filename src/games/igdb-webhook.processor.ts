@@ -26,9 +26,10 @@ export class IgdbWebhookProcessor {
 
     @Process('gameUpdate')
     async gameUpdate(job: Job<IgdbGame>): Promise<void> {
-        const game = await this.gamesRepository.find({
+        const game = await this.gamesRepository.findOne({
             where: {
                 igdbId: job.data.id,
+                enabled: true,
             },
         })
         if (game !== null) {
