@@ -138,6 +138,7 @@ export class LobbyMusicLoaderService {
                     qbGuessAccuracyIsNull,
                     qbGuessAccuracyReflectsLobbyDifficulty,
                 )
+                this.lobbyGateway.sendLobbyLoadProgress(lobby, game?.name)
 
                 if (game !== null) {
                     const qb = this.gameToMusicRepository

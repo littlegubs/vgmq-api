@@ -616,7 +616,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         this.server.to(lobby.code).emit('lobbyToast', message)
     }
 
-    sendLobbyLoadProgress(lobby: Lobby, message: number): void {
+    sendLobbyLoadProgress(lobby: Lobby, message: number | string | undefined): void {
         this.server.to(lobby.code).emit('lobbyLoadProgress', message)
     }
 }
