@@ -100,6 +100,7 @@ export class LobbyMusicLoaderService {
         const gameToMusicAccuracyRatio = await this.lobbyService.getMusicAccuracyRatio(this.lobby)
 
         while (userIdsRandom.some((userId) => userId !== undefined)) {
+            const i = 0
             for (const userId of userIdsRandom) {
                 if (userId === undefined) {
                     continue
@@ -107,7 +108,7 @@ export class LobbyMusicLoaderService {
                 this.contributeMissingData = this.lobby.allowContributeToMissingData
                     ? Math.random() > gameToMusicAccuracyRatio
                     : false
-                const i = userIdsRandom.indexOf(userId)
+                let i = userIdsRandom.indexOf(userId)
                 const gameQueryBuilder = this.gameRepository
                     .createQueryBuilder('game')
                     .select('game.id')
@@ -249,6 +250,11 @@ export class LobbyMusicLoaderService {
                         ...gameToMusic,
                         playNumber: gameToMusic.playNumber + 1,
                     })
+                    i += 1
+                    this.lobbyGateway.sendLobbyLoadProgress(
+                        lobby,
+                        Math.round((i / lobby.musicNumber) * 100),
+                    )
                 } else {
                     if (userId.length === userIds.length) {
                         userIdsRandom.splice(i, 1, undefined)
