@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
 import { Cache } from 'cache-manager'
-import { Brackets, In, ObjectLiteral, Repository, SelectQueryBuilder } from 'typeorm'
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { GameToMusic, GameToMusicType } from '../../games/entity/game-to-music.entity'
 import { Game } from '../../games/entity/game.entity'
@@ -100,7 +100,7 @@ export class LobbyMusicLoaderService {
         const gameToMusicAccuracyRatio = await this.lobbyService.getMusicAccuracyRatio(this.lobby)
 
         while (userIdsRandom.some((userId) => userId !== undefined)) {
-            const i = 0
+            let loadedMusic = 0
             for (const userId of userIdsRandom) {
                 if (userId === undefined) {
                     continue
@@ -108,7 +108,7 @@ export class LobbyMusicLoaderService {
                 this.contributeMissingData = this.lobby.allowContributeToMissingData
                     ? Math.random() > gameToMusicAccuracyRatio
                     : false
-                let i = userIdsRandom.indexOf(userId)
+                const i = userIdsRandom.indexOf(userId)
                 const gameQueryBuilder = this.gameRepository
                     .createQueryBuilder('game')
                     .select('game.id')
@@ -130,17 +130,10 @@ export class LobbyMusicLoaderService {
                         blackListIds: blackListGameIds,
                     })
                 }
-                const { qbGuessAccuracyIsNull, qbGuessAccuracyReflectsLobbyDifficulty } =
-                    this.geQueryBuilders(gameQueryBuilder)
-
-                const game = await this.getGameOrMusic(
-                    gameQueryBuilder,
-                    qbGuessAccuracyIsNull,
-                    qbGuessAccuracyReflectsLobbyDifficulty,
-                )
-                this.lobbyGateway.sendLobbyLoadProgress(lobby, game?.name)
+                const game = await this.getGameOrMusic(gameQueryBuilder)
 
                 if (game !== null) {
+                    // TODO maybe remove leftJoinAndSelect and make separate queries to prevent a too long query
                     const qb = this.gameToMusicRepository
                         .createQueryBuilder('gameToMusic')
                         .leftJoinAndSelect('gameToMusic.music', 'music')
@@ -158,9 +151,6 @@ export class LobbyMusicLoaderService {
                             'originalDerivedGameToMusics.game',
                             'originalDerivedGames',
                         )
-                        .leftJoinAndSelect('game.similarGames', 'similarGames')
-                        .leftJoinAndSelect('similarGames.musics', 'similarGamesMusics')
-                        .leftJoinAndSelect('similarGames.users', 'similarGamesUsers')
                         .andWhere('gameToMusic.game = :game')
                         .andWhere('music.duration >= :guessTime')
                         .setParameter('game', game.id)
@@ -172,14 +162,8 @@ export class LobbyMusicLoaderService {
                             musicIds: lobbyMusics.map((lobbyMusic) => lobbyMusic.gameToMusic.id),
                         })
                     }
-                    const { qbGuessAccuracyIsNull, qbGuessAccuracyReflectsLobbyDifficulty } =
-                        this.geQueryBuilders(qb)
 
-                    const gameToMusic = await this.getGameOrMusic(
-                        qb,
-                        qbGuessAccuracyIsNull,
-                        qbGuessAccuracyReflectsLobbyDifficulty,
-                    )
+                    const gameToMusic = await this.getGameOrMusic(qb)
 
                     if (!gameToMusic) {
                         blackListGameIds = [...blackListGameIds, game.id]
@@ -251,10 +235,10 @@ export class LobbyMusicLoaderService {
                         ...gameToMusic,
                         playNumber: gameToMusic.playNumber + 1,
                     })
-                    i += 1
+                    loadedMusic += 1
                     this.lobbyGateway.sendLobbyLoadProgress(
                         lobby,
-                        Math.round((i / lobby.musicNumber) * 100),
+                        Math.round((loadedMusic / lobby.musicNumber) * 100),
                     )
                 } else {
                     if (userId.length === userIds.length) {
@@ -294,10 +278,23 @@ export class LobbyMusicLoaderService {
 
     private async getGameOrMusic<T extends Game | GameToMusic>(
         baseQueryBuilder: SelectQueryBuilder<T>,
-        qbGuessAccuracyIsNull: SelectQueryBuilder<T>,
-        qbGuessAccuracyReflectsLobbyDifficulty: SelectQueryBuilder<T>,
     ): Promise<T | null> {
         let gameOrGameMusic: T | null
+        const qbGuessAccuracyIsNull = baseQueryBuilder.clone()
+        qbGuessAccuracyIsNull.andWhere('gameToMusic.guessAccuracy IS NULL')
+
+        const qbGuessAccuracyReflectsLobbyDifficulty = baseQueryBuilder.clone()
+        qbGuessAccuracyReflectsLobbyDifficulty.andWhere(
+            new Brackets((difficultyQb) => {
+                if (this.lobby.difficulty.includes(LobbyDifficulties.Easy))
+                    difficultyQb.orWhere('gameToMusic.guessAccuracy > 0.66')
+                if (this.lobby.difficulty.includes(LobbyDifficulties.Medium))
+                    difficultyQb.orWhere('gameToMusic.guessAccuracy BETWEEN 0.33 AND 0.66')
+                if (this.lobby.difficulty.includes(LobbyDifficulties.Hard))
+                    difficultyQb.orWhere('gameToMusic.guessAccuracy < 0.33')
+            }),
+        )
+
         if (this.contributeMissingData) {
             gameOrGameMusic = await qbGuessAccuracyIsNull.getOne()
 
@@ -340,29 +337,6 @@ export class LobbyMusicLoaderService {
             }
         }
         return gameOrGameMusic
-    }
-
-    private geQueryBuilders<T extends ObjectLiteral>(
-        gameQueryBuilder: SelectQueryBuilder<T>,
-    ): {
-        qbGuessAccuracyIsNull: SelectQueryBuilder<T>
-        qbGuessAccuracyReflectsLobbyDifficulty: SelectQueryBuilder<T>
-    } {
-        const qbGuessAccuracyIsNull = gameQueryBuilder.clone()
-        qbGuessAccuracyIsNull.andWhere('gameToMusic.guessAccuracy IS NULL')
-
-        const qbGuessAccuracyReflectsLobbyDifficulty = gameQueryBuilder.clone()
-        qbGuessAccuracyReflectsLobbyDifficulty.andWhere(
-            new Brackets((difficultyQb) => {
-                if (this.lobby.difficulty.includes(LobbyDifficulties.Easy))
-                    difficultyQb.orWhere('gameToMusic.guessAccuracy > 0.66')
-                if (this.lobby.difficulty.includes(LobbyDifficulties.Medium))
-                    difficultyQb.orWhere('gameToMusic.guessAccuracy BETWEEN 0.33 AND 0.66')
-                if (this.lobby.difficulty.includes(LobbyDifficulties.Hard))
-                    difficultyQb.orWhere('gameToMusic.guessAccuracy < 0.33')
-            }),
-        )
-        return { qbGuessAccuracyIsNull, qbGuessAccuracyReflectsLobbyDifficulty }
     }
 
     private async getHintModeGames(gameToMusic: GameToMusic, userIds: number[]): Promise<Game[]> {
