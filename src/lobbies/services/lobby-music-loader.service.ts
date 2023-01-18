@@ -98,9 +98,8 @@ export class LobbyMusicLoaderService {
         let position = 0
 
         const gameToMusicAccuracyRatio = await this.lobbyService.getMusicAccuracyRatio(this.lobby)
-
+        let loadedMusic = 0
         while (userIdsRandom.some((userId) => userId !== undefined)) {
-            let loadedMusic = 0
             for (const userId of userIdsRandom) {
                 if (userId === undefined) {
                     continue
