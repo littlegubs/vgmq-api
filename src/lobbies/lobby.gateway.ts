@@ -555,7 +555,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 ? lobbyMusic.lobby.guessTime + 10
                 : lobbyMusic.lobby.guessTime
         } -f mp3 -`
-        const ffmpegProcess = spawn('/Users/alexis/Desktop/dev/ffmpeg', command.split(' '))
+        const ffmpegProcess = spawn(ffmpeg, command.split(' '))
         let output: Buffer[] = []
         ffmpegProcess.stdout.on('data', (data: Buffer) => {
             output = [...output, data]
