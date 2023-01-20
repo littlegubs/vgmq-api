@@ -1,4 +1,4 @@
-import { Readable } from 'stream'
+import { spawn } from 'child_process'
 
 import { InjectQueue } from '@nestjs/bull'
 import { forwardRef, Inject, NotFoundException, UseFilters } from '@nestjs/common'
@@ -33,11 +33,13 @@ import { Lobby, LobbyHintMode, LobbyStatuses } from './entities/lobby.entity'
 import { InvalidPasswordException } from './exceptions/invalid-password.exception'
 import { MissingPasswordException } from './exceptions/missing-password.exception'
 import { LobbyFileGateway } from './lobby-file.gateway'
-import { Duration } from './mp3'
 import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyService } from './services/lobby.service'
 import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const ffmpeg = require('ffmpeg-static') as string
 
 export function getHintModeGameNames(lobbyMusic: LobbyMusic): string[] {
     return shuffle(lobbyMusic.hintModeGames.map((game) => game.name))
@@ -542,17 +544,30 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
     async sendLobbyMusicToLoad(lobbyMusic: LobbyMusic): Promise<void> {
         const gameToMusic = lobbyMusic.gameToMusic
-        const s3Object = await this.s3Service.getObject(gameToMusic.music.file.path)
+        const url = await this.s3Service.getSignedUrl(gameToMusic.music.file.path)
+        if (ffmpeg === null) {
+            throw new WsException('could not encode mp3 file')
+        }
+        const command = `-i ${url} -ss ${
+            lobbyMusic.startAt > 0 ? `${lobbyMusic.startAt}` : '0.001' // for some reason, the file is broken if I start at 0 on chrome???
+        } -t ${
+            lobbyMusic.lobby.playMusicOnAnswerReveal
+                ? lobbyMusic.lobby.guessTime + 10
+                : lobbyMusic.lobby.guessTime
+        } -f mp3 -`
+        const ffmpegProcess = spawn('/Users/alexis/Desktop/dev/ffmpeg', command.split(' '))
+        let output: Buffer[] = []
+        ffmpegProcess.stdout.on('data', (data: Buffer) => {
+            output = [...output, data]
+        })
 
-        const bodyContents = await this.s3Service.streamToBuffer(s3Object.Body as Readable)
-        const { offset } = Duration.getDurationFromBuffer(bodyContents)
-
-        const valuePerSecond = (bodyContents.length - offset) / gameToMusic.music.duration
-        const startBit = lobbyMusic.startAt * valuePerSecond
-        const endBit = lobbyMusic.endAt * valuePerSecond
-        const audioBuffer = bodyContents.slice(startBit + offset, endBit + offset)
-
-        this.lobbyFileGateway.sendBuffer(lobbyMusic.lobby.code, audioBuffer)
+        ffmpegProcess.on('close', (code) => {
+            if (code === 0) {
+                this.lobbyFileGateway.sendBuffer(lobbyMusic.lobby.code, Buffer.concat(output))
+            } else {
+                throw new WsException('error during mp3 encoding')
+            }
+        })
     }
 
     playMusic(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
