@@ -18,6 +18,8 @@ import { IgdbClient } from './entity/igdb.entity'
 import { MusicAccuracy } from './entity/music-accuracy.entity'
 import { Music } from './entity/music.entity'
 import { Platform } from './entity/platform.entity'
+import { Screenshot } from './entity/screenshot.entity'
+import { Video } from './entity/video.entity'
 import { GameToMusicController } from './game-to-music.controller'
 import { GameProcessor } from './game.processor'
 import { WebhookController } from './games-webhook.controller'
@@ -46,6 +48,8 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
             ColorPalette,
             MusicAccuracy,
             Platform,
+            Video,
+            Screenshot,
         ]),
         HttpModule,
         ElasticsearchModule.registerAsync({

@@ -18,6 +18,8 @@ import { AlternativeName } from './alternative-name.entity'
 import { Cover } from './cover.entity'
 import { GameToMusic } from './game-to-music.entity'
 import { Platform } from './platform.entity'
+import { Screenshot } from './screenshot.entity'
+import { Video } from './video.entity'
 
 @Entity()
 export class Game {
@@ -104,6 +106,16 @@ export class Game {
 
     @ManyToMany(() => Game, (game) => game.similarGames)
     isSimilarTo: Game[]
+
+    @OneToMany(() => Video, (video) => video.game, {
+        cascade: ['insert', 'update'],
+    })
+    videos: Video[]
+
+    @OneToMany(() => Screenshot, (video) => video.game, {
+        cascade: ['insert', 'update'],
+    })
+    screenshots: Screenshot[]
 
     @Column()
     @CreateDateColumn()

@@ -30,4 +30,12 @@ export type IgdbGame = {
         id: number
         url: string
     }[]
+    videos: {
+        id: number
+        video_id: string
+    }[]
+    screenshots: {
+        id: number
+        image_id: string
+    }[]
 }

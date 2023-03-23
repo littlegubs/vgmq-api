@@ -154,6 +154,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                         },
                         music: true,
                     },
+                    video: true,
+                    screenshots: true,
                 },
                 where: {
                     lobby: { id: lobby.id },

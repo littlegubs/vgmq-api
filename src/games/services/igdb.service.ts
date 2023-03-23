@@ -1,5 +1,7 @@
+import { youtube } from '@googleapis/youtube'
 import { InjectQueue } from '@nestjs/bull'
 import { Injectable } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
 import { DateTime } from 'luxon'
@@ -11,6 +13,8 @@ import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
 import { Game } from '../entity/game.entity'
 import { Platform } from '../entity/platform.entity'
+import { Screenshot } from '../entity/screenshot.entity'
+import { Video } from '../entity/video.entity'
 import { IgdbHttpService } from '../http/igdb.http.service'
 import { IgdbGame } from '../igdb.type'
 
@@ -18,6 +22,7 @@ import { IgdbGame } from '../igdb.type'
 export class IgdbService {
     constructor(
         private igdbHttpService: IgdbHttpService,
+        private configService: ConfigService,
         @InjectRepository(Game)
         private gamesRepository: Repository<Game>,
         @InjectRepository(Cover)
@@ -28,7 +33,10 @@ export class IgdbService {
         private colorPaletteRepository: Repository<ColorPalette>,
         @InjectRepository(Platform)
         private platformRepository: Repository<Platform>,
-
+        @InjectRepository(Video)
+        private videoRepository: Repository<Video>,
+        @InjectRepository(Screenshot)
+        private screenshotRepository: Repository<Screenshot>,
         @InjectQueue('game')
         private gameQueue: Queue,
     ) {}
@@ -63,6 +71,8 @@ export class IgdbService {
         const cover = await this.getCover(game, igdbGame.cover)
 
         const alternativeNames = await this.handleAlternativeNames(game, igdbGame.alternative_names)
+        const videos = await this.handleVideos(game, igdbGame.videos)
+        const screenshots = await this.handleScreenshots(game, igdbGame.screenshots)
 
         const [parent, versionParent] = await Promise.all([
             this.getParent(igdbGame.parent_game),
@@ -78,6 +88,8 @@ export class IgdbService {
             ...(cover ? { cover } : undefined),
             ...(alternativeNames ? { alternativeNames } : undefined),
             ...(platforms ? { platforms } : undefined),
+            ...(videos ? { videos: videos.filter((v) => v !== undefined) as Video[] } : undefined),
+            ...(screenshots ? { screenshots } : undefined),
         }
 
         game = await this.updateOrCreateGame(game, oldGame)
@@ -151,6 +163,71 @@ export class IgdbService {
                     return this.alternativeNamesRepository.save<AlternativeName>({
                         ...alternativeName,
                         name: igdbAlternativeName.name,
+                    })
+                }),
+            )
+        }
+        return Promise.resolve([])
+    }
+
+    async handleVideos(
+        game: Game,
+        igdbVideos?: Array<{
+            id: number
+            video_id: string
+        }>,
+    ): Promise<Array<Video | undefined>> {
+        const youtubeApi = youtube({
+            version: 'v3',
+            auth: this.configService.get('YOUTUBE_API_AUTH'),
+        })
+
+        if (Array.isArray(igdbVideos) && igdbVideos.length > 0) {
+            return Promise.all(
+                igdbVideos.map(async (igdbVideo) => {
+                    const video = await this.videoRepository.findOneBy({
+                        igdbId: igdbVideo.id,
+                    })
+                    if (video !== null) {
+                        return video
+                    }
+                    const { data } = await youtubeApi.videos.list({
+                        id: [igdbVideo.video_id],
+                        part: ['contentDetails'],
+                    })
+                    if (data.items?.[0]?.contentDetails?.duration) {
+                        return this.videoRepository.create({
+                            igdbId: igdbVideo.id,
+                            videoId: igdbVideo.video_id,
+                            duration: data.items[0].contentDetails.duration,
+                        })
+                    }
+                    return undefined
+                }),
+            )
+        }
+        return Promise.resolve([])
+    }
+
+    async handleScreenshots(
+        game: Game,
+        igdbImages?: Array<{
+            id: number
+            image_id: string
+        }>,
+    ): Promise<Screenshot[]> {
+        if (Array.isArray(igdbImages) && igdbImages.length > 0) {
+            return Promise.all(
+                igdbImages.map(async (igdbImage) => {
+                    const screenshot = await this.screenshotRepository.findOneBy({
+                        igdbId: igdbImage.id,
+                    })
+                    if (screenshot !== null) {
+                        return screenshot
+                    }
+                    return this.screenshotRepository.save({
+                        igdbId: igdbImage.id,
+                        imageId: igdbImage.image_id,
                     })
                 }),
             )
