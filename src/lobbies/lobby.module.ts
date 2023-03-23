@@ -45,6 +45,7 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
         CacheModule.register(),
         BullModule.registerQueue({
             name: 'lobby',
+            // defaultJobOptions: { timeout: 10000 }, idk it might be useful if ffmpeg takes too much time to load
         }),
         JwtModule.registerAsync({
             imports: [ConfigModule],
