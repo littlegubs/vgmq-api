@@ -12,6 +12,8 @@ import {
 
 import { GameToMusic } from '../../games/entity/game-to-music.entity'
 import { Game } from '../../games/entity/game.entity'
+import { Screenshot } from '../../games/entity/screenshot.entity'
+import { Video } from '../../games/entity/video.entity'
 import { Lobby } from './lobby.entity'
 
 @Entity()
@@ -54,6 +56,19 @@ export class LobbyMusic {
     @ManyToMany(() => Game, { onDelete: 'CASCADE' })
     @JoinTable()
     hintModeGames: Game[]
+
+    @ManyToOne(() => Video)
+    @Expose({ groups: ['lobby-answer-reveal'] })
+    video: Video | null
+
+    @Column({ type: 'int' })
+    @Expose({ groups: ['lobby-answer-reveal'] })
+    startVideoAt = 0
+
+    @ManyToMany(() => Screenshot)
+    @JoinTable({ name: 'lobby_music_screenshots' })
+    @Expose({ groups: ['lobby-answer-reveal'] })
+    screenshots: Screenshot[]
 
     @Column()
     @CreateDateColumn()

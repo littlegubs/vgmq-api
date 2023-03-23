@@ -274,6 +274,8 @@ export class LobbyProcessor {
                         },
                     },
                 },
+                video: true,
+                screenshots: true,
             },
             where: {
                 lobby: {

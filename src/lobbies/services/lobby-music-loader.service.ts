@@ -9,11 +9,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
 import { Cache } from 'cache-manager'
+import { Duration } from 'luxon'
 import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { GameToMusic, GameToMusicType } from '../../games/entity/game-to-music.entity'
 import { Game } from '../../games/entity/game.entity'
 import { Music } from '../../games/entity/music.entity'
+import { Screenshot } from '../../games/entity/screenshot.entity'
+import { Video } from '../../games/entity/video.entity'
 import { shuffle } from '../../utils/utils'
 import { LobbyMusic } from '../entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
@@ -39,6 +42,10 @@ export class LobbyMusicLoaderService {
         private lobbyUserRepository: Repository<LobbyUser>,
         @InjectRepository(GameToMusic)
         private gameToMusicRepository: Repository<GameToMusic>,
+        @InjectRepository(Video)
+        private videoRepository: Repository<Video>,
+        @InjectRepository(Screenshot)
+        private screenshotRepository: Repository<Screenshot>,
         @Inject(forwardRef(() => LobbyGateway))
         private lobbyGateway: LobbyGateway,
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -207,7 +214,14 @@ export class LobbyMusicLoaderService {
                         }
                     }
                     const hintModeGames = await this.getHintModeGames(gameToMusic, userIds)
-
+                    const video = await this.getVideo(gameToMusic)
+                    let startVideoAt = 0
+                    if (video) {
+                        startVideoAt = Math.floor(
+                            Math.random() *
+                                (Duration.fromISO(video.duration).as('seconds') - 10 + 1),
+                        )
+                    }
                     lobbyMusics = [
                         ...lobbyMusics,
                         this.lobbyMusicRepository.create({
@@ -227,6 +241,9 @@ export class LobbyMusicLoaderService {
                             })
                                 ? false
                                 : this.contributeMissingData,
+                            video,
+                            startVideoAt,
+                            screenshots: await this.getScreenshots(gameToMusic),
                         }),
                     ]
                     userIdsRandom.splice(i, 1, undefined)
@@ -437,6 +454,23 @@ export class LobbyMusicLoaderService {
         hintModeGames = [...hintModeGames, ...gamesWithMusics]
         if (hintModeGames.length === 4) return hintModeGames
         throw new InternalServerErrorException()
+    }
+
+    private async getVideo(gameToMusic: GameToMusic): Promise<Video | null> {
+        return this.videoRepository
+            .createQueryBuilder('video')
+            .andWhere('video.game = :game', { game: gameToMusic.game.id })
+            .orderBy('RAND()')
+            .getOne()
+    }
+
+    private getScreenshots(gameToMusic: GameToMusic): Promise<Screenshot[]> {
+        return this.screenshotRepository
+            .createQueryBuilder('screenshot')
+            .andWhere('screenshot.game = :game', { game: gameToMusic.game.id })
+            .orderBy('RAND()')
+            .limit(2)
+            .getMany()
     }
 
     getRandomFloat(min: number, max: number, decimals: number): number {

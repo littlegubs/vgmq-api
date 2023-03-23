@@ -8,6 +8,8 @@ import { GameToMusic } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { Music } from '../games/entity/music.entity'
+import { Screenshot } from '../games/entity/screenshot.entity'
+import { Video } from '../games/entity/video.entity'
 import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
@@ -37,6 +39,8 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
             Music,
             User,
             MusicAccuracy,
+            Video,
+            Screenshot,
         ]),
         CacheModule.register(),
         BullModule.registerQueue({
