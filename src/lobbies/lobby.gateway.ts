@@ -1,5 +1,3 @@
-import { spawn } from 'child_process'
-
 import { InjectQueue } from '@nestjs/bull'
 import { forwardRef, Inject, NotFoundException, UseFilters } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
@@ -37,9 +35,6 @@ import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyService } from './services/lobby.service'
 import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const ffmpeg = require('ffmpeg-static') as string
 
 export function getHintModeGameNames(lobbyMusic: LobbyMusic): string[] {
     return shuffle(lobbyMusic.hintModeGames.map((game) => game.name))
@@ -375,7 +370,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
     @SubscribeMessage('readyToPlayMusic')
     async readyToPlayMusic(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
-        const lobbyUser = await this.lobbyUserRepository.findOne({
+        let lobbyUser = await this.lobbyUserRepository.findOne({
             relations: {
                 user: true,
                 lobby: true,
@@ -393,10 +388,12 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
         // We do not care if the user is ready or not
         if (lobbyUser.lobby.status === LobbyStatuses.PlayingMusic) {
-            await this.lobbyUserRepository.save({
-                ...lobbyUser,
-                status: null,
-            })
+            lobbyUser = this.lobbyUserRepository.create(
+                await this.lobbyUserRepository.save({
+                    ...lobbyUser,
+                    status: null,
+                }),
+            )
             this.server.to(lobbyUser.lobby.code).emit(
                 'lobbyUser',
                 classToClass<LobbyUser>(lobbyUser, {
@@ -407,10 +404,12 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             return
         }
 
-        await this.lobbyUserRepository.save({
-            ...lobbyUser,
-            status: LobbyUserStatus.ReadyToPlayMusic,
-        })
+        lobbyUser = this.lobbyUserRepository.create(
+            await this.lobbyUserRepository.save({
+                ...lobbyUser,
+                status: LobbyUserStatus.ReadyToPlayMusic,
+            }),
+        )
         this.server.to(lobbyUser.lobby.code).emit(
             'lobbyUser',
             classToClass<LobbyUser>(lobbyUser, {
@@ -544,32 +543,12 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         )
     }
 
-    async sendLobbyMusicToLoad(lobbyMusic: LobbyMusic): Promise<void> {
-        const gameToMusic = lobbyMusic.gameToMusic
-        const url = await this.s3Service.getSignedUrl(gameToMusic.music.file.path)
-        if (ffmpeg === null) {
-            throw new WsException('could not encode mp3 file')
-        }
-        const command = `-i ${url} -ss ${
-            lobbyMusic.startAt > 0 ? `${lobbyMusic.startAt}` : '0.001' // for some reason, the file is broken if I start at 0 on chrome???
-        } -t ${
-            lobbyMusic.lobby.playMusicOnAnswerReveal
-                ? lobbyMusic.lobby.guessTime + 10
-                : lobbyMusic.lobby.guessTime
-        } -f mp3 -`
-        const ffmpegProcess = spawn(ffmpeg, command.split(' '))
-        let output: Buffer[] = []
-        ffmpegProcess.stdout.on('data', (data: Buffer) => {
-            output = [...output, data]
-        })
+    sendLobbyError(lobby: Lobby, message: string): void {
+        this.server.to(lobby.code).emit('error', message)
+    }
 
-        ffmpegProcess.on('close', (code) => {
-            if (code === 0) {
-                this.lobbyFileGateway.sendBuffer(lobbyMusic.lobby.code, Buffer.concat(output))
-            } else {
-                throw new WsException('error during mp3 encoding')
-            }
-        })
+    sendLobbyMusicToLoad(lobby: Lobby, buffer: Buffer): void {
+        this.lobbyFileGateway.sendBuffer(lobby.code, buffer)
     }
 
     playMusic(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
@@ -587,6 +566,14 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
     sendLobbyClosed(lobby: Lobby, message: string): void {
         this.server.in(lobby.code).disconnectSockets()
+    }
+
+    sendLobbyStartBuffer(lobby: Lobby): void {
+        this.server.to(lobby.code).emit('lobbyStartBuffer')
+    }
+
+    sendLobbyBufferEnd(lobby: Lobby): void {
+        this.server.to(lobby.code).emit('lobbyBufferEnd')
     }
 
     async sendLobbyUsers(lobby: Lobby, lobbyUsers?: LobbyUser[]): Promise<void> {

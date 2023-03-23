@@ -1,11 +1,15 @@
+import { spawn } from 'child_process'
+
 import { InjectQueue, OnGlobalQueueStalled, Process, Processor } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
 import * as dayjs from 'dayjs'
+import { Exception } from 'handlebars'
 import { In, Not, Repository } from 'typeorm'
 
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
+import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
 import { LobbyMusic } from './entities/lobby-music.entity'
@@ -13,6 +17,8 @@ import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user
 import { Lobby, LobbyGameModes, LobbyHintMode, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyUserService } from './services/lobby-user.service'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const ffmpeg = require('ffmpeg-static') as string
 
 @Processor('lobby')
 export class LobbyProcessor {
@@ -32,6 +38,7 @@ export class LobbyProcessor {
         private lobbyQueue: Queue,
         private lobbyUserService: LobbyUserService,
         private userService: UsersService,
+        private s3Service: S3Service,
     ) {}
     private readonly logger = new Logger(LobbyProcessor.name)
 
@@ -102,11 +109,11 @@ export class LobbyProcessor {
             await this.lobbyUserRepository.save(
                 lobbyUsers.map((lobbyUser) => ({
                     ...lobbyUser,
-                    status: LobbyUserStatus.Buffering,
                     correctAnswer: lobbyUser.correctAnswer || null,
                 })),
             ),
         )
+        this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
@@ -114,7 +121,62 @@ export class LobbyProcessor {
         if (lobby.status === LobbyStatuses.Buffering) {
             this.lobbyGateway.sendUpdateToRoom(lobby)
         }
-        await this.lobbyGateway.sendLobbyMusicToLoad(lobbyMusic)
+        const gameToMusic = lobbyMusic.gameToMusic
+        const url = await this.s3Service.getSignedUrl(gameToMusic.music.file.path)
+        if (ffmpeg === null) {
+            throw new Exception('could not encode mp3 file')
+        }
+        const command = `-i ${url} -ss ${
+            lobbyMusic.startAt > 0 ? `${lobbyMusic.startAt}` : '0.001' // for some reason, the file is broken if I start at 0 on chrome???
+        } -t ${
+            lobbyMusic.lobby.playMusicOnAnswerReveal
+                ? lobbyMusic.lobby.guessTime + 10
+                : lobbyMusic.lobby.guessTime
+        } -f mp3 -`
+        const ffmpegProcess = spawn(ffmpeg, command.split(' '))
+        let output: Buffer[] = []
+        ffmpegProcess.stdout.on('data', (data: Buffer) => {
+            output = [...output, data]
+        })
+        await new Promise((resolve, reject) => {
+            void ffmpegProcess.on('close', (code) => {
+                this.lobbyGateway.sendLobbyBufferEnd(lobby!)
+                if (code === 0) {
+                    void this.lobbyUserRepository
+                        .save(
+                            lobbyUsers.map((lobbyUser) => ({
+                                ...lobbyUser,
+                                status: LobbyUserStatus.Buffering,
+                            })),
+                        )
+                        .then((lbs) => {
+                            void this.lobbyGateway
+                                .sendLobbyUsers(lobby!, this.lobbyUserRepository.create(lbs))
+                                .then(() => {
+                                    this.lobbyGateway.sendLobbyMusicToLoad(
+                                        lobby!,
+                                        Buffer.concat(output),
+                                    )
+                                })
+                        })
+
+                    resolve(null)
+                } else {
+                    reject('the server could not encode the music')
+                }
+            })
+        }).catch(async (err: string) => {
+            this.lobbyGateway.sendLobbyError(lobby!, err)
+            lobbyUsers = this.lobbyUserRepository.create(
+                await this.lobbyUserRepository.save(
+                    lobbyUsers.map((lobbyUser) => ({
+                        ...lobbyUser,
+                        status: null,
+                    })),
+                ),
+            )
+            await this.lobbyGateway.sendLobbyUsers(lobby!, lobbyUsers)
+        })
     }
 
     @Process('playMusic')
