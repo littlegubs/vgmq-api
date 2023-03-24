@@ -111,6 +111,9 @@ export class IgdbService {
     ): Promise<Cover | undefined> {
         if (igdbCover) {
             const cover = await this.coversRepository.findOne({
+                relations: {
+                    colorPalette: true,
+                },
                 where: {
                     igdbId: igdbCover.id,
                 },
