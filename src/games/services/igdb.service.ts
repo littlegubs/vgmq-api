@@ -49,13 +49,6 @@ export class IgdbService {
             relations: ['alternativeNames', 'cover'],
         })
 
-        if (oldGame) {
-            // TODO stop deleting cover when color palette choice is in place
-            if (oldGame.cover) {
-                await this.coversRepository.remove(oldGame.cover)
-            }
-        }
-
         let game = this.gamesRepository.create({
             igdbId: igdbGame.id,
             category: igdbGame.category,
@@ -117,6 +110,14 @@ export class IgdbService {
         },
     ): Promise<Cover | undefined> {
         if (igdbCover) {
+            const cover = await this.coversRepository.findOne({
+                where: {
+                    igdbId: igdbCover.id,
+                },
+            })
+            if (cover !== null) {
+                return cover
+            }
             const colorPalette = await Vibrant.from(
                 `https://images.igdb.com/igdb/image/upload/t_1080p/${igdbCover.image_id}.jpg`,
             ).getPalette()
