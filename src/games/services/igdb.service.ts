@@ -119,7 +119,25 @@ export class IgdbService {
                 },
             })
             if (cover !== null) {
-                return cover
+                if (cover.colorPalette) {
+                    return cover
+                }
+                const colorPalette = await Vibrant.from(
+                    `https://images.igdb.com/igdb/image/upload/t_1080p/${igdbCover.image_id}.jpg`,
+                ).getPalette()
+                return {
+                    ...cover,
+                    colorPalette: this.colorPaletteRepository.create({
+                        vibrantHex: colorPalette.Vibrant?.hex,
+                        mutedHex: colorPalette.Muted?.hex,
+                        darkMutedHex: colorPalette.DarkMuted?.hex,
+                        darkVibrantHex: colorPalette.DarkVibrant?.hex,
+                        lightMutedHex: colorPalette.LightMuted?.hex,
+                        lightVibrantHex: colorPalette.LightVibrant?.hex,
+                        backgroundColorHex: colorPalette.DarkVibrant?.hex,
+                        colorHex: colorPalette.Vibrant?.hex,
+                    }),
+                }
             }
             const colorPalette = await Vibrant.from(
                 `https://images.igdb.com/igdb/image/upload/t_1080p/${igdbCover.image_id}.jpg`,
