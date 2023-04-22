@@ -312,24 +312,18 @@ export class LobbyMusicLoaderService {
         )
 
         if (this.contributeMissingData) {
-            gameOrGameMusic = await qbGuessAccuracyIsNull.getOne()
-
-            if (!gameOrGameMusic) {
-                if (
-                    [
-                        LobbyDifficulties.Easy,
-                        LobbyDifficulties.Medium,
-                        LobbyDifficulties.Hard,
-                    ].every((value) => {
+            if (
+                [LobbyDifficulties.Easy, LobbyDifficulties.Medium, LobbyDifficulties.Hard].every(
+                    (value) => {
                         return this.lobby.difficulty.includes(value)
-                    })
-                ) {
+                    },
+                )
+            ) {
+                gameOrGameMusic = await baseQueryBuilder.getOne()
+            } else {
+                gameOrGameMusic = await qbGuessAccuracyReflectsLobbyDifficulty.getOne()
+                if (!gameOrGameMusic) {
                     gameOrGameMusic = await baseQueryBuilder.getOne()
-                } else {
-                    gameOrGameMusic = await qbGuessAccuracyReflectsLobbyDifficulty.getOne()
-                    if (!gameOrGameMusic) {
-                        gameOrGameMusic = await baseQueryBuilder.getOne()
-                    }
                 }
             }
         } else {
