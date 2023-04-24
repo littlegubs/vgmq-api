@@ -132,7 +132,7 @@ export class LobbyProcessor {
             lobbyMusic.lobby.playMusicOnAnswerReveal
                 ? lobbyMusic.lobby.guessTime + 10
                 : lobbyMusic.lobby.guessTime
-        } -f mp3 -`
+        } -map 0:a -f mp3 -`
         const ffmpegProcess = spawn(ffmpeg, command.split(' '))
         let output: Buffer[] = []
         ffmpegProcess.stdout.on('data', (data: Buffer) => {
