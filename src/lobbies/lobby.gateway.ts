@@ -162,7 +162,14 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 if (lobby.status === LobbyStatuses.AnswerReveal) this.sendAnswer(lobbyMusic, client)
             }
         }
-        await this.sendLobbyUsers(lobby)
+        await this.sendLobbyUsers(lobby, undefined, client)
+        this.server.to(lobby.code).emit(
+            'lobbyUser',
+            classToClass<LobbyUser>(lobbyUser, {
+                groups: ['wsLobby'],
+                strategy: 'excludeAll',
+            }),
+        )
 
         return
     }
@@ -238,13 +245,24 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
 
         lobbyUser = await this.verifyAnswer(lobby, answer, lobbyUser)
-        this.server.to(lobby.code).emit(
-            'lobbyUser',
-            classToClass<LobbyUser>(lobbyUser, {
-                groups: ['wsLobby'],
-                strategy: 'excludeAll',
-            }),
-        )
+        if (lobbyUser.correctAnswer && !lobby.showCorrectAnswersDuringGuessTime) {
+            client.emit(
+                'lobbyUser',
+                classToClass<LobbyUser>(lobbyUser, {
+                    groups: ['wsLobby'],
+                    strategy: 'excludeAll',
+                }),
+            )
+        } else {
+            this.server.to(lobby.code).emit(
+                'lobbyUser',
+                classToClass<LobbyUser>(lobbyUser, {
+                    groups: ['wsLobby'],
+                    strategy: 'excludeAll',
+                }),
+            )
+        }
+
         if (!lobbyUser.correctAnswer) {
             await this.lobbyUserRepository.save({ ...lobbyUser, correctAnswer: null }) // set correct answer to null to prevent bugs
         }
@@ -434,10 +452,14 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (lobbyUser.lobby.hintMode === LobbyHintMode.Disabled) {
             throw new WsException('')
         }
-        lobbyUser = this.lobbyUserRepository.create(
-            await this.lobbyUserRepository.save({ ...lobbyUser, hintMode: true }),
-        )
-        await this.showHintModeGames(lobbyUser, client)
+        if (!lobbyUser.correctAnswer) {
+            lobbyUser = this.lobbyUserRepository.create(
+                await this.lobbyUserRepository.save({ ...lobbyUser, hintMode: true }),
+            )
+            await this.showHintModeGames(lobbyUser, client)
+        } else {
+            await this.showHintModeGames(lobbyUser, client, false)
+        }
     }
 
     private async showHintModeGames(
@@ -576,7 +598,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         this.server.to(lobby.code).emit('lobbyBufferEnd')
     }
 
-    async sendLobbyUsers(lobby: Lobby, lobbyUsers?: LobbyUser[]): Promise<void> {
+    async sendLobbyUsers(
+        lobby: Lobby,
+        lobbyUsers?: LobbyUser[],
+        client?: AuthenticatedSocket,
+    ): Promise<void> {
         if (!lobbyUsers) {
             lobbyUsers = await this.lobbyUserRepository.find({
                 relations: {
@@ -590,7 +616,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 },
             })
         }
-        this.server.to(lobby.code).emit(
+        const receiver = client ?? this.server.to(lobby.code)
+        receiver.emit(
             'lobbyUsers',
             classToClass<LobbyUser[]>(lobbyUsers, {
                 groups: ['wsLobby'],

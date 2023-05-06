@@ -98,6 +98,10 @@ export class Lobby {
     @Expose({ groups: ['lobby'] })
     allowContributeToMissingData = true
 
+    @Column({ type: 'boolean', default: false })
+    @Expose({ groups: ['lobby'] })
+    showCorrectAnswersDuringGuessTime = false
+
     @Column({
         type: 'set',
         enum: LobbyDifficulties,

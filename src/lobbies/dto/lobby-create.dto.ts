@@ -36,6 +36,7 @@ export class LobbyCreateDto {
     allowContributeToMissingData: boolean
     gameMode: LobbyGameModes
     playMusicOnAnswerReveal: boolean
+    showCorrectAnswersDuringGuessTime: boolean
     @IsNotEmpty()
     hintMode: LobbyHintMode
 }
