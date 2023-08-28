@@ -15,7 +15,6 @@ import * as dayjs from 'dayjs'
 import { Request } from 'express'
 import { MoreThan, Repository } from 'typeorm'
 
-import { LimitedAccessGuard } from '../limited-access/guards/limited-access.guard'
 import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
 import { AuthService } from './auth.service'
@@ -37,7 +36,7 @@ export class AuthController {
     ) {}
 
     @Post('register')
-    @UseGuards(RecaptchaGuard, LimitedAccessGuard)
+    @UseGuards(RecaptchaGuard)
     async register(@Body() createUserDto: AuthRegisterDto): Promise<void> {
         return this.usersService.create(createUserDto)
     }
