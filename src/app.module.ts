@@ -10,7 +10,6 @@ import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { AuthModule } from './auth/auth.module'
 import { GamesModule } from './games/games.module'
-import { LimitedAccessModule } from './limited-access/limited-access.module'
 import { LobbyModule } from './lobbies/lobby.module'
 import { MailModule } from './mail/mail.module'
 import { MusicsModule } from './musics/musics.module'
@@ -47,7 +46,6 @@ import { UsersModule } from './users/users.module'
         }),
         UsersModule,
         AuthModule,
-        LimitedAccessModule,
         GamesModule,
         AlternativeNamesModule,
         MusicsModule,
