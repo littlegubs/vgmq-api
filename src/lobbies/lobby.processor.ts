@@ -1,6 +1,6 @@
 import { spawn } from 'child_process'
 
-import { InjectQueue, OnGlobalQueueStalled, Process, Processor } from '@nestjs/bull'
+import { InjectQueue, OnGlobalQueueStalled, Process, Processor, OnQueueError, OnQueueWaiting, OnQueueCompleted, OnQueueFailed   } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
