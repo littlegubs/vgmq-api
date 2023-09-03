@@ -302,6 +302,7 @@ this.logger.debug(`reset lobby users`)
             delay: lobby.guessTime * 1000,
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
         })
+         this.logger.debug(`successfully added reveal answer to queue`)
         await this.lobbyMusicRepository.save({
             ...lobbyMusic,
             musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
