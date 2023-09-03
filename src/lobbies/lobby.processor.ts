@@ -559,8 +559,28 @@ this.logger.debug(`reset lobby users`)
         }
     }
 
-    @OnGlobalQueueStalled()
+    @OnQueueStalled()
     onStalled(job: Job): void {
         this.logger.error(`Job stalled ${job.id} of type ${job.name} with data ${job.data}...`)
+    }
+
+    @OnQueueError()
+    onError(job): void {
+        this.logger.error(`Job error`)
+    }
+
+   @OnQueueWaiting()
+    onWaiting(jobId: number): void {
+        this.logger.error(`Job waiting ${job}`)
+    }
+
+    @OnQueueCompleted()
+    onComplete(job: Job): void {
+        this.logger.debug(`Job completed ${job.id} of type ${job.name} with data ${job.data}...`)
+    }
+
+   @OnQueueFailed()
+    onFail(job): void {
+         this.logger.error(`Job failed ${job.id} of type ${job.name} with data ${job.data}...`)
     }
 }
