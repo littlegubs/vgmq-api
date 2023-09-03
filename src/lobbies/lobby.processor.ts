@@ -83,7 +83,7 @@ export class LobbyProcessor {
             },
         })
         if (!lobbyMusic) {
-            await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromBufferMusic`})
+            await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromBufferMusic`, removeOnComplete: true})
             return
         }
 
@@ -115,14 +115,9 @@ export class LobbyProcessor {
         )
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
-        this.logger.warn(`try adding queue named lobby${lobby.code}playMusic${lobby.status === LobbyStatuses.Buffering
-                        ? 1
-                        : lobby.currentLobbyMusicPosition! + 1}`)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
-            jobId: `lobby${lobby.code}playMusic${lobby.status === LobbyStatuses.Buffering
-                        ? 1
-                        : lobby.currentLobbyMusicPosition! + 1}`
+            jobId: `lobby${lobby.code}playMusic`, removeOnComplete: true
         })
         if (lobby.status === LobbyStatuses.Buffering) {
             this.lobbyGateway.sendUpdateToRoom(lobby)
@@ -244,7 +239,8 @@ export class LobbyProcessor {
                 this.lobbyGateway.sendUpdateToRoom(lobby)
                 await this.lobbyQueue.add('playMusic', lobby.code, {
                     delay: 5 * 1000,
-                    jobId: `lobby${lobby.code}playMusic${lobby.currentLobbyMusicPosition}Forced`,
+                    jobId: `lobby${lobby.code}playMusicForced`,
+                    removeOnComplete: true
                 })
                 return
             }
@@ -277,7 +273,7 @@ export class LobbyProcessor {
             },
         })
         if (!lobbyMusic) {
-            await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromPlayMusic`})
+            await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromPlayMusic`, removeOnComplete: true})
             return
         }
 this.logger.debug(`reset lobby users`)
@@ -307,6 +303,7 @@ this.logger.debug(`reset lobby users`)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
+            removeOnComplete: true
         })
          this.logger.debug(`successfully added reveal answer to queue`)
         await this.lobbyMusicRepository.save({
@@ -406,16 +403,14 @@ this.logger.debug(`reset lobby users`)
         if (lobby.currentLobbyMusicPosition === lobby.lobbyMusics.length) {
             await this.lobbyQueue.add('finalResult', lobby.code, {
                 delay: 10000,
-                jobId: `lobby${lobby.code}finalResult${Date.now()}`,
+                jobId: `lobby${lobby.code}finalResult`,
+                removeOnComplete: true
             })
         } else {
             await this.lobbyQueue.add('bufferMusic', lobby.code, {
                 delay: 5 * 1000,
-                jobId: `lobby${lobby.code}bufferMusic${
-                    lobby.currentLobbyMusicPosition === null
-                        ? 1
-                        : lobby.currentLobbyMusicPosition + 1
-                }`,
+                jobId: `lobby${lobby.code}bufferMusic`,
+                removeOnComplete: true
             })
         }
 
