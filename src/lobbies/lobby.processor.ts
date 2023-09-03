@@ -117,7 +117,7 @@ export class LobbyProcessor {
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
-            jobId: `lobby${lobby.code}playMusic${lobby.currentLobbyMusicPosition}`
+            jobId: `lobby${lobby.code}playMusic${lobby.currentLobbyMusicPosition + 1}`
         })
         if (lobby.status === LobbyStatuses.Buffering) {
             this.lobbyGateway.sendUpdateToRoom(lobby)
