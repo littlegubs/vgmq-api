@@ -204,7 +204,7 @@ export class GamesService {
             ]
             i = i + 1
         }
-        await this.gameQueue.add('getSimilarGames', game.id)
+        await this.gameQueue.add('getSimilarGames', game.id,  {removeOnComplete: true})
         return { ...game, musics: [...game.musics, ...musics] }
     }
 
