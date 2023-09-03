@@ -1,6 +1,6 @@
 import { spawn } from 'child_process'
 
-import { InjectQueue, OnGlobalQueueStalled, Process, Processor, OnQueueError, OnQueueWaiting, OnQueueCompleted, OnQueueFailed   } from '@nestjs/bull'
+import { InjectQueue, OnQueueStalled, Process, Processor, OnQueueError, OnQueueWaiting, OnQueueCompleted, OnQueueFailed   } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
@@ -565,13 +565,13 @@ this.logger.debug(`reset lobby users`)
     }
 
     @OnQueueError()
-    onError(job): void {
+    onError(job: any): void {
         this.logger.error(`Job error`)
     }
 
    @OnQueueWaiting()
     onWaiting(jobId: number): void {
-        this.logger.error(`Job waiting ${job}`)
+        this.logger.error(`Job waiting ${jobId}`)
     }
 
     @OnQueueCompleted()
@@ -580,7 +580,7 @@ this.logger.debug(`reset lobby users`)
     }
 
    @OnQueueFailed()
-    onFail(job): void {
+    onFail(job: Job): void {
          this.logger.error(`Job failed ${job.id} of type ${job.name} with data ${job.data}...`)
     }
 }
