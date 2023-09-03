@@ -345,7 +345,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (lobbyUser === null) {
             return
         }
-        await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code)
+        await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code, {jobId: `lobby${lobbyUser.lobby.code}finalResultManual`})
     }
 
     @SubscribeMessage('kick')
@@ -438,7 +438,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
         if (lobbyUser.lobby.status === LobbyStatuses.Buffering) {
             if (await this.lobbyUserService.areAllUsersReadyToPlay(lobbyUser.lobby)) {
-                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code)
+                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code? {jobId:  `lobby${(lobbyUser.lobby.code}playMusic${(lobbyUser.lobby.currentLobbyMusicPosition}EveryoneReady`})
             }
         }
     }
