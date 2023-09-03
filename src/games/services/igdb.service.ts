@@ -87,7 +87,7 @@ export class IgdbService {
 
         game = await this.updateOrCreateGame(game, oldGame)
 
-        await this.gameQueue.add('getSimilarGames', game.id)
+        await this.gameQueue.add('getSimilarGames', game.id,  {removeOnComplete: true})
         return game
     }
 
