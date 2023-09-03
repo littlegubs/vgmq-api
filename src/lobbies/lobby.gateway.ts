@@ -345,7 +345,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (lobbyUser === null) {
             return
         }
-        await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code, {jobId: `lobby${lobbyUser.lobby.code}finalResultManual`})
+        await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code, {jobId: `lobby${lobbyUser.lobby.code}finalResultManual`, removeOnComplete: true})
     }
 
     @SubscribeMessage('kick')
@@ -383,7 +383,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             return
         }
         await this.lobbyUserRepository.save({ ...lobbyUser, toDisconnect: true })
-        await this.lobbyQueue.add('disconnectUser', lobbyUser.id)
+        await this.lobbyQueue.add('disconnectUser', lobbyUser.id, {removeOnComplete: true})
     }
 
     @SubscribeMessage('readyToPlayMusic')
@@ -438,9 +438,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
         if (lobbyUser.lobby.status === LobbyStatuses.Buffering) {
             if (await this.lobbyUserService.areAllUsersReadyToPlay(lobbyUser.lobby)) {
-                console.log(`try adding queue named lobby${lobbyUser.lobby.code}playMusic${lobbyUser.lobby.currentLobbyMusicPosition}EveryoneReady`)
-                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code, {jobId:  `lobby${lobbyUser.lobby.code}playMusic${ lobbyUser.lobby.currentLobbyMusicPosition}EveryoneReady`})
-                console.log(`successfully added queue lobby${lobbyUser.lobby.code}playMusic${lobbyUser.lobby.currentLobbyMusicPosition}EveryoneReady`)
+                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code, {jobId:  `lobby${lobbyUser.lobby.code}playMusicEveryoneReady`, removeOnComplete: true})
             }
         }
     }
@@ -552,6 +550,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             await this.lobbyUserRepository.save({ ...lobbyUser, toDisconnect: true })
             await this.lobbyQueue.add('disconnectUser', lobbyUser.id, {
                 delay: 30 * 1000, // 30 seconds
+                removeOnComplete: true
             })
         })
     }
