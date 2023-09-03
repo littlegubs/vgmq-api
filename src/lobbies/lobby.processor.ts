@@ -115,11 +115,10 @@ export class LobbyProcessor {
         )
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
+        this.logger.warn(`try adding queue named lobby${lobby.code}playMusic${lobby.currentLobbyMusicPosition}`)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
-            jobId: `lobby${lobby.code}playMusic${ lobby.currentLobbyMusicPosition === null
-                        ? 1
-                        : lobby.currentLobbyMusicPosition + 1}`
+            jobId: `lobby${lobby.code}playMusic${lobby.currentLobbyMusicPosition}`
         })
         if (lobby.status === LobbyStatuses.Buffering) {
             this.lobbyGateway.sendUpdateToRoom(lobby)
@@ -574,12 +573,12 @@ this.logger.debug(`reset lobby users`)
 
    @OnQueueWaiting()
     onWaiting(jobId: number): void {
-        this.logger.error(`Job waiting ${jobId}`)
+        this.logger.warn(`Job waiting ${jobId}`)
     }
 
     @OnQueueCompleted()
     onComplete(job: Job): void {
-        this.logger.debug(`Job completed ${job.id} of type ${job.name} with data ${job.data}...`)
+        this.logger.warn(`Job completed ${job.id} of type ${job.name} with data ${job.data}...`)
     }
 
    @OnQueueFailed()
