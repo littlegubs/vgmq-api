@@ -289,6 +289,7 @@ export class LobbyMusicLoaderService {
         await this.lobbyRepository.save(lobby)
         await this.lobbyQueue.add('bufferMusic', lobby.code, {
             jobId: `lobby${lobby.code}bufferMusic1`,
+            removeOnComplete: true
         })
     }
 
