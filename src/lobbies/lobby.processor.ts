@@ -244,12 +244,16 @@ export class LobbyProcessor {
             }
         }
 
+        this.logger.debug(`hhey`)
+
         lobby = this.lobbyRepository.create(
             await this.lobbyRepository.save({
                 ...lobby,
                 status: LobbyStatuses.PlayingMusic,
             }),
         )
+
+        this.logger.debug(`fetch next lobbyMusic`)
 
         const lobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: {
@@ -270,7 +274,7 @@ export class LobbyProcessor {
             await this.lobbyQueue.add('finalResult', lobby.code)
             return
         }
-
+this.logger.debug(`reset lobby users`)
         lobbyUsers = this.lobbyUserRepository.create(
             await this.lobbyUserRepository.save(
                 lobbyUsers.map((lobbyUser) => ({
@@ -288,10 +292,12 @@ export class LobbyProcessor {
         if (lobbyUsersHintMode.length > 0) {
             this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobbyUsersHintMode)
         }
+        this.logger.debug(`hello ?`)
 
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
+        this.logger.debug(`add reveal answer to queue`)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
