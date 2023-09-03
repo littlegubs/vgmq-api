@@ -438,9 +438,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
         if (lobbyUser.lobby.status === LobbyStatuses.Buffering) {
             if (await this.lobbyUserService.areAllUsersReadyToPlay(lobbyUser.lobby)) {
-                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code, {jobId:  `lobby${lobbyUser.lobby.code}playMusic${ lobbyUser.lobby.currentLobbyMusicPosition === null
-                        ? 1
-                        : lobbyUser.lobby.currentLobbyMusicPosition + 1}EveryoneReady`})
+                console.log(`try adding queue named lobby${lobbyUser.lobby.code}playMusic${lobbyUser.lobby.currentLobbyMusicPosition}EveryoneReady`)
+                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code, {jobId:  `lobby${lobbyUser.lobby.code}playMusic${ lobbyUser.lobby.currentLobbyMusicPosition}EveryoneReady`})
             }
         }
     }
