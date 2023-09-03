@@ -481,14 +481,8 @@ this.logger.debug(`reset lobby users`)
         await this.lobbyGateway.sendLobbyUsers(lobby)
         this.lobbyGateway.sendLobbyReset(lobby)
         this.logger.debug(`what the hell is taking so long ?`)
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}bufferMusic*`)
+        await this.lobbyQueue.removeJobs(`lobby${lobby.code}*`)
         this.logger.debug('removed bufferMusic')
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}playMusic*`)
-        this.logger.debug('removed playMusic')
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}revealAnswer*`)
-        this.logger.debug('removed revealAnswer')
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}finalResult*`)
-        this.logger.debug('removed finalResult')
     }
 
     private async resetUserState(lobby: Lobby): Promise<void> {
