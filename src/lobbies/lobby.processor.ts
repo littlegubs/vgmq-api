@@ -115,7 +115,9 @@ export class LobbyProcessor {
         )
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
-        this.logger.warn(`try adding queue named lobby${lobby.code}playMusic${lobby.currentLobbyMusicPosition}`)
+        this.logger.warn(`try adding queue named lobby${lobby.code}playMusic${lobby.status === LobbyStatuses.Buffering
+                        ? 1
+                        : lobby.currentLobbyMusicPosition! + 1}`)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
             jobId: `lobby${lobby.code}playMusic${lobby.status === LobbyStatuses.Buffering
