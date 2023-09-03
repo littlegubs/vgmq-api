@@ -83,7 +83,7 @@ export class LobbyProcessor {
             },
         })
         if (!lobbyMusic) {
-            await this.lobbyQueue.add('finalResult', lobby.code)
+            await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromBufferMusic`})
             return
         }
 
@@ -272,7 +272,7 @@ export class LobbyProcessor {
             },
         })
         if (!lobbyMusic) {
-            await this.lobbyQueue.add('finalResult', lobby.code)
+            await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromPlayMusic`})
             return
         }
 this.logger.debug(`reset lobby users`)
