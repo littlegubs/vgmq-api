@@ -246,16 +246,12 @@ export class LobbyProcessor {
             }
         }
 
-        this.logger.debug(`hhey`)
-
         lobby = this.lobbyRepository.create(
             await this.lobbyRepository.save({
                 ...lobby,
                 status: LobbyStatuses.PlayingMusic,
             }),
         )
-
-        this.logger.debug(`fetch next lobbyMusic`)
 
         const lobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: {
@@ -276,7 +272,7 @@ export class LobbyProcessor {
             await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromPlayMusic`, removeOnComplete: true})
             return
         }
-this.logger.debug(`reset lobby users`)
+
         lobbyUsers = this.lobbyUserRepository.create(
             await this.lobbyUserRepository.save(
                 lobbyUsers.map((lobbyUser) => ({
@@ -294,18 +290,17 @@ this.logger.debug(`reset lobby users`)
         if (lobbyUsersHintMode.length > 0) {
             this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobbyUsersHintMode)
         }
-        this.logger.debug(`hello ?`)
+
 
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
-        this.logger.debug(`add reveal answer to queue`)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
             removeOnComplete: true
         })
-         this.logger.debug(`successfully added reveal answer to queue`)
+
         await this.lobbyMusicRepository.save({
             ...lobbyMusic,
             musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
@@ -475,9 +470,6 @@ this.logger.debug(`reset lobby users`)
 
         await this.lobbyGateway.sendLobbyUsers(lobby)
         this.lobbyGateway.sendLobbyReset(lobby)
-        this.logger.debug(`what the hell is taking so long ?`)
-        await this.lobbyQueue.removeJobs(`lobby${lobby.code}*`)
-        this.logger.debug('removed bufferMusic')
     }
 
     private async resetUserState(lobby: Lobby): Promise<void> {
