@@ -26,7 +26,9 @@ export class LobbySubscriber implements EntitySubscriberInterface<Lobby> {
     }
 
     async afterInsert(event: InsertEvent<Lobby>): Promise<void> {
-        this.lobbyListGateway.sendLobbyList(await event.manager.find(Lobby))
+        this.lobbyListGateway.sendLobbyList(
+            await event.manager.find(Lobby, { relations: { lobbyUsers: true, lobbyMusics: true } }),
+        )
     }
 
     beforeUpdate(event: UpdateEvent<Lobby>): void {
@@ -34,11 +36,15 @@ export class LobbySubscriber implements EntitySubscriberInterface<Lobby> {
     }
 
     async afterUpdate(event: UpdateEvent<Lobby>): Promise<void> {
-        this.lobbyListGateway.sendLobbyList(await event.manager.find(Lobby))
+        this.lobbyListGateway.sendLobbyList(
+            await event.manager.find(Lobby, { relations: { lobbyUsers: true, lobbyMusics: true } }),
+        )
     }
 
     async afterRemove(event: RemoveEvent<Lobby>): Promise<void> {
-        this.lobbyListGateway.sendLobbyList(await event.manager.find(Lobby))
+        this.lobbyListGateway.sendLobbyList(
+            await event.manager.find(Lobby, { relations: { lobbyUsers: true, lobbyMusics: true } }),
+        )
     }
 
     updateDifficulty(entity: ObjectLiteral | undefined): void {
