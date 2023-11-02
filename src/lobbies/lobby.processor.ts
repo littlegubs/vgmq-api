@@ -1,6 +1,15 @@
 import { spawn } from 'child_process'
 
-import { InjectQueue, OnQueueStalled, Process, Processor, OnQueueError, OnQueueWaiting, OnQueueCompleted, OnQueueFailed   } from '@nestjs/bull'
+import {
+    InjectQueue,
+    OnQueueStalled,
+    Process,
+    Processor,
+    OnQueueError,
+    OnQueueWaiting,
+    OnQueueCompleted,
+    OnQueueFailed,
+} from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
@@ -16,6 +25,7 @@ import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
 import { Lobby, LobbyGameModes, LobbyHintMode, LobbyStatuses } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
+import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ffmpeg = require('ffmpeg-static') as string
@@ -39,6 +49,7 @@ export class LobbyProcessor {
         private lobbyUserService: LobbyUserService,
         private userService: UsersService,
         private s3Service: S3Service,
+        private lobbyMusicLoaderService: LobbyMusicLoaderService,
     ) {}
     private readonly logger = new Logger(LobbyProcessor.name)
 
@@ -65,7 +76,7 @@ export class LobbyProcessor {
             })
         }
 
-        const lobbyMusic = await this.lobbyMusicRepository.findOne({
+        let lobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: {
                 lobby: true,
                 gameToMusic: {
@@ -83,8 +94,31 @@ export class LobbyProcessor {
             },
         })
         if (!lobbyMusic) {
-            await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromBufferMusic`, removeOnComplete: true})
-            return
+            if (lobby.custom && lobby.musicNumber !== -1) {
+                await this.lobbyQueue.add('finalResult', lobby.code)
+                return
+            }
+            const countUsers = await this.lobbyUserRepository.count({
+                relations: { lobby: true },
+                where: {
+                    lobby: {
+                        id: lobby.id,
+                    },
+                },
+            })
+            if (countUsers === 0) {
+                lobby.loopsWithNoUsers += 1
+                if (lobby.loopsWithNoUsers > 5) {
+                    await this.lobbyQueue.add('finalResult', lobby.code, {
+                        jobId: `lobby${lobby.code}finalResultFromBufferMusic`,
+                        removeOnComplete: true,
+                    })
+                    return
+                }
+                await this.lobbyRepository.save(lobby)
+            }
+            lobbyMusic = await this.lobbyMusicLoaderService.loadMusic(lobby)
+            lobby.lobbyMusics = [...lobby.lobbyMusics, lobbyMusic]
         }
 
         lobby = this.lobbyRepository.create(
@@ -117,7 +151,8 @@ export class LobbyProcessor {
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
-            jobId: `lobby${lobby.code}playMusic`, removeOnComplete: true
+            jobId: `lobby${lobby.code}playMusic`,
+            removeOnComplete: true,
         })
         if (lobby.status === LobbyStatuses.Buffering) {
             this.lobbyGateway.sendUpdateToRoom(lobby)
@@ -240,7 +275,7 @@ export class LobbyProcessor {
                 await this.lobbyQueue.add('playMusic', lobby.code, {
                     delay: 5 * 1000,
                     jobId: `lobby${lobby.code}playMusicForced`,
-                    removeOnComplete: true
+                    removeOnComplete: true,
                 })
                 return
             }
@@ -269,7 +304,10 @@ export class LobbyProcessor {
             },
         })
         if (!lobbyMusic) {
-            await this.lobbyQueue.add('finalResult', lobby.code, {jobId: `lobby${lobby.code}finalResultFromPlayMusic`, removeOnComplete: true})
+            await this.lobbyQueue.add('finalResult', lobby.code, {
+                jobId: `lobby${lobby.code}finalResultFromPlayMusic`,
+                removeOnComplete: true,
+            })
             return
         }
 
@@ -291,14 +329,13 @@ export class LobbyProcessor {
             this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobbyUsersHintMode)
         }
 
-
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
-            removeOnComplete: true
+            removeOnComplete: true,
         })
 
         await this.lobbyMusicRepository.save({
@@ -395,21 +432,28 @@ export class LobbyProcessor {
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.lobbyGateway.sendAnswer(currentLobbyMusic)
 
-        if (lobby.currentLobbyMusicPosition === lobby.lobbyMusics.length) {
+        if (
+            lobby.currentLobbyMusicPosition === lobby.lobbyMusics.length &&
+            lobby.custom &&
+            lobby.musicNumber !== -1
+        ) {
             await this.lobbyQueue.add('finalResult', lobby.code, {
                 delay: 10000,
                 jobId: `lobby${lobby.code}finalResult`,
-                removeOnComplete: true
+                removeOnComplete: true,
             })
         } else {
             await this.lobbyQueue.add('bufferMusic', lobby.code, {
                 delay: 5 * 1000,
                 jobId: `lobby${lobby.code}bufferMusic`,
-                removeOnComplete: true
+                removeOnComplete: true,
             })
         }
 
-        if (lobby.gameMode === LobbyGameModes.LocalCouch) {
+        if (
+            lobby.gameMode === LobbyGameModes.LocalCouch ||
+            (!lobby.custom && lobby.musicNumber === -1)
+        ) {
             return
         }
 
@@ -460,6 +504,7 @@ export class LobbyProcessor {
             await this.lobbyRepository.save({
                 ...lobby,
                 status: LobbyStatuses.Waiting,
+                loopsWithNoUsers: 0,
                 currentLobbyMusicPosition: null,
                 lobbyMusics: [],
             }),
@@ -543,7 +588,8 @@ export class LobbyProcessor {
         }
         if (
             lobbyUser.lobby.status === LobbyStatuses.Waiting ||
-            lobbyUser.role === LobbyUserRole.Spectator
+            lobbyUser.role === LobbyUserRole.Spectator ||
+            (!lobbyUser.lobby.custom && lobbyUser.lobby.musicNumber === -1)
         ) {
             await this.lobbyUserRepository.remove(lobbyUser)
         } else {
@@ -561,7 +607,7 @@ export class LobbyProcessor {
         this.logger.error(`Job error`)
     }
 
-   @OnQueueWaiting()
+    @OnQueueWaiting()
     onWaiting(jobId: number): void {
         this.logger.warn(`Job waiting ${jobId}`)
     }
@@ -571,8 +617,8 @@ export class LobbyProcessor {
         this.logger.warn(`Job completed ${job.id} of type ${job.name} with data ${job.data}...`)
     }
 
-   @OnQueueFailed()
+    @OnQueueFailed()
     onFail(job: Job): void {
-         this.logger.error(`Job failed ${job.id} of type ${job.name} with data ${job.data}...`)
+        this.logger.error(`Job failed ${job.id} of type ${job.name} with data ${job.data}...`)
     }
 }

@@ -46,6 +46,7 @@ export class LobbyService {
         const qb = this.lobbyRepository
             .createQueryBuilder('lobby')
             .leftJoinAndSelect('lobby.lobbyMusics', 'lobbyMusic')
+            .leftJoinAndSelect('lobby.lobbyUsers', 'lobbyUser')
             .where('lobby.name LIKE :name')
             .setParameter('name', `%${query}%`)
         return qb.getMany()

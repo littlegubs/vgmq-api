@@ -102,12 +102,26 @@ export class Lobby {
     @Expose({ groups: ['lobby'] })
     showCorrectAnswersDuringGuessTime = false
 
+    /**
+     * lobby can be an official or custom one
+     */
+    @Column({ type: 'boolean', default: true })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
+    custom = true
+
+    /**
+     * Number of loops without user
+     * Only used in infinite lobbies
+     */
+    @Column({ type: 'int', default: 0 })
+    loopsWithNoUsers: number
+
     @Column({
         type: 'set',
         enum: LobbyDifficulties,
         default: [LobbyDifficulties.Easy, LobbyDifficulties.Medium, LobbyDifficulties.Hard],
     })
-    @Expose({ groups: ['lobby'] })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
     difficulty: string[]
 
     @Column({
@@ -135,6 +149,8 @@ export class Lobby {
     @Expose({ groups: ['lobby', 'lobby-list'] })
     currentLobbyMusicPosition: number | null
 
+    @Transform(({ value }: { value: LobbyUser[] }) => value?.length)
+    @Expose({ groups: ['lobby-list'] })
     @OneToMany(() => LobbyUser, (lobbyUser) => lobbyUser.lobby)
     lobbyUsers: LobbyUser[]
 

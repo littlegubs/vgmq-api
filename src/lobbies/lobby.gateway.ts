@@ -20,9 +20,6 @@ import { Brackets, Not, Repository } from 'typeorm'
 
 import { WsNotFoundExceptionFilter } from '../auth/exception-filter/ws-not-found.exception-filter'
 import { WsUnauthorizedExceptionFilter } from '../auth/exception-filter/ws-unauthorized.exception-filter'
-import { Game } from '../games/entity/game.entity'
-import { Music } from '../games/entity/music.entity'
-import { S3Service } from '../s3/s3.service'
 import { UsersService } from '../users/users.service'
 import { shuffle } from '../utils/utils'
 import { LobbyMusic } from './entities/lobby-music.entity'
@@ -33,7 +30,6 @@ import { MissingPasswordException } from './exceptions/missing-password.exceptio
 import { LobbyFileGateway } from './lobby-file.gateway'
 import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
-import { LobbyService } from './services/lobby.service'
 import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
 
 export function getHintModeGameNames(lobbyMusic: LobbyMusic): string[] {
@@ -53,20 +49,13 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
     constructor(
         @InjectRepository(Lobby)
         private lobbyRepository: Repository<Lobby>,
-        @InjectRepository(Game)
-        private gameRepository: Repository<Game>,
-        @InjectRepository(Music)
-        private musicRepository: Repository<Music>,
         @InjectRepository(LobbyMusic)
         private lobbyMusicRepository: Repository<LobbyMusic>,
         @InjectRepository(LobbyUser)
         private lobbyUserRepository: Repository<LobbyUser>,
         @InjectQueue('lobby') private lobbyQueue: Queue,
-        @Inject(forwardRef(() => LobbyService))
-        private lobbyService: LobbyService,
         @Inject(forwardRef(() => LobbyMusicLoaderService))
         private lobbyMusicLoaderService: LobbyMusicLoaderService,
-        private s3Service: S3Service,
         private lobbyUserService: LobbyUserService,
         private readonly jwtService: JwtService,
         private readonly userService: UsersService,
@@ -112,7 +101,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                     lobby: lobby,
                     user: client.user,
                     role:
-                        lobby.status === LobbyStatuses.Waiting
+                        lobby.status === LobbyStatuses.Waiting || lobby.musicNumber === -1
                             ? LobbyUserRole.Player
                             : LobbyUserRole.Spectator,
                 }),
@@ -161,6 +150,10 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 if (lobby.status === LobbyStatuses.PlayingMusic) this.playMusic(lobbyMusic, client)
                 if (lobby.status === LobbyStatuses.AnswerReveal) this.sendAnswer(lobbyMusic, client)
             }
+        }
+        if (!lobby.custom && lobby.musicNumber === -1 && lobby.status === LobbyStatuses.Waiting) {
+            await this.lobbyRepository.save({ ...lobby, status: LobbyStatuses.Playing })
+            await this.lobbyQueue.add('bufferMusic', lobbyUser.lobby.code)
         }
         await this.sendLobbyUsers(lobby, undefined, client)
         this.server.to(lobby.code).emit(
