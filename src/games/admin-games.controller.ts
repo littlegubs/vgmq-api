@@ -8,6 +8,7 @@ import {
     Patch,
     Post,
     Query,
+    Req,
     UploadedFiles,
     UseGuards,
     UseInterceptors,
@@ -16,12 +17,14 @@ import { ConfigService } from '@nestjs/config'
 import { FilesInterceptor } from '@nestjs/platform-express'
 import { InjectRepository } from '@nestjs/typeorm'
 import checkDiskSpace from 'check-disk-space'
+import { Request } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
+import { User } from '../users/user.entity'
 import { GamesImportDto } from './dto/games-import.dto'
 import { Game } from './entity/game.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
@@ -43,12 +46,16 @@ export class AdminGamesController {
     @Roles(Role.Admin)
     @Get('import')
     @HttpCode(201)
-    async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
+    async importFromIgdb(
+        @Query() query: GamesImportDto,
+        @Req() request: Request,
+    ): Promise<string[]> {
         const [igdbGame] = await this.igdbHttpService.getDataFromUrl(query.url)
 
         if (!igdbGame) throw new NotFoundException('the game was not found')
 
-        const game = await this.igdbService.import(igdbGame)
+        const user = request.user as User
+        const game = await this.igdbService.import(igdbGame, user)
         let gamesImported = [game.name]
         let { parent, versionParent } = game
         while (parent) {

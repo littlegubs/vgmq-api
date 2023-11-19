@@ -57,6 +57,7 @@ export class GamesService {
             sortBy: GameSearchSortBy
             limit?: number
             skip?: number
+            nsfw?: boolean
         },
     ): Promise<[Game[], number]> {
         const qb = this.gameRepository
@@ -107,6 +108,10 @@ export class GamesService {
             qb.leftJoin('game.users', 'user').andWhere('user.id = :userId', {
                 userId: options.filterByUser.id,
             })
+        }
+
+        if (!options?.nsfw) {
+            qb.andWhere('game.nsfw != 1')
         }
 
         if (options?.sortBy === GameSearchSortBy.NameDesc) {
@@ -204,7 +209,7 @@ export class GamesService {
             ]
             i = i + 1
         }
-        await this.gameQueue.add('getSimilarGames', game.id,  {removeOnComplete: true})
+        await this.gameQueue.add('getSimilarGames', game.id, { removeOnComplete: true })
         return { ...game, musics: [...game.musics, ...musics] }
     }
 

@@ -8,6 +8,7 @@ import { DateTime } from 'luxon'
 import Vibrant = require('node-vibrant')
 import { Repository } from 'typeorm'
 
+import { User } from '../../users/user.entity'
 import { AlternativeName } from '../entity/alternative-name.entity'
 import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
@@ -41,7 +42,7 @@ export class IgdbService {
         private gameQueue: Queue,
     ) {}
 
-    async import(igdbGame: IgdbGame): Promise<Game> {
+    async import(igdbGame: IgdbGame, user?: User): Promise<Game> {
         const oldGame = await this.gamesRepository.findOne({
             where: {
                 igdbId: igdbGame.id,
@@ -59,6 +60,8 @@ export class IgdbService {
                 ? DateTime.fromSeconds(igdbGame.first_release_date).toISO()
                 : null,
             enabled: true,
+            ...(user && oldGame === null && { addedBy: user }),
+            nsfw: Boolean(igdbGame.themes?.some((theme) => theme.slug === 'erotic')),
         })
 
         const cover = await this.getCover(game, igdbGame.cover)
@@ -87,7 +90,7 @@ export class IgdbService {
 
         game = await this.updateOrCreateGame(game, oldGame)
 
-        await this.gameQueue.add('getSimilarGames', game.id,  {removeOnComplete: true})
+        await this.gameQueue.add('getSimilarGames', game.id, { removeOnComplete: true })
         return game
     }
 

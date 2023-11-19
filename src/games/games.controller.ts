@@ -63,6 +63,7 @@ export class GamesController {
             showDisabled: query.showDisabled,
             onlyShowWithoutMusics: query.onlyShowWithoutMusics,
             sortBy: query.sortBy,
+            nsfw: query.nsfw,
         })
 
         // TODO try mikrORM because i'm writing some mad bullshit to make things work with TypeORM
@@ -93,7 +94,10 @@ export class GamesController {
 
     @Get('import')
     @HttpCode(201)
-    async importFromIgdb(@Query() query: GamesImportDto): Promise<string[]> {
+    async importFromIgdb(
+        @Query() query: GamesImportDto,
+        @Req() request: Request,
+    ): Promise<string[]> {
         let [igdbGame] = await this.igdbHttpService.getDataFromUrl(query.url)
 
         if (!igdbGame) throw new NotFoundException('the game was not found')
@@ -103,7 +107,8 @@ export class GamesController {
             if (!igdbGame) throw new InternalServerErrorException()
         }
 
-        const game = await this.igdbService.import(igdbGame)
+        const user = request.user as User
+        const game = await this.igdbService.import(igdbGame, user)
         let gamesImported = [game.name]
         let { parent, versionParent } = game
         while (parent) {
