@@ -61,7 +61,6 @@ export class IgdbService {
                 : null,
             enabled: true,
             ...(user && oldGame === null && { addedBy: user }),
-            nsfw: Boolean(igdbGame.themes?.some((theme) => theme.slug === 'erotic')),
         })
 
         const cover = await this.getCover(game, igdbGame.cover)
