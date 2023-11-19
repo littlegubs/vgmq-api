@@ -47,6 +47,12 @@ export class Game {
     @Column()
     url: string
 
+    @Column({ default: false })
+    nsfw: boolean
+
+    @ManyToOne(() => User)
+    addedBy?: User
+
     @Column({ default: true })
     enabled: boolean
 

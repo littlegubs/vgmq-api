@@ -38,4 +38,8 @@ export type IgdbGame = {
         id: number
         image_id: string
     }[]
+    themes?: {
+        id: number
+        slug: string
+    }[]
 }

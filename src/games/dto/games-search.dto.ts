@@ -3,17 +3,12 @@ import { IsDefined } from 'class-validator'
 export class GamesSearchDto {
     @IsDefined()
     query: string
-
     filterByUser = false
-
     limit?: number
-
     skip?: number
-
     showDisabled = false
-
     onlyShowWithoutMusics = false
-
+    nsfw = false
     sortBy: GameSearchSortBy
 }
 

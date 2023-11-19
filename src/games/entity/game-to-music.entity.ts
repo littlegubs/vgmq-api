@@ -10,6 +10,7 @@ import {
 } from 'typeorm'
 
 import { LobbyMusic } from '../../lobbies/entities/lobby-music.entity'
+import { User } from '../../users/user.entity'
 import { Game } from './game.entity'
 import { MusicAccuracy } from './music-accuracy.entity'
 import { Music } from './music.entity'
@@ -68,6 +69,9 @@ export class GameToMusic {
 
     @OneToMany(() => MusicAccuracy, (musicAccuracy) => musicAccuracy.gameToMusic)
     musicAccuracies: MusicAccuracy[]
+
+    @ManyToOne(() => User)
+    addedBy?: User
 
     @Column()
     @CreateDateColumn()
