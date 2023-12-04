@@ -61,6 +61,10 @@ export class LobbyMusicLoaderService {
     async loadMusic(lobby: Lobby): Promise<LobbyMusic> {
         this.lobby = lobby
 
+        const gameToMusicAccuracyRatio = await this.lobbyService.getMusicAccuracyRatio(this.lobby)
+        this.contributeMissingData = this.lobby.allowContributeToMissingData
+            ? Math.random() > gameToMusicAccuracyRatio
+            : false
         //TODO refactor into more functions to prevent too much duplicates
         const gameQueryBuilder = this.gameRepository
             .createQueryBuilder('game')
