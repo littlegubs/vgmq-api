@@ -153,7 +153,9 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
         if (!lobby.custom && lobby.musicNumber === -1 && lobby.status === LobbyStatuses.Waiting) {
             await this.lobbyRepository.save({ ...lobby, status: LobbyStatuses.Playing })
-            await this.lobbyQueue.add('bufferMusic', lobbyUser.lobby.code)
+            await this.lobbyQueue.add('bufferMusic', lobbyUser.lobby.code, {
+                removeOnComplete: true,
+            })
         }
         await this.sendLobbyUsers(lobby, undefined, client)
         this.server.to(lobby.code).emit(
@@ -338,7 +340,10 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (lobbyUser === null) {
             return
         }
-        await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code, {jobId: `lobby${lobbyUser.lobby.code}finalResultManual`, removeOnComplete: true})
+        await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code, {
+            jobId: `lobby${lobbyUser.lobby.code}finalResultManual`,
+            removeOnComplete: true,
+        })
     }
 
     @SubscribeMessage('kick')
@@ -376,7 +381,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             return
         }
         await this.lobbyUserRepository.save({ ...lobbyUser, toDisconnect: true })
-        await this.lobbyQueue.add('disconnectUser', lobbyUser.id, {removeOnComplete: true})
+        await this.lobbyQueue.add('disconnectUser', lobbyUser.id, { removeOnComplete: true })
     }
 
     @SubscribeMessage('readyToPlayMusic')
@@ -431,7 +436,10 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
         if (lobbyUser.lobby.status === LobbyStatuses.Buffering) {
             if (await this.lobbyUserService.areAllUsersReadyToPlay(lobbyUser.lobby)) {
-                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code, {jobId:  `lobby${lobbyUser.lobby.code}playMusicEveryoneReady`, removeOnComplete: true})
+                await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code, {
+                    jobId: `lobby${lobbyUser.lobby.code}playMusicEveryoneReady`,
+                    removeOnComplete: true,
+                })
             }
         }
     }
@@ -543,7 +551,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             await this.lobbyUserRepository.save({ ...lobbyUser, toDisconnect: true })
             await this.lobbyQueue.add('disconnectUser', lobbyUser.id, {
                 delay: 30 * 1000, // 30 seconds
-                removeOnComplete: true
+                removeOnComplete: true,
             })
         })
     }

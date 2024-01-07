@@ -95,7 +95,7 @@ export class LobbyProcessor {
         })
         if (!lobbyMusic) {
             if (lobby.custom && lobby.musicNumber !== -1) {
-                await this.lobbyQueue.add('finalResult', lobby.code)
+                await this.lobbyQueue.add('finalResult', lobby.code, { removeOnComplete: true })
                 return
             }
             const countUsers = await this.lobbyUserRepository.count({
