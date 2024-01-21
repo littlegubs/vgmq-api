@@ -26,9 +26,9 @@
     "files:s3": "node dist/src/move-files-to-s3"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.254.0",
-    "@aws-sdk/s3-request-presigner": "^3.254.0",
-    "@aws-sdk/types": "^3.254.0",
+    "@aws-sdk/client-s3": "^3.496.0",
+    "@aws-sdk/s3-request-presigner": "^3.496.0",
+    "@aws-sdk/types": "^3.496.0",
     "@elastic/elasticsearch": "^8.2.1",
     "@googleapis/youtube": "^8.0.1",
     "@nestjs-modules/mailer": "^1.8.1",
@@ -55,7 +55,7 @@
     "cookie-parser": "^1.4.5",
     "dayjs": "^1.11.2",
     "dotenv": "^16.0.0",
-    "ffmpeg-static": "^5.1.0",
+    "ffmpeg-static": "^5.2.0",
     "form-data": "^4.0.0",
     "handlebars": "^4.7.7",
     "joi": "^17.4.1",
