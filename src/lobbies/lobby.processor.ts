@@ -451,6 +451,7 @@ export class LobbyProcessor {
                 delay: 5 * 1000,
                 jobId: `lobby${lobby.code}bufferMusic`,
                 removeOnComplete: true,
+                timeout: 10_000,
             })
         }
 

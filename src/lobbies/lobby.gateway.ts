@@ -155,6 +155,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             await this.lobbyRepository.save({ ...lobby, status: LobbyStatuses.Playing })
             await this.lobbyQueue.add('bufferMusic', lobbyUser.lobby.code, {
                 removeOnComplete: true,
+                timeout: 10_000,
             })
         }
         await this.sendLobbyUsers(lobby, undefined, client)
