@@ -168,11 +168,15 @@ export class LobbyProcessor {
             lobbyMusic.lobby.playMusicOnAnswerReveal
                 ? lobbyMusic.lobby.guessTime + 10
                 : lobbyMusic.lobby.guessTime
-        } -map 0:a -f mp3 -`
+        } -map 0:a -map_metadata -1 -f mp3 -`
         const ffmpegProcess = spawn(ffmpeg, command.split(' '))
         let output: Buffer[] = []
         ffmpegProcess.stdout.on('data', (data: Buffer) => {
             output = [...output, data]
+        })
+
+        ffmpegProcess.stderr.on('data', () => {
+            // somehow, listening to this event unlocks the event ffmpegProcess.stdout.on('data') for some files ???
         })
         await new Promise((resolve, reject) => {
             void ffmpegProcess.on('close', (code) => {
