@@ -1,20 +1,12 @@
 import { InjectQueue } from '@nestjs/bull'
-import {
-    CACHE_MANAGER,
-    forwardRef,
-    Inject,
-    Injectable,
-    InternalServerErrorException,
-} from '@nestjs/common'
+import { forwardRef, Inject, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
-import { Cache } from 'cache-manager'
 import { Duration } from 'luxon'
 import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { GameToMusic, GameToMusicType } from '../../games/entity/game-to-music.entity'
 import { Game } from '../../games/entity/game.entity'
-import { Music } from '../../games/entity/music.entity'
 import { Screenshot } from '../../games/entity/screenshot.entity'
 import { Video } from '../../games/entity/video.entity'
 import { shuffle } from '../../utils/utils'
@@ -34,8 +26,6 @@ export class LobbyMusicLoaderService {
         private lobbyRepository: Repository<Lobby>,
         @InjectRepository(Game)
         private gameRepository: Repository<Game>,
-        @InjectRepository(Music)
-        private musicRepository: Repository<Music>,
         @InjectRepository(LobbyMusic)
         private lobbyMusicRepository: Repository<LobbyMusic>,
         @InjectRepository(LobbyUser)
@@ -48,7 +38,6 @@ export class LobbyMusicLoaderService {
         private screenshotRepository: Repository<Screenshot>,
         @Inject(forwardRef(() => LobbyGateway))
         private lobbyGateway: LobbyGateway,
-        @Inject(CACHE_MANAGER) private cacheManager: Cache,
         @InjectQueue('lobby')
         private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyService))
