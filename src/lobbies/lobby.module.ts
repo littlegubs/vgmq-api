@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bull'
-import { CacheModule, Module } from '@nestjs/common'
+import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { TypeOrmModule } from '@nestjs/typeorm'
@@ -42,7 +42,6 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
             Video,
             Screenshot,
         ]),
-        CacheModule.register(),
         BullModule.registerQueue({
             name: 'lobby',
             // defaultJobOptions: { timeout: 10000 }, idk it might be useful if ffmpeg takes too much time to load

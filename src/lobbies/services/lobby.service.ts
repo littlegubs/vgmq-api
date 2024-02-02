@@ -1,22 +1,10 @@
-import { InjectQueue } from '@nestjs/bull'
-import {
-    CACHE_MANAGER,
-    forwardRef,
-    Inject,
-    Injectable,
-    InternalServerErrorException,
-} from '@nestjs/common'
+import { forwardRef, Inject, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Queue } from 'bull'
-import { Cache } from 'cache-manager'
 import { IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm'
 
 import { GameToMusic } from '../../games/entity/game-to-music.entity'
-import { Game } from '../../games/entity/game.entity'
-import { Music } from '../../games/entity/music.entity'
 import { User } from '../../users/user.entity'
 import { LobbyCreateDto } from '../dto/lobby-create.dto'
-import { LobbyMusic } from '../entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
 import { Lobby } from '../entities/lobby.entity'
 import { LobbyGateway } from '../lobby.gateway'
@@ -26,21 +14,12 @@ export class LobbyService {
     constructor(
         @InjectRepository(Lobby)
         private lobbyRepository: Repository<Lobby>,
-        @InjectRepository(Game)
-        private gameRepository: Repository<Game>,
-        @InjectRepository(Music)
-        private musicRepository: Repository<Music>,
-        @InjectRepository(LobbyMusic)
-        private lobbyMusicRepository: Repository<LobbyMusic>,
         @InjectRepository(LobbyUser)
         private lobbyUserRepository: Repository<LobbyUser>,
         @InjectRepository(GameToMusic)
         private gameToMusicRepository: Repository<GameToMusic>,
         @Inject(forwardRef(() => LobbyGateway))
         private lobbyGateway: LobbyGateway,
-        @Inject(CACHE_MANAGER) private cacheManager: Cache,
-        @InjectQueue('lobby')
-        private lobbyQueue: Queue,
     ) {}
     async findByName(query: string): Promise<Lobby[]> {
         const qb = this.lobbyRepository
