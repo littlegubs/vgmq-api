@@ -497,6 +497,10 @@ export class LobbyProcessor {
         const lobbyCode = job.data
         this.logger.debug(`Set lobby ${lobbyCode} back to waiting `)
 
+        await this.resetLobby(lobbyCode)
+    }
+
+    private async resetLobby(lobbyCode: string): Promise<void> {
         let lobby = await this.lobbyRepository.findOne({
             relations: ['lobbyMusics'],
             where: { code: lobbyCode },
@@ -623,7 +627,11 @@ export class LobbyProcessor {
     }
 
     @OnQueueFailed()
-    onFail(job: Job): void {
+    onFail(job: Job<string>): void {
         this.logger.error(`Job failed ${job.id} of type ${job.name} with data ${job.data}...`)
+        const lobbyCode = job.data
+        this.logger.debug(`Set lobby ${lobbyCode} back to waiting after error`)
+
+        void this.resetLobby(lobbyCode)
     }
 }
