@@ -60,7 +60,6 @@ export class LobbyMusicLoaderService {
             .select('game.id')
             .innerJoin('game.musics', 'gameToMusic')
             .innerJoin('gameToMusic.music', 'music')
-            .innerJoin('game.users', 'user')
             .andWhere('game.enabled = 1')
             .andWhere('music.duration >= :guessTime')
             .setParameter('guessTime', this.lobby.guessTime)
@@ -176,18 +175,42 @@ export class LobbyMusicLoaderService {
             this.lobbyGateway.sendUpdateToRoom(this.lobby)
             throw new InternalServerErrorException()
         }
+        /**
+         * If user manages to set lobby.playedMusics > lobby.musicNumber, set it back to musicNumber value
+         * TODO don't be lazy and actually throw an error here src/lobbies/dto/lobby-create.dto.ts:34
+         */
+        const playedMusics =
+            this.lobby.playedMusics > this.lobby.musicNumber
+                ? this.lobby.musicNumber
+                : this.lobby.playedMusics
 
         let userIds: number[] = []
-        let userIdsRandom: Array<number[] | undefined> = []
+        let userIdsRandom: Array<number[] | undefined | 'unplayed' | 'random'> = []
         players.forEach((player) => {
             userIds = [...userIds, player.user.id]
             userIdsRandom = [
                 ...userIdsRandom,
-                ...Array<number[]>(Math.floor(this.lobby.musicNumber / players.length)).fill([
+                ...Array<number[]>(Math.floor(playedMusics / players.length)).fill([
                     player.user.id,
                 ]),
             ]
         })
+        // if the lobby allows random games, fill the rest of userIdsRandom with 'random'
+        // todo The following commented line will be helpful once someone devs an "unplayed" slider
+        // let playedGames: Game[] = [] // exclude theses played games from search if the game must be unplayed
+        if (playedMusics < this.lobby.musicNumber) {
+            userIdsRandom = [
+                ...userIdsRandom,
+                ...Array(this.lobby.musicNumber - playedMusics).fill('random'),
+            ]
+            // playedGames = await this.gameRepository
+            //     .createQueryBuilder('game')
+            //     .select('game.id')
+            //     .innerJoin('game.users', 'user')
+            //     .andWhere('game.enabled = 1')
+            //     .andWhere('user.id IN (:userIds)', { userIds: userIds })
+            //     .getMany()
+        }
         if (userIdsRandom.length < this.lobby.musicNumber) {
             userIdsRandom = [
                 ...userIdsRandom,
@@ -198,7 +221,7 @@ export class LobbyMusicLoaderService {
         }
         userIdsRandom = shuffle(userIdsRandom)
 
-        let gameIds: number[] = []
+        let alreadyFetchedGameIds: number[] = []
         let blackListGameIds: number[] = []
         let lobbyMusics: LobbyMusic[] = []
         let position = 0
@@ -219,16 +242,27 @@ export class LobbyMusicLoaderService {
                     .select('game.id')
                     .innerJoin('game.musics', 'gameToMusic')
                     .innerJoin('gameToMusic.music', 'music')
-                    .innerJoin('game.users', 'user')
                     .andWhere('game.enabled = 1')
-                    .andWhere('user.id in (:userIds)', { userIds: userId })
                     .andWhere('music.duration >= :guessTime')
                     .setParameter('guessTime', this.lobby.guessTime)
                     .groupBy('game.id')
                     .orderBy('RAND()')
 
-                if (!this.lobby.allowDuplicates && gameIds.length > 0) {
-                    gameQueryBuilder.andWhere('game.id not in (:ids)', { ids: gameIds })
+                if (userId === 'unplayed') {
+                    // todo uncomment this once we implement "unplayed" slider
+                    // gameQueryBuilder.andWhere(`game.id not in (:gamesPlayedIds)`, {
+                    //     gamesPlayedIds: playedGames.map((g) => g.id),
+                    // })
+                } else if (userId !== 'random') {
+                    gameQueryBuilder
+                        .innerJoin('game.users', 'user')
+                        .andWhere('user.id in (:userIds)', { userIds: userId })
+                }
+
+                if (!this.lobby.allowDuplicates && alreadyFetchedGameIds.length > 0) {
+                    gameQueryBuilder.andWhere('game.id not in (:ids)', {
+                        ids: alreadyFetchedGameIds,
+                    })
                 }
                 if (blackListGameIds.length > 0) {
                     gameQueryBuilder.andWhere('game.id not in (:blackListIds)', {
@@ -274,7 +308,7 @@ export class LobbyMusicLoaderService {
                         blackListGameIds = [...blackListGameIds, game.id]
                         continue
                     }
-                    gameIds = [...gameIds, game.id]
+                    alreadyFetchedGameIds = [...alreadyFetchedGameIds, game.id]
 
                     position += 1
                     const music = gameToMusic.music
@@ -332,10 +366,24 @@ export class LobbyMusicLoaderService {
                         Math.round((loadedMusic / lobby.musicNumber) * 100),
                     )
                 } else {
+                    /**
+                     * if we can't find a game with all users in lobby,
+                     * retry with a random game if lobby allows it
+                     */
                     if (userId.length === userIds.length) {
+                        userIdsRandom.splice(
+                            i,
+                            1,
+                            playedMusics < this.lobby.musicNumber ? 'random' : undefined,
+                        )
+                        continue
+                    }
+                    // If we can't find a random game, stop trying
+                    if (userId === 'random') {
                         userIdsRandom.splice(i, 1, undefined)
                         continue
                     }
+                    // If we can't find a game for this player, add a random player in the query
                     userIdsRandom = userIdsRandom.map((v) => {
                         if (Array.isArray(v) && v === userId) {
                             const userIdsFiltered = userIds.filter((uid) => !v?.includes(uid))

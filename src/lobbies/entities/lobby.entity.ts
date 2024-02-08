@@ -116,6 +116,13 @@ export class Lobby {
     @Column({ type: 'int', default: 0 })
     loopsWithNoUsers: number
 
+    /**
+     * Defines the number of music known by the users in lobby
+     */
+    @Column({ type: 'int', default: 20 })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
+    playedMusics: number
+
     @Column({
         type: 'set',
         enum: LobbyDifficulties,
