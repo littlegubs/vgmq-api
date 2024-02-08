@@ -31,6 +31,11 @@ export class LobbyCreateDto {
     @IsNumber()
     guessTime: number
 
+    @Max(100) // TODO max must be the musicNumber value, i'm too lazy right now so i'm setting a value myself in src/lobbies/services/lobby-music-loader.service.ts:179
+    @Min(0)
+    @IsNumber()
+    playedMusics: number
+
     allowDuplicates: boolean
     difficulty: LobbyDifficulties[]
     allowContributeToMissingData: boolean
