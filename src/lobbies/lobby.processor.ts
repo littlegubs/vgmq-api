@@ -168,7 +168,7 @@ export class LobbyProcessor {
             lobbyMusic.lobby.playMusicOnAnswerReveal
                 ? lobbyMusic.lobby.guessTime + 10
                 : lobbyMusic.lobby.guessTime
-        } -map 0:a -filter:a loudnorm -map_metadata -1 -f mp3 -`
+        } -map 0:a -map_metadata -1 -f mp3 -`
         const ffmpegProcess = spawn(ffmpeg, command.split(' '))
         let output: Buffer[] = []
         ffmpegProcess.stdout.on('data', (data: Buffer) => {
