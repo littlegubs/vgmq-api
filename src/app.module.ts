@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import * as Joi from 'joi'
 import { DataSource } from 'typeorm'
 
+import { AdminModule } from './admin/admin.module'
 import { AlternativeNamesModule } from './alternative-names/alternative-names.module'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
@@ -51,6 +52,7 @@ import { UsersModule } from './users/users.module'
         MusicsModule,
         LobbyModule,
         MailModule,
+        AdminModule,
     ],
     controllers: [AppController],
     providers: [AppService, FileSubscriber, S3Service],
