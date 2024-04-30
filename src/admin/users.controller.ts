@@ -18,30 +18,10 @@ export class UsersController {
 
     @Roles(Role.Admin)
     @Get('')
-    async getStats(): Promise<{ stats: { count: number; date: string }[]; count: number }> {
-        const users: { count: string; date: string }[] = await this.userRepository
-            .createQueryBuilder('u')
-            .select('count(*) as count, DATE(u.createdAt) as date')
-            .andWhere('u.enabled = 1')
-            .groupBy('date')
-            .getRawMany()
-
-        return {
-            count: await this.userRepository.countBy({ enabled: true }),
-            stats: users.reduce(
-                (previousValue: { count: number; date: string }[], currentValue, currentIndex) => {
-                    return [
-                        ...previousValue,
-                        {
-                            count:
-                                (previousValue[currentIndex - 1]?.count ?? 0) +
-                                parseInt(currentValue.count),
-                            date: currentValue.date,
-                        },
-                    ]
-                },
-                [],
-            ),
-        }
+    async getStats(): Promise<User[]> {
+        return this.userRepository.find({
+            where: { enabled: true },
+            select: { createdAt: true },
+        })
     }
 }
