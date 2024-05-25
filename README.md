@@ -28,6 +28,14 @@
 
 ## Installation
 
+### Start Docker images
+
+```bash
+$ make start
+```
+
+### Install dependencies
+
 ```bash
 $ npm install
 ```
@@ -45,6 +53,16 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Accounts
+
+The fake database comes with 5 accounts with the same password: `yoyo`
+- admin1@vgmq.com
+- admin2@vgmq.com
+- user1@vgmq.com
+- user2@vgmq.com
+- user3@vgmq.com
+
+
 ## Test
 
 ```bash
@@ -57,17 +75,26 @@ $ npm run test:e2e
 # test coverage
 $ npm run test:cov
 ```
+## database
 
-## Support
+the database can be seen at http://localhost:8080/ (user: root, password: yoyo)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Update database
 
-## Stay in touch
+When updating an Entity, TypeORM will not update the database automatically, as it is unsafe to do so. We work with migrations.
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+for TypeORM to be aware of Entity changes, run:
+```bash
+$ npm run typeorm migration:generate src/migration/whateverTitleYouWant
+```
+This command will create a file with the queries necessary to synchronize the database with your Entity.
 
-## License
+Once this file is created, run:
+```bash
+$ npm run typeorm migration:run
+```
+This will run the queries inside the `src/migration/whateverTitleYouWant`file
 
-Nest is [MIT licensed](LICENSE).
+and you're done!
+
+learn more about migrations [here](https://typeorm.io/migrations)
