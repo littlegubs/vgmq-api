@@ -52,6 +52,9 @@ export class User {
     @Column({ type: 'varchar', nullable: true })
     resetPasswordToken: string | null
 
+    @Column({ type: 'varchar', nullable: true })
+    banReason: string | null
+
     @Column({ type: 'datetime', nullable: true })
     resetPasswordTokenCreatedAt: Date | null
 
