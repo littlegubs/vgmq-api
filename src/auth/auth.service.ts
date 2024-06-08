@@ -76,8 +76,11 @@ export class AuthService {
 
         if (user && (await user.validatePassword(password))) {
             if (!user.enabled) {
+                const banReason = user.banReason
                 throw new UnauthorizedException(
-                    'Your account is disabled, check your emails to activate your account',
+                    banReason
+                        ? `You are banned: ${banReason}`
+                        : 'Your account is disabled, check your emails to activate your account',
                 )
             }
 
