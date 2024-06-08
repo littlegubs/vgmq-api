@@ -28,10 +28,16 @@ export class UsersController {
 
     @Roles(Role.Admin)
     @Get('')
-    async getEnabledUsers(): Promise<User[]> {
+    async getAllUsers(): Promise<User[]> {
         return this.userRepository.find({
             where: { enabled: true },
-            select: { createdAt: true },
+            select: {
+                createdAt: true,
+                id: true,
+                username: true,
+                email: true,
+                enabled: true,
+            },
         })
     }
 
