@@ -1,3 +1,4 @@
+import { Expose } from 'class-transformer'
 import {
     Entity,
     Column,
@@ -10,9 +11,7 @@ import {
 } from 'typeorm'
 
 import { File } from '../../entity/file.entity'
-import { LobbyMusic } from '../../lobbies/entities/lobby-music.entity'
 import { GameToMusic } from './game-to-music.entity'
-import {Expose} from "class-transformer";
 
 @Entity()
 export class Music {
