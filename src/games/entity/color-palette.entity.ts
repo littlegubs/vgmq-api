@@ -6,7 +6,6 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     OneToOne,
-    JoinColumn,
 } from 'typeorm'
 
 import { Cover } from './cover.entity'

@@ -6,9 +6,11 @@ import {
     NotFoundException,
     Param,
     Put,
+    Req,
     UseGuards,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { Request } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
@@ -29,32 +31,40 @@ export class UsersController {
     @Roles(Role.Admin)
     @Get('')
     async getAllUsers(): Promise<User[]> {
-        return this.userRepository.find({
-            select: {
-                createdAt: true,
-                id: true,
-                username: true,
-                email: true,
-                enabled: true,
-                banReason: true,
-            },
-        })
+        return this.userRepository
+            .createQueryBuilder('user')
+            .leftJoinAndSelect('user.bannedBy', 'bannedBy')
+            .select([
+                'bannedBy.username',
+                'user.id',
+                'user.username',
+                'user.email',
+                'user.enabled',
+                'user.banReason',
+                'user.createdAt',
+            ])
+            .getMany()
     }
 
     @Roles(Role.Admin)
     @Put('/ban/:id')
     @HttpCode(204)
-    async banUser(@Param('id') id: number, @Body() adminBanDto: AdminBanDto): Promise<void> {
-        const user = await this.userRepository.findOneBy({ id: id })
+    async banUser(
+        @Req() request: Request,
+        @Param('id') id: number,
+        @Body() adminBanDto: AdminBanDto,
+    ): Promise<void> {
+        const bannedUser = await this.userRepository.findOneBy({ id: id })
 
-        if (!user) {
+        if (!bannedUser) {
             throw new NotFoundException()
         }
 
         await this.userRepository.save({
-            ...user,
+            ...bannedUser,
             enabled: false,
             banReason: adminBanDto.banReason,
+            bannedBy: request.user as User,
         })
     }
 }

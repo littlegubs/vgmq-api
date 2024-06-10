@@ -11,6 +11,7 @@ import {
     JoinTable,
     OneToOne,
     JoinColumn,
+    ManyToOne,
 } from 'typeorm'
 
 import { Game } from '../games/entity/game.entity'
@@ -54,6 +55,10 @@ export class User {
 
     @Column({ type: 'varchar', nullable: true })
     banReason: string | null
+
+    @ManyToOne(() => User, { nullable: true })
+    @JoinColumn({ name: 'bannedById' })
+    bannedBy?: User | null
 
     @Column({ type: 'datetime', nullable: true })
     resetPasswordTokenCreatedAt: Date | null
