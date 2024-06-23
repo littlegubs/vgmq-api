@@ -43,7 +43,7 @@ export class AdminGamesController {
         private igdbHttpService: IgdbHttpService,
     ) {}
 
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @Get('import')
     @HttpCode(201)
     async importFromIgdb(
@@ -70,7 +70,7 @@ export class AdminGamesController {
         return gamesImported
     }
 
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @Get('/:slug')
     async get(@Param('slug') slug: string): Promise<{ game: Game; free: number; size: number }> {
         const game = await this.gamesRepository.findOne({
@@ -103,13 +103,13 @@ export class AdminGamesController {
         return { game, free, size }
     }
 
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @Patch('/:slug/toggle')
     async toggle(@Param('slug') slug: string): Promise<Game> {
         return this.gamesService.toggle(slug)
     }
 
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @UseInterceptors(
         FilesInterceptor('files', 200, {
             limits: {
@@ -126,7 +126,7 @@ export class AdminGamesController {
             },
         }),
     )
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @Post(':slug/musics')
     async uploadMusic(
         @Param('slug') slug: string,

@@ -33,7 +33,7 @@ import { IgdbService } from './services/igdb.service'
 
 @Controller('admin/game-to-music')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.Admin)
+@Roles(Role.Admin, Role.SuperAdmin)
 export class GameToMusicController {
     constructor(
         private gamesService: GamesService,
@@ -76,7 +76,7 @@ export class GameToMusicController {
         return new StreamableFile(buffer)
     }
 
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @Patch('/:id')
     async edit(
         @Param('id') id: number,
