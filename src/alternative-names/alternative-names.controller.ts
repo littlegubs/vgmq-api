@@ -12,7 +12,7 @@ import { AlternativeNamesService } from './alternative-names.service'
 export class AlternativeNamesController {
     constructor(private alternativeNamesService: AlternativeNamesService) {}
 
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @Patch('/:id/toggle')
     async toggle(@Param('id') id: number): Promise<AlternativeName> {
         return this.alternativeNamesService.toggle(id)

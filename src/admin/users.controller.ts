@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    ForbiddenException,
     Get,
     HttpCode,
     NotFoundException,
@@ -14,7 +15,7 @@ import { Request } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
-import { Role } from '../users/role.enum'
+import { Role, RoleAction, RoleRules } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
@@ -28,7 +29,7 @@ export class UsersController {
         private userRepository: Repository<User>,
     ) {}
 
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @Get('')
     async getAllUsers(): Promise<User[]> {
         return this.userRepository
@@ -46,7 +47,7 @@ export class UsersController {
             .getMany()
     }
 
-    @Roles(Role.Admin)
+    @Roles(Role.Admin, Role.SuperAdmin)
     @Put('/ban/:id')
     @HttpCode(204)
     async banUser(
@@ -58,6 +59,15 @@ export class UsersController {
 
         if (!bannedUser) {
             throw new NotFoundException()
+        }
+
+        const user = request.user as User
+        const canBan = RoleRules[user.roles.at(-1) as Role][RoleAction.Ban].includes(
+            bannedUser.roles.at(-1) as Role,
+        )
+
+        if (!canBan) {
+            throw new ForbiddenException()
         }
 
         await this.userRepository.save({
