@@ -15,7 +15,7 @@ import { Request } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
-import { Role, RoleAction, RoleRules } from '../users/role.enum'
+import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
@@ -39,7 +39,6 @@ export class UsersController {
                 'bannedBy.username',
                 'user.id',
                 'user.username',
-                'user.email',
                 'user.enabled',
                 'user.banReason',
                 'user.createdAt',
@@ -55,26 +54,33 @@ export class UsersController {
         @Param('id') id: number,
         @Body() adminBanDto: AdminBanDto,
     ): Promise<void> {
-        const bannedUser = await this.userRepository.findOneBy({ id: id })
-
-        if (!bannedUser) {
+        const user = request.user as User
+        const userToBan = await this.userRepository.findOneBy({ id: id })
+        let canBan = false
+        if (!userToBan) {
             throw new NotFoundException()
         }
 
-        const user = request.user as User
-        const canBan = RoleRules[user.roles.at(-1) as Role][RoleAction.Ban].includes(
-            bannedUser.roles.at(-1) as Role,
-        )
+        if (user.roles.includes(Role.SuperAdmin)) {
+            canBan = !userToBan.roles.includes(Role.SuperAdmin)
+        } else if (user.roles.includes(Role.Admin)) {
+            canBan = !(
+                userToBan.roles.includes(Role.Admin) || userToBan.roles.includes(Role.SuperAdmin)
+            )
+        }
 
         if (!canBan) {
             throw new ForbiddenException()
         }
 
         await this.userRepository.save({
-            ...bannedUser,
+            ...userToBan,
             enabled: false,
             banReason: adminBanDto.banReason,
-            bannedBy: request.user as User,
+            bannedBy: user,
+            currentHashedRefreshToken: null,
+            confirmationToken: null,
+            resetPasswordToken: null,
         })
     }
 }
