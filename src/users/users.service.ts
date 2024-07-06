@@ -52,6 +52,7 @@ export class UsersService {
         return this.userRepository.findOne({
             where: {
                 username: username,
+                enabled: true,
             },
         })
     }
