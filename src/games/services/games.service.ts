@@ -177,7 +177,7 @@ export class GamesService {
         return this.gameRepository.save({ ...game, enabled: !game.enabled })
     }
 
-    async uploadMusics(game: Game, files: Array<Express.Multer.File>): Promise<Game> {
+    async uploadMusics(game: Game, files: Array<Express.Multer.File>, user: User): Promise<Game> {
         let musics: GameToMusic[] = []
         let i = 1
         for (const file of files) {
@@ -205,6 +205,7 @@ export class GamesService {
                             size: file.size,
                         }),
                     }),
+                    addedBy: user,
                 }),
             ]
             i = i + 1

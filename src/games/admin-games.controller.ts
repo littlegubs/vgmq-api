@@ -131,7 +131,9 @@ export class AdminGamesController {
     async uploadMusic(
         @Param('slug') slug: string,
         @UploadedFiles() files: Array<Express.Multer.File>,
+        @Req() request: Request,
     ): Promise<Game> {
+        const user = request.user as User
         const game = await this.gamesRepository.findOne({
             relations: {
                 alternativeNames: true,
@@ -152,6 +154,6 @@ export class AdminGamesController {
             throw new NotFoundException()
         }
 
-        return this.gamesService.uploadMusics(game, files)
+        return this.gamesService.uploadMusics(game, files, user)
     }
 }

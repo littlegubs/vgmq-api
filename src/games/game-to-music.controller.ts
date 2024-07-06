@@ -24,6 +24,7 @@ import { S3Service } from '../s3/s3.service'
 import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
+import { User } from '../users/user.entity'
 import { AddDerivedGameToMusicDto } from './dto/add-derived-game-to-music.dto'
 import { GameToMusicEditDto } from './dto/game-to-music-edit.dto'
 import { GameToMusic, GameToMusicType } from './entity/game-to-music.entity'
@@ -97,9 +98,11 @@ export class GameToMusicController {
 
     @Post('/:id/add-derived')
     async addDerived(
+        @Req() request: Request,
         @Param('id') id: number,
         @Body() derivedGameToMusicDto: AddDerivedGameToMusicDto,
     ): Promise<GameToMusic | null> {
+        const user = request.user as User
         const gameToMusic = await this.gameToMusicRepository.findOne({
             where: {
                 id,
@@ -123,6 +126,7 @@ export class GameToMusicController {
             type: GameToMusicType.Reused,
             playNumber: 0,
             guessAccuracy: null,
+            addedBy: user,
         })
 
         return this.gameToMusicRepository.findOne({
