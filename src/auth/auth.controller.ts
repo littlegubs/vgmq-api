@@ -8,6 +8,7 @@ import {
     Param,
     Post,
     Req,
+    UnauthorizedException,
     UseGuards,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -81,6 +82,9 @@ export class AuthController {
         const user = await this.usersService.findByEmail(authRequestResetPassword.email)
         if (user === null) {
             return
+        }
+        if (!user.enabled) {
+            throw new UnauthorizedException("You've been banned")
         }
         if (
             user.resetPasswordTokenCreatedAt &&
