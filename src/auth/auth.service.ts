@@ -87,7 +87,7 @@ export class AuthService {
             return user
         }
 
-        throw new UnauthorizedException('wrong password')
+        throw new UnauthorizedException('wrong password or email')
     }
 
     async getUserIfRefreshTokenMatches(
