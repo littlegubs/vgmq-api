@@ -23,8 +23,6 @@ export const WSAuthMiddleware = (
                 username: string
             } = jwtService.verify(socket.handshake.auth.token ?? '')
             const user = await userService.findByUsername(jwtPayload.username)
-            console.log(jwtPayload.username)
-            console.log(user?.username)
 
             if (user !== null) {
                 const lobbyUser = await lobbyUserRepository.findOne({

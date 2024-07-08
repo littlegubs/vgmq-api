@@ -1,4 +1,5 @@
 import * as path from 'path'
+import { Readable } from 'stream'
 
 import {
     DeleteByQueryResponse,
@@ -7,10 +8,11 @@ import {
 } from '@elastic/elasticsearch/lib/api/types'
 import { InjectQueue } from '@nestjs/bull'
 import { Injectable, NotFoundException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
-import * as mm from 'music-metadata'
+import { extension } from 'mime-types'
 import Vibrant = require('node-vibrant')
 import { Brackets, Repository } from 'typeorm'
 
@@ -21,6 +23,7 @@ import { GameSearchSortBy } from '../dto/games-search.dto'
 import { AlternativeName } from '../entity/alternative-name.entity'
 import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
+import { GameAlbum } from '../entity/game-album.entity'
 import { GameToMusic } from '../entity/game-to-music.entity'
 import { Game } from '../entity/game.entity'
 import { Music } from '../entity/music.entity'
@@ -29,24 +32,19 @@ import GameNameSearchBody from '../types/game-name-search-body.interface'
 @Injectable()
 export class GamesService {
     constructor(
-        @InjectRepository(Game)
-        private gameRepository: Repository<Game>,
-        @InjectRepository(Cover)
-        private coverRepository: Repository<Cover>,
-        @InjectRepository(ColorPalette)
-        private colorPaletteRepository: Repository<ColorPalette>,
-        @InjectRepository(Music)
-        private musicRepository: Repository<Music>,
-        @InjectRepository(GameToMusic)
-        private gameToMusicRepository: Repository<GameToMusic>,
-        @InjectRepository(File)
-        private fileRepository: Repository<File>,
+        @InjectRepository(Game) private gameRepository: Repository<Game>,
+        @InjectRepository(Cover) private coverRepository: Repository<Cover>,
+        @InjectRepository(ColorPalette) private colorPaletteRepository: Repository<ColorPalette>,
+        @InjectRepository(Music) private musicRepository: Repository<Music>,
+        @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
+        @InjectRepository(File) private fileRepository: Repository<File>,
         @InjectRepository(AlternativeName)
         private alternativeNameRepository: Repository<AlternativeName>,
+        @InjectRepository(GameAlbum) private gameAlbumRepository: Repository<GameAlbum>,
         private elasticsearchService: ElasticsearchService,
         private s3Service: S3Service,
-        @InjectQueue('game')
-        private gameQueue: Queue,
+        @InjectQueue('game') private gameQueue: Queue,
+        private configService: ConfigService,
     ) {}
     async findByName(
         query: string,
@@ -177,27 +175,30 @@ export class GamesService {
         return this.gameRepository.save({ ...game, enabled: !game.enabled })
     }
 
-    async uploadMusics(game: Game, files: Array<Express.Multer.File>, user: User): Promise<Game> {
+    async uploadMusics(game: Game, files: Array<Express.Multer.File>, user: User): Promise<void> {
         let musics: GameToMusic[] = []
-        let i = 1
+        // eslint-disable-next-line import/no-unresolved
+        const mm = await import('music-metadata')
         for (const file of files) {
             const metadata = await mm.parseBuffer(file.buffer, file.mimetype, {
                 duration: true,
-                skipCovers: true,
                 skipPostHeaders: true,
             })
             const filePath = `${game.slug}/${Math.random().toString(36).slice(2, 9)}${path.extname(
                 file.originalname,
             )}`
             await this.s3Service.putObject(filePath, file.buffer)
+            const album = await this.generateAlbum(metadata, game, user)
             musics = [
                 ...musics,
                 await this.gameToMusicRepository.save({
-                    game: game,
+                    game,
                     music: this.musicRepository.create({
                         title: metadata.common.title ?? file.originalname,
                         artist: metadata.common.artist ?? 'unknown artist',
                         duration: metadata.format.duration,
+                        disk: metadata.common.disk?.no,
+                        track: metadata.common.track?.no,
                         file: this.fileRepository.create({
                             path: filePath,
                             originalFilename: file.originalname,
@@ -205,13 +206,62 @@ export class GamesService {
                             size: file.size,
                         }),
                     }),
+                    ...(album && { album: album }),
                     addedBy: user,
                 }),
             ]
-            i = i + 1
         }
         await this.gameQueue.add('getSimilarGames', game.id, { removeOnComplete: true })
-        return { ...game, musics: [...game.musics, ...musics] }
+    }
+
+    /**
+     * TODO I'm forced to use type "any" for the metadata since i'm importing "music-metadata" asynchronously, fix this
+     */
+    private async generateAlbum(metadata: any, game: Game, user?: User): Promise<null | GameAlbum> {
+        const metadataAlbum = metadata.common.album
+        let album: GameAlbum | null = null
+        if (metadataAlbum !== undefined && metadataAlbum !== '') {
+            album = await this.gameAlbumRepository.findOne({
+                relations: ['game'],
+                where: { name: metadataAlbum, game: { id: game.id } },
+            })
+            if (album === null) {
+                album = await this.gameAlbumRepository.save(
+                    this.gameAlbumRepository.create({
+                        game,
+                        name: metadataAlbum,
+                        date: String(metadata.common.year),
+                        createdBy: user,
+                        updatedBy: user,
+                    }),
+                )
+                const metadataCover = metadata.common.picture?.[0]
+                if (metadataCover !== undefined) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                    const coverExtension = extension(metadataCover.format)
+                    if (coverExtension !== false) {
+                        const coverPath = `games/${game.slug}/album-${album.id}.${coverExtension}`
+                        await this.s3Service.putObject(
+                            coverPath,
+                            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                            metadataCover.data,
+                            this.configService.get('AMAZON_S3_PUBLIC_BUCKET'),
+                        )
+                        album = await this.gameAlbumRepository.save({
+                            ...album,
+                            cover: this.fileRepository.create({
+                                path: coverPath,
+                                originalFilename: metadataAlbum,
+                                mimeType: metadataCover.format,
+                                size: metadataCover.data.byteLength,
+                                private: false,
+                            }),
+                        })
+                    }
+                }
+            }
+        }
+        return album
     }
 
     async populateElasticSearch(): Promise<void> {
@@ -421,6 +471,59 @@ export class GamesService {
         })
     }
 
+    async getGameWithMusics(slug: string): Promise<Game> {
+        const game = await this.gameRepository.findOne({
+            relations: {
+                cover: {
+                    colorPalette: true,
+                },
+                alternativeNames: true,
+                albums: {
+                    musics: {
+                        derivedGameToMusics: {
+                            game: true,
+                        },
+                        originalGameToMusic: {
+                            game: true,
+                        },
+                    },
+                },
+                platforms: true,
+            },
+            where: {
+                slug,
+            },
+            order: {
+                albums: {
+                    date: 'DESC',
+                    musics: {
+                        disk: 'ASC',
+                        track: 'ASC',
+                        music: {
+                            disk: 'ASC',
+                            track: 'ASC',
+                        },
+                    },
+                },
+            },
+        })
+        if (game === null) {
+            throw new NotFoundException()
+        }
+        game.musics = await this.gameToMusicRepository
+            .createQueryBuilder('gmt')
+            .leftJoinAndSelect('gmt.derivedGameToMusics', 'dgtm')
+            .leftJoinAndSelect('dgtm.game', 'dgtmg')
+            .leftJoinAndSelect('gmt.originalGameToMusic', 'ogtm')
+            .leftJoinAndSelect('ogtm.game', 'ogtmg')
+            .leftJoinAndSelect('gmt.music', 'music')
+            .andWhere('gmt.gameId = :id', { id: game.id })
+            .andWhere('gmt.album IS NULL')
+            .getMany()
+
+        return game
+    }
+
     async updateGameCoverColorPalette(): Promise<void> {
         const covers = await this.coverRepository.find()
         for (const cover of covers) {
@@ -439,6 +542,42 @@ export class GamesService {
                     backgroundColorHex: colorPalette.DarkVibrant?.hex,
                     colorHex: colorPalette.Vibrant?.hex,
                 }),
+            })
+        }
+    }
+
+    async generateAlbums(): Promise<void> {
+        const games = await this.gameRepository
+            .createQueryBuilder('g')
+            .innerJoinAndSelect('g.musics', 'gm')
+            .innerJoinAndSelect('gm.music', 'm')
+            .innerJoinAndSelect('m.file', 'f')
+            .andWhere('gm.album IS NULL')
+            .orderBy('g.name')
+            .getMany()
+        for (const game of games) {
+            await this.generateAlbumFromExistingFiles(game)
+        }
+    }
+
+    public async generateAlbumFromExistingFiles(game: Game): Promise<void> {
+        // eslint-disable-next-line import/no-unresolved
+        const mm = await import('music-metadata')
+        for (const gameToMusic of game.musics) {
+            const file = await this.s3Service.getObject(gameToMusic.music.file.path)
+            const buffer = await this.s3Service.streamToBuffer(file.Body as Readable)
+            const metadata = await mm.parseBuffer(buffer, gameToMusic.music.file.mimeType, {
+                duration: true,
+            })
+            const album = await this.generateAlbum(metadata, game)
+            await this.gameToMusicRepository.save({
+                ...gameToMusic,
+                music: {
+                    ...gameToMusic.music,
+                    disk: metadata.common.disk?.no,
+                    track: metadata.common.track?.no,
+                },
+                ...(album && { album: album }),
             })
         }
     }

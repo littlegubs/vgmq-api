@@ -32,10 +32,14 @@ export class S3Service {
         })
     }
 
-    async putObject(filePath: string, file: Buffer): Promise<PutObjectCommandOutput> {
+    async putObject(
+        filePath: string,
+        file: Buffer,
+        bucketName?: string,
+    ): Promise<PutObjectCommandOutput> {
         return this.client.send(
             new PutObjectCommand({
-                Bucket: this.bucketName,
+                Bucket: bucketName ?? this.bucketName,
                 Key: filePath,
                 Body: file,
             }),

@@ -17,8 +17,9 @@ import { ConfigService } from '@nestjs/config'
 import { FilesInterceptor } from '@nestjs/platform-express'
 import { InjectRepository } from '@nestjs/typeorm'
 import checkDiskSpace from 'check-disk-space'
+import * as dayjs from 'dayjs'
 import { Request } from 'express'
-import { Repository } from 'typeorm'
+import { IsNull, Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { Role } from '../users/role.enum'
@@ -26,6 +27,7 @@ import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
 import { GamesImportDto } from './dto/games-import.dto'
+import { GameAlbum } from './entity/game-album.entity'
 import { Game } from './entity/game.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
@@ -37,10 +39,10 @@ export class AdminGamesController {
     constructor(
         private gamesService: GamesService,
         private igdbService: IgdbService,
-        @InjectRepository(Game)
-        private gamesRepository: Repository<Game>,
+        @InjectRepository(Game) private gamesRepository: Repository<Game>,
         private configService: ConfigService,
         private igdbHttpService: IgdbHttpService,
+        @InjectRepository(GameAlbum) private gameAlbumRepository: Repository<GameAlbum>,
     ) {}
 
     @Roles(Role.Admin, Role.SuperAdmin)
@@ -73,30 +75,7 @@ export class AdminGamesController {
     @Roles(Role.Admin, Role.SuperAdmin)
     @Get('/:slug')
     async get(@Param('slug') slug: string): Promise<{ game: Game; free: number; size: number }> {
-        const game = await this.gamesRepository.findOne({
-            relations: {
-                alternativeNames: true,
-                musics: {
-                    derivedGameToMusics: {
-                        game: true,
-                    },
-                    originalGameToMusic: {
-                        game: true,
-                    },
-                },
-            },
-            where: {
-                slug,
-            },
-            order: {
-                musics: {
-                    id: 'ASC',
-                },
-            },
-        })
-        if (game === null) {
-            throw new NotFoundException()
-        }
+        const game = await this.gamesService.getGameWithMusics(slug)
         const { free, size } = await checkDiskSpace(
             this.configService.get('DISK_SPACE_PATH') ?? '/',
         )
@@ -106,6 +85,12 @@ export class AdminGamesController {
     @Roles(Role.Admin, Role.SuperAdmin)
     @Patch('/:slug/toggle')
     async toggle(@Param('slug') slug: string): Promise<Game> {
+        return this.gamesService.toggle(slug)
+    }
+
+    @Roles(Role.Admin, Role.SuperAdmin)
+    @Patch('/:slug')
+    async editAlbumName(@Param('slug') slug: string): Promise<Game> {
         return this.gamesService.toggle(slug)
     }
 
@@ -135,17 +120,6 @@ export class AdminGamesController {
     ): Promise<Game> {
         const user = request.user as User
         const game = await this.gamesRepository.findOne({
-            relations: {
-                alternativeNames: true,
-                musics: {
-                    derivedGameToMusics: {
-                        game: true,
-                    },
-                    originalGameToMusic: {
-                        game: true,
-                    },
-                },
-            },
             where: {
                 slug,
             },
@@ -154,6 +128,51 @@ export class AdminGamesController {
             throw new NotFoundException()
         }
 
-        return this.gamesService.uploadMusics(game, files, user)
+        await this.gamesService.uploadMusics(game, files, user)
+        return this.gamesService.getGameWithMusics(game.slug)
+    }
+
+    @Roles(Role.Admin, Role.SuperAdmin)
+    @Post(':slug/create-album')
+    async createAlbum(@Param('slug') slug: string): Promise<Game> {
+        const game = await this.gamesRepository.findOne({
+            where: {
+                slug,
+            },
+        })
+        if (game === null) {
+            throw new NotFoundException()
+        }
+        await this.gameAlbumRepository.save({
+            name: 'new Album',
+            date: dayjs().year().toString(),
+            game,
+        })
+        return this.gamesService.getGameWithMusics(game.slug)
+    }
+
+    @Roles(Role.Admin, Role.SuperAdmin)
+    @Get(':slug/generate-albums')
+    async generateAlbums(@Param('slug') slug: string): Promise<Game> {
+        const game = await this.gamesRepository.findOne({
+            relations: {
+                musics: {
+                    music: {
+                        file: true,
+                    },
+                },
+            },
+            where: {
+                slug,
+                musics: {
+                    album: IsNull(),
+                },
+            },
+        })
+        if (game === null) {
+            throw new NotFoundException()
+        }
+        await this.gamesService.generateAlbumFromExistingFiles(game)
+        return this.gamesService.getGameWithMusics(game.slug)
     }
 }

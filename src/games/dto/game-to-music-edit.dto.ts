@@ -1,8 +1,13 @@
-import { IsNotEmpty } from 'class-validator'
+import { GameAlbum } from '../entity/game-album.entity'
 
 export class GameToMusicEditDto {
-    @IsNotEmpty()
     title: string
 
     artist: string
+
+    track: number
+
+    disk: number
+
+    album: GameAlbum | null
 }

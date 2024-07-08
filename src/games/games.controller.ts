@@ -23,6 +23,7 @@ import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
 import { GamesImportDto } from './dto/games-import.dto'
 import { GamesSearchDto } from './dto/games-search.dto'
+import { GameToMusic } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
 import { Platform } from './entity/platform.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
@@ -36,14 +37,12 @@ export class GamesController {
     constructor(
         private gamesService: GamesService,
         private igdbService: IgdbService,
-        @InjectRepository(Game)
-        private gamesRepository: Repository<Game>,
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
+        @InjectRepository(Game) private gamesRepository: Repository<Game>,
+        @InjectRepository(User) private userRepository: Repository<User>,
         private elasticsearchService: ElasticsearchService,
         private igdbHttpService: IgdbHttpService,
-        @InjectRepository(Platform)
-        private platformRepository: Repository<Platform>,
+        @InjectRepository(Platform) private platformRepository: Repository<Platform>,
+        @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
     ) {}
 
     @Get('')
@@ -247,34 +246,6 @@ export class GamesController {
 
     @Get('/:slug')
     async get(@Param('slug') slug: string): Promise<Game> {
-        const game = await this.gamesRepository.findOne({
-            relations: {
-                cover: {
-                    colorPalette: true,
-                },
-                alternativeNames: true,
-                musics: {
-                    derivedGameToMusics: {
-                        game: true,
-                    },
-                    originalGameToMusic: {
-                        game: true,
-                    },
-                },
-                platforms: true,
-            },
-            where: {
-                slug,
-            },
-            order: {
-                musics: {
-                    id: 'ASC',
-                },
-            },
-        })
-        if (game === null) {
-            throw new NotFoundException()
-        }
-        return game
+        return this.gamesService.getGameWithMusics(slug)
     }
 }

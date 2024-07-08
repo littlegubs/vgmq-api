@@ -27,22 +27,18 @@ import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
 import { AddDerivedGameToMusicDto } from './dto/add-derived-game-to-music.dto'
 import { GameToMusicEditDto } from './dto/game-to-music-edit.dto'
+import { GameAlbum } from './entity/game-album.entity'
 import { GameToMusic, GameToMusicType } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
-import { GamesService } from './services/games.service'
-import { IgdbService } from './services/igdb.service'
 
 @Controller('admin/game-to-music')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.Admin, Role.SuperAdmin)
 export class GameToMusicController {
     constructor(
-        private gamesService: GamesService,
-        private igdbService: IgdbService,
-        @InjectRepository(GameToMusic)
-        private gameToMusicRepository: Repository<GameToMusic>,
-        @InjectRepository(Game)
-        private gameRepository: Repository<Game>,
+        @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
+        @InjectRepository(Game) private gameRepository: Repository<Game>,
+        @InjectRepository(GameAlbum) private gameAlbumRepository: Repository<GameAlbum>,
         private s3Service: S3Service,
     ) {}
 
@@ -93,6 +89,9 @@ export class GameToMusicController {
             ...gameToMusic,
             title: musicEditDto.title,
             artist: musicEditDto.artist,
+            disk: musicEditDto.disk,
+            track: musicEditDto.track,
+            album: musicEditDto.album,
         })
     }
 

@@ -29,6 +29,12 @@ export class Music {
     @Column({ type: 'float' })
     duration: number
 
+    @Column({ type: 'int', nullable: true })
+    track: number | null
+
+    @Column({ type: 'int', nullable: true })
+    disk: number | null
+
     @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.music)
     games: GameToMusic[]
 
