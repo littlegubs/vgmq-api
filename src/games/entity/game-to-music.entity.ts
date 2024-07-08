@@ -11,6 +11,7 @@ import {
 
 import { LobbyMusic } from '../../lobbies/entities/lobby-music.entity'
 import { User } from '../../users/user.entity'
+import { GameAlbum } from './game-album.entity'
 import { Game } from './game.entity'
 import { MusicAccuracy } from './music-accuracy.entity'
 import { Music } from './music.entity'
@@ -36,9 +37,19 @@ export class GameToMusic {
     @Expose({ groups: ['lobby-answer-reveal'] })
     artist: string | null
 
+    @Column({ type: 'int', nullable: true })
+    track: number | null
+
+    @Column({ type: 'int', nullable: true })
+    disk: number | null
+
     @ManyToOne(() => Game, (game) => game.musics)
     @Expose({ groups: ['lobby-answer-reveal'] })
     game: Game
+
+    @ManyToOne(() => GameAlbum, (album) => album.musics, { onDelete: 'SET NULL' })
+    @Expose({ groups: ['lobby-answer-reveal'] })
+    album: GameAlbum | null
 
     @ManyToOne(() => Music, (music) => music.games, {
         cascade: ['insert', 'update'],

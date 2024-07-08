@@ -12,6 +12,7 @@ import { AdminGamesController } from './admin-games.controller'
 import { AlternativeName } from './entity/alternative-name.entity'
 import { ColorPalette } from './entity/color-palette.entity'
 import { Cover } from './entity/cover.entity'
+import { GameAlbum } from './entity/game-album.entity'
 import { GameToMusic } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
 import { IgdbClient } from './entity/igdb.entity'
@@ -20,6 +21,7 @@ import { Music } from './entity/music.entity'
 import { Platform } from './entity/platform.entity'
 import { Screenshot } from './entity/screenshot.entity'
 import { Video } from './entity/video.entity'
+import { GameAlbumController } from './game-album.controller'
 import { GameToMusicController } from './game-to-music.controller'
 import { GameProcessor } from './game.processor'
 import { WebhookController } from './games-webhook.controller'
@@ -34,13 +36,20 @@ import { GameSubscriber } from './subscribers/game.subscriber'
 import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber'
 
 @Module({
-    controllers: [AdminGamesController, GamesController, GameToMusicController, WebhookController],
+    controllers: [
+        AdminGamesController,
+        GamesController,
+        GameToMusicController,
+        WebhookController,
+        GameAlbumController,
+    ],
     imports: [
         TypeOrmModule.forFeature([
             Game,
             AlternativeName,
             Cover,
             IgdbClient,
+            GameAlbum,
             GameToMusic,
             Music,
             File,

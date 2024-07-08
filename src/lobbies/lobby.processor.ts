@@ -618,8 +618,10 @@ export class LobbyProcessor {
     }
 
     @OnQueueError()
-    onError(job: any): void {
+    onError(error: Error): void {
         this.logger.error(`Job error`)
+        this.logger.error(`${error.message}`)
+        this.logger.error(`${error.stack}`)
     }
 
     @OnQueueWaiting()
@@ -633,8 +635,12 @@ export class LobbyProcessor {
     }
 
     @OnQueueFailed()
-    onFail(job: Job<string>): void {
-        this.logger.error(`Job failed ${job.id} of type ${job.name} with data ${job.data}...`)
+    onFail(job: Job<string>, err: Error): void {
+        this.logger.error(
+            `Job failed ${job.id} of type ${job.name} with data ${job.data}... due to error:`,
+        )
+        this.logger.error(`${err.message}`)
+        this.logger.error(`${err.stack}`)
         const lobbyCode = job.data
         this.logger.debug(`Set lobby ${lobbyCode} back to waiting after error`)
 

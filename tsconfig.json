@@ -16,7 +16,8 @@
     "noUnusedParameters": false,
     "noUnusedLocals": false,
     "strictNullChecks": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "moduleResolution": "NodeNext"
   },
   "emitDecoratorMetadata": true,
   "experimentalDecorators": true

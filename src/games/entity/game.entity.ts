@@ -16,6 +16,7 @@ import {
 import { User } from '../../users/user.entity'
 import { AlternativeName } from './alternative-name.entity'
 import { Cover } from './cover.entity'
+import { GameAlbum } from './game-album.entity'
 import { GameToMusic } from './game-to-music.entity'
 import { Platform } from './platform.entity'
 import { Screenshot } from './screenshot.entity'
@@ -93,6 +94,12 @@ export class Game {
         cascade: true,
     })
     versionParent?: Game
+
+    // @OneToMany(() => GameRevision, (revision) => revision.game)
+    // revisions: Game[]
+
+    @OneToMany(() => GameAlbum, (gameAlbum) => gameAlbum.game)
+    albums: GameAlbum[]
 
     @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.game)
     musics: GameToMusic[]

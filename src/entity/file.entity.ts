@@ -14,6 +14,9 @@ export class File {
     @Column()
     mimeType: string
 
+    @Column({ default: true })
+    private: boolean
+
     @Column({ type: 'decimal' })
     size: number
 }
