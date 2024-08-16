@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import * as process from 'node:process'
 
 import {
     InjectQueue,
@@ -11,6 +12,7 @@ import {
     OnQueueFailed,
 } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
 import * as dayjs from 'dayjs'
@@ -27,8 +29,6 @@ import { Lobby, LobbyGameModes, LobbyHintMode, LobbyStatuses } from './entities/
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const ffmpeg = require('ffmpeg-static') as string
 
 @Processor('lobby')
 export class LobbyProcessor {
@@ -50,6 +50,7 @@ export class LobbyProcessor {
         private userService: UsersService,
         private s3Service: S3Service,
         private lobbyMusicLoaderService: LobbyMusicLoaderService,
+        private configService: ConfigService,
     ) {}
     private readonly logger = new Logger(LobbyProcessor.name)
 
@@ -159,17 +160,22 @@ export class LobbyProcessor {
         }
         const gameToMusic = lobbyMusic.gameToMusic
         const url = await this.s3Service.getSignedUrl(gameToMusic.music.file.path)
-        if (ffmpeg === null) {
+        const ffmpegPath = this.configService.get<string>('FFMPEG_PATH')
+        if (ffmpegPath === undefined) {
             throw new Exception('could not encode mp3 file')
         }
-        const command = `-i ${url} -ss ${
+        const ffmpegArgs = this.configService.get<string>('FFMPEG_ARGS') ?? ''
+        const command = `${ffmpegArgs} -i ${url} -ss ${
             lobbyMusic.startAt > 0 ? `${lobbyMusic.startAt}` : '0.001' // for some reason, the file is broken if I start at 0 on chrome???
         } -t ${
             lobbyMusic.lobby.playMusicOnAnswerReveal
                 ? lobbyMusic.lobby.guessTime + 10
                 : lobbyMusic.lobby.guessTime
         } -map 0:a -map_metadata -1 -f mp3 -`
-        const ffmpegProcess = spawn(ffmpeg, command.split(' '))
+        const ffmpegProcess = spawn(ffmpegPath, command.split(' '), {
+            env: process.env,
+            shell: true,
+        })
         let output: Buffer[] = []
         ffmpegProcess.stdout.on('data', (data: Buffer) => {
             output = [...output, data]
