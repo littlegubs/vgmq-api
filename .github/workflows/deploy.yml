@@ -1,4 +1,4 @@
-name: Update version and deploy
+name: Deploy Prod
 
 on:
   push:
@@ -6,33 +6,13 @@ on:
       - "*"
 
 jobs:
-  update_version_and_deploy:
+  deploy:
     runs-on: ubuntu-latest
     environment: CI
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Get tag version
-        id: get_tag
-        run: echo "::set-output name=tag::${GITHUB_REF#refs/tags/}"
-
-      - name: Update package.json version
-        run: |
-          TAG_VERSION=${{ steps.get_tag.outputs.tag }}
-          jq --arg version "$TAG_VERSION" '.version = $version' package.json > package.json.tmp && mv package.json.tmp package.json
-
-      - name: Commit updated package.json
-        run: |
-          git config --global user.name 'vgmq-ci'
-          git config --global user.email 'ci@videogamemusicquiz.com'
-          git pull origin master
-          git checkout master
-          git add package.json
-          git commit -m "Update version to ${{ steps.get_tag.outputs.tag }}"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin master
 
       - name: Deploy to server
         env:
