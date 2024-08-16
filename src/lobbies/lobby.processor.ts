@@ -162,10 +162,10 @@ export class LobbyProcessor {
         const url = await this.s3Service.getSignedUrl(gameToMusic.music.file.path)
         const ffmpegPath = this.configService.get<string>('FFMPEG_PATH')
         if (ffmpegPath === undefined) {
-            throw new Exception('could not encode mp3 file')
+            throw new Exception('FFMPEG_PATH could not be found.')
         }
         const ffmpegArgs = this.configService.get<string>('FFMPEG_ARGS') ?? ''
-        const command = `${ffmpegArgs} -i ${url} -ss ${
+        const command = `${ffmpegArgs} -i "${url}" -ss ${
             lobbyMusic.startAt > 0 ? `${lobbyMusic.startAt}` : '0.001' // for some reason, the file is broken if I start at 0 on chrome???
         } -t ${
             lobbyMusic.lobby.playMusicOnAnswerReveal
