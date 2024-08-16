@@ -27,8 +27,8 @@ jobs:
         run: |
           git config --global user.name 'vgmq-ci'
           git config --global user.email 'ci@videogamemusicquiz.com'
-          git checkout master
           git pull origin master
+          git checkout master
           git add package.json
           git commit -m "Update version to ${{ steps.get_tag.outputs.tag }}"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
