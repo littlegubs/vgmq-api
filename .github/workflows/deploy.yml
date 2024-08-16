@@ -19,7 +19,7 @@ jobs:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
-            cd /home/vgmq
+            cd /home/vgmq/vgmq-api
             git pull origin master
             npm ci
             npm run build 
