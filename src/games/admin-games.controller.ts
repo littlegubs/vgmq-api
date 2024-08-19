@@ -89,12 +89,6 @@ export class AdminGamesController {
     }
 
     @Roles(Role.Admin, Role.SuperAdmin)
-    @Patch('/:slug')
-    async editAlbumName(@Param('slug') slug: string): Promise<Game> {
-        return this.gamesService.toggle(slug)
-    }
-
-    @Roles(Role.Admin, Role.SuperAdmin)
     @UseInterceptors(
         FilesInterceptor('files', 200, {
             limits: {
