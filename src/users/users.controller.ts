@@ -60,13 +60,15 @@ export class UsersController {
     async delete(@Req() request: Request): Promise<void> {
         const user = request.user as User
         user &&
-            (await this.userRepository.save({
-                ...user,
-                enabled: false,
-                username: `deletedAccount${user.id}`,
-                email: `deletedAccount${user.id}@videogamemusicquiz.com`,
-                password: 'yoyo',
-                currentHashedRefreshToken: null,
-            }))
+            (await this.userRepository.save(
+                this.userRepository.create({
+                    ...user,
+                    enabled: false,
+                    username: `deletedAccount${user.id}`,
+                    email: `deletedAccount${user.id}@videogamemusicquiz.com`,
+                    password: 'yoyo',
+                    currentHashedRefreshToken: null,
+                }),
+            ))
     }
 }
