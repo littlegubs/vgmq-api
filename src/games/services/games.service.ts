@@ -519,6 +519,12 @@ export class GamesService {
             .leftJoinAndSelect('gmt.music', 'music')
             .andWhere('gmt.gameId = :id', { id: game.id })
             .andWhere('gmt.album IS NULL')
+            .orderBy({
+                'gmt.disk': 'ASC',
+                'gmt.track': 'ASC',
+                'music.disk': 'ASC',
+                'music.track': 'ASC',
+            })
             .getMany()
 
         return game
