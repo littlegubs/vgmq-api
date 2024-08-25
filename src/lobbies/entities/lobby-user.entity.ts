@@ -3,6 +3,7 @@ import {
     Column,
     CreateDateColumn,
     Entity,
+    JoinColumn,
     ManyToOne,
     OneToOne,
     PrimaryGeneratedColumn,
@@ -84,6 +85,7 @@ export class LobbyUser {
 
     @OneToOne(() => User, (user) => user.currentLobby, { onDelete: 'CASCADE' })
     @Expose({ groups: ['wsLobby'] })
+    @JoinColumn()
     user: User
 
     @ManyToOne(() => Lobby, (lobby) => lobby.lobbyUsers, {
