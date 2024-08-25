@@ -68,7 +68,6 @@ export class User {
     games: Game[]
 
     @OneToOne(() => LobbyUser, (lobbyUser) => lobbyUser.user, { onDelete: 'SET NULL' })
-    @JoinColumn()
     currentLobby?: LobbyUser
 
     @Column()
@@ -79,7 +78,7 @@ export class User {
     @UpdateDateColumn()
     updatedAt: Date
 
-    @BeforeInsert() async hashPassword() {
+    @BeforeInsert() async hashPassword(): Promise<void> {
         this.password = await bcrypt.hash(this.password, 8)
     }
 
