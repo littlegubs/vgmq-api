@@ -150,11 +150,13 @@ export class LobbyProcessor {
         )
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
+        console.log(`will call playMusic for lobby ${lobby.code}`)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
             jobId: `lobby${lobby.code}playMusic`,
             removeOnComplete: true,
         })
+        console.log(`playMusic should start in 5s for lobby ${lobby.code}`)
         if (lobby.status === LobbyStatuses.Buffering) {
             this.lobbyGateway.sendUpdateToRoom(lobby)
         }
@@ -282,11 +284,13 @@ export class LobbyProcessor {
                 )
                 await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
                 this.lobbyGateway.sendUpdateToRoom(lobby)
+                console.log(`will call playMusicForced for lobby ${lobby.code}`)
                 await this.lobbyQueue.add('playMusic', lobby.code, {
                     delay: 5 * 1000,
                     jobId: `lobby${lobby.code}playMusicForced`,
                     removeOnComplete: true,
                 })
+                console.log(`playMusicForced for lobby ${lobby.code} should start in 5sec...`)
                 return
             }
         }
@@ -342,12 +346,13 @@ export class LobbyProcessor {
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
+        console.log(`will call revealAnswer for lobby ${lobby.code}`)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
             removeOnComplete: true,
         })
-
+        console.log(`revealAnswer for lobby ${lobby.code} should start in 10sec...`)
         await this.lobbyMusicRepository.save({
             ...lobbyMusic,
             musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
@@ -447,18 +452,22 @@ export class LobbyProcessor {
             lobby.custom &&
             lobby.musicNumber !== -1
         ) {
+            console.log(`will call finalResult for lobby ${lobby.code}`)
             await this.lobbyQueue.add('finalResult', lobby.code, {
                 delay: 10000,
                 jobId: `lobby${lobby.code}finalResult`,
                 removeOnComplete: true,
             })
+            console.log(`finalResult for lobby ${lobby.code} should have been called`)
         } else {
+            console.log(`will call bufferMusic for lobby ${lobby.code}`)
             await this.lobbyQueue.add('bufferMusic', lobby.code, {
                 delay: 5 * 1000,
                 jobId: `lobby${lobby.code}bufferMusic`,
                 removeOnComplete: true,
                 timeout: 10_000,
             })
+            console.log(`bufferMusic for lobby ${lobby.code} should start in 10sec...`)
         }
 
         if (
