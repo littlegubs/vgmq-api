@@ -44,8 +44,7 @@ export class LobbyProcessor {
         private userRepository: Repository<User>,
         @InjectRepository(MusicAccuracy)
         private musicAccuracyRepository: Repository<MusicAccuracy>,
-        @InjectQueue('lobby')
-        private lobbyQueue: Queue,
+        @InjectQueue('lobby') private lobbyQueue: Queue,
         private lobbyUserService: LobbyUserService,
         private userService: UsersService,
         private s3Service: S3Service,
