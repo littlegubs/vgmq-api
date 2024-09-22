@@ -96,7 +96,12 @@ export class LobbyProcessor {
         })
         if (!lobbyMusic) {
             if (lobby.custom && lobby.musicNumber !== -1) {
-                await this.lobbyQueue.add('finalResult', lobby.code, { removeOnComplete: true })
+                this.logger.debug(`will call finalResult for lobby ${lobby.code}`)
+                await this.lobbyQueue.add('finalResult', lobby.code, {
+                    jobId: `lobby${lobby.code}finalResultFromBufferMusic-${Date.now()}`,
+                    removeOnComplete: true,
+                })
+                this.logger.debug(`finalResult called for lobby ${lobby.code}`)
                 return
             }
             const countUsers = await this.lobbyUserRepository.count({
@@ -110,10 +115,12 @@ export class LobbyProcessor {
             if (countUsers === 0) {
                 lobby.loopsWithNoUsers += 1
                 if (lobby.loopsWithNoUsers > 5) {
+                    this.logger.debug(`will call public finalResult for lobby ${lobby.code}`)
                     await this.lobbyQueue.add('finalResult', lobby.code, {
-                        jobId: `lobby${lobby.code}finalResultFromBufferMusic`,
+                        jobId: `publicLobby${lobby.code}finalResultFromBufferMusic-${Date.now()}`,
                         removeOnComplete: true,
                     })
+                    this.logger.debug(`public finalResult called for lobby ${lobby.code}`)
                     return
                 }
                 await this.lobbyRepository.save(lobby)
@@ -150,13 +157,13 @@ export class LobbyProcessor {
         )
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
-        console.log(`will call playMusic for lobby ${lobby.code}`)
+        this.logger.debug(`will call playMusic for lobby ${lobby.code}`)
         await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
             delay: 5 * 1000,
-            jobId: `lobby${lobby.code}playMusic`,
+            jobId: `lobby${lobby.code}playMusic-${Date.now()}`,
             removeOnComplete: true,
         })
-        console.log(`playMusic should start in 5s for lobby ${lobby.code}`)
+        this.logger.debug(`playMusic should start in 5s for lobby ${lobby.code}`)
         if (lobby.status === LobbyStatuses.Buffering) {
             this.lobbyGateway.sendUpdateToRoom(lobby)
         }
@@ -284,13 +291,13 @@ export class LobbyProcessor {
                 )
                 await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
                 this.lobbyGateway.sendUpdateToRoom(lobby)
-                console.log(`will call playMusicForced for lobby ${lobby.code}`)
+                this.logger.debug(`will call playMusicForced for lobby ${lobby.code}`)
                 await this.lobbyQueue.add('playMusic', lobby.code, {
                     delay: 5 * 1000,
-                    jobId: `lobby${lobby.code}playMusicForced`,
+                    jobId: `lobby${lobby.code}playMusicForced-${Date.now()}`,
                     removeOnComplete: true,
                 })
-                console.log(`playMusicForced for lobby ${lobby.code} should start in 5sec...`)
+                this.logger.debug(`playMusicForced for lobby ${lobby.code} should start in 5sec...`)
                 return
             }
         }
@@ -319,7 +326,7 @@ export class LobbyProcessor {
         })
         if (!lobbyMusic) {
             await this.lobbyQueue.add('finalResult', lobby.code, {
-                jobId: `lobby${lobby.code}finalResultFromPlayMusic`,
+                jobId: `lobby${lobby.code}finalResultFromPlayMusic-${Date.now()}`,
                 removeOnComplete: true,
             })
             return
@@ -346,13 +353,13 @@ export class LobbyProcessor {
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
-        console.log(`will call revealAnswer for lobby ${lobby.code}`)
+        this.logger.debug(`will call revealAnswer for lobby ${lobby.code}`)
         await this.lobbyQueue.add('revealAnswer', lobby.code, {
             delay: lobby.guessTime * 1000,
-            jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}`,
+            jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}-${Date.now()}`,
             removeOnComplete: true,
         })
-        console.log(`revealAnswer for lobby ${lobby.code} should start in 10sec...`)
+        this.logger.debug(`revealAnswer for lobby ${lobby.code} should start in 10sec...`)
         await this.lobbyMusicRepository.save({
             ...lobbyMusic,
             musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
@@ -452,22 +459,22 @@ export class LobbyProcessor {
             lobby.custom &&
             lobby.musicNumber !== -1
         ) {
-            console.log(`will call finalResult for lobby ${lobby.code}`)
+            this.logger.debug(`will call finalResult for lobby ${lobby.code}`)
             await this.lobbyQueue.add('finalResult', lobby.code, {
                 delay: 10000,
-                jobId: `lobby${lobby.code}finalResult`,
+                jobId: `lobby${lobby.code}finalResult-${Date.now()}`,
                 removeOnComplete: true,
             })
-            console.log(`finalResult for lobby ${lobby.code} should have been called`)
+            this.logger.debug(`finalResult for lobby ${lobby.code} should have been called`)
         } else {
-            console.log(`will call bufferMusic for lobby ${lobby.code}`)
+            this.logger.debug(`will call bufferMusic for lobby ${lobby.code}`)
             await this.lobbyQueue.add('bufferMusic', lobby.code, {
                 delay: 5 * 1000,
-                jobId: `lobby${lobby.code}bufferMusic`,
+                jobId: `lobby${lobby.code}bufferMusic-${Date.now()}`,
                 removeOnComplete: true,
                 timeout: 10_000,
             })
-            console.log(`bufferMusic for lobby ${lobby.code} should start in 10sec...`)
+            this.logger.debug(`bufferMusic for lobby ${lobby.code} should start in 10sec...`)
         }
 
         if (
