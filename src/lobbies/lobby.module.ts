@@ -44,6 +44,10 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
         ]),
         BullModule.registerQueue({
             name: 'lobby',
+            settings: {
+                lockDuration: 100000,
+                maxStalledCount: 0,
+            }, // todo if this doesn't work here, try in app.module.ts
             // defaultJobOptions: { timeout: 10000 }, idk it might be useful if ffmpeg takes too much time to load
         }),
         JwtModule.registerAsync({

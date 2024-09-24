@@ -192,6 +192,7 @@ export class LobbyProcessor {
         ffmpegProcess.stderr.on('data', () => {
             // somehow, listening to this event unlocks the event ffmpegProcess.stdout.on('data') for some files ???
         })
+        this.logger.debug(`bufferMusic for ${lobby.code} could be stuck`)
         await new Promise((resolve, reject) => {
             void ffmpegProcess.on('close', (code) => {
                 this.lobbyGateway.sendLobbyBufferEnd(lobby!)
@@ -213,14 +214,20 @@ export class LobbyProcessor {
                                     )
                                 })
                         })
-
+                    this.logger.debug(`nevermind! bufferMusic for ${lobby!.code} resolved`)
                     resolve(null)
                 } else {
+                    this.logger.debug(
+                        `nevermind! bufferMusic for ${
+                            lobby!.code
+                        } rejected, but could still be stuck`,
+                    )
                     reject('the server could not encode the music')
                 }
             })
         }).catch(async (err: string) => {
             this.lobbyGateway.sendLobbyError(lobby!, err)
+            this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 1/3`)
             lobbyUsers = this.lobbyUserRepository.create(
                 await this.lobbyUserRepository.save(
                     lobbyUsers.map((lobbyUser) => ({
@@ -229,8 +236,11 @@ export class LobbyProcessor {
                     })),
                 ),
             )
+            this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 2/3`)
             await this.lobbyGateway.sendLobbyUsers(lobby!, lobbyUsers)
+            this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 3/3`)
         })
+        this.logger.debug(`bufferMusic for ${lobby.code} fully unstuck!`)
     }
 
     @Process('playMusic')
@@ -358,7 +368,9 @@ export class LobbyProcessor {
             jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}-${Date.now()}`,
             removeOnComplete: true,
         })
-        this.logger.debug(`revealAnswer for lobby ${lobby.code} should start in 10sec...`)
+        this.logger.debug(
+            `revealAnswer for lobby ${lobby.code} should start in ${lobby.guessTime}sec...`,
+        )
         await this.lobbyMusicRepository.save({
             ...lobbyMusic,
             musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
@@ -473,7 +485,7 @@ export class LobbyProcessor {
                 removeOnComplete: true,
                 timeout: 10_000,
             })
-            this.logger.debug(`bufferMusic for lobby ${lobby.code} should start in 10sec...`)
+            this.logger.debug(`bufferMusic for lobby ${lobby.code} should start in 5sec...`)
         }
 
         if (
