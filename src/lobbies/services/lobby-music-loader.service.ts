@@ -323,7 +323,7 @@ export class LobbyMusicLoaderService {
                     const expectedAnswers = this.getExpectedAnswers(gameToMusic)
                     const hintModeGames = await this.getHintModeGames(
                         gameToMusic,
-                        userId === 'random' ? undefined : userIds,
+                        userId === 'unplayed' ? undefined : userIds,
                     )
                     const video = await this.getVideo(gameToMusic)
                     let startVideoAt = 0
