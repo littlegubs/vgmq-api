@@ -154,7 +154,6 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (!lobby.custom && lobby.musicNumber === -1 && lobby.status === LobbyStatuses.Waiting) {
             await this.lobbyRepository.save({ ...lobby, status: LobbyStatuses.Playing })
             await this.lobbyQueue.add('bufferMusic', lobbyUser.lobby.code, {
-                removeOnComplete: true,
                 timeout: 10_000,
             })
         }
@@ -343,7 +342,6 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
         await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code, {
             jobId: `lobby${lobbyUser.lobby.code}finalResultManual-${Date.now()}`,
-            removeOnComplete: true,
         })
     }
 
@@ -439,7 +437,6 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             if (await this.lobbyUserService.areAllUsersReadyToPlay(lobbyUser.lobby)) {
                 await this.lobbyQueue.add('playMusic', lobbyUser.lobby.code, {
                     jobId: `lobby${lobbyUser.lobby.code}playMusicEveryoneReady-${Date.now()}`,
-                    removeOnComplete: true,
                 })
             }
         }
@@ -552,7 +549,6 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             await this.lobbyUserRepository.save({ ...lobbyUser, toDisconnect: true })
             await this.lobbyQueue.add('disconnectUser', lobbyUser.id, {
                 delay: 30 * 1000, // 30 seconds
-                removeOnComplete: true,
             })
         })
     }
