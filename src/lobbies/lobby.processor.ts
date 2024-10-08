@@ -204,7 +204,7 @@ export class LobbyProcessor {
             // somehow, listening to this event unlocks the event ffmpegProcess.stdout.on('data') for some files ???
         })
         this.logger.debug(`bufferMusic for ${lobby.code} could be stuck`)
-        await new Promise((resolve, reject) => {
+        void new Promise((resolve, reject) => {
             void ffmpegProcess.on('close', (code) => {
                 this.lobbyGateway.sendLobbyBufferEnd(lobby!)
                 if (code === 0) {
