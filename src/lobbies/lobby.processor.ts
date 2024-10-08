@@ -267,6 +267,13 @@ export class LobbyProcessor {
         })
         if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
+            this.logger.debug('ok,lobby not found, but what was its status then?')
+            const hihiLobby = await this.lobbyRepository.findOne({
+                where: {
+                    code: lobbyCode,
+                },
+            })
+            this.logger.debug(`lobby ${lobbyCode} status was ${hihiLobby?.status}`)
             return
         }
 
@@ -324,13 +331,14 @@ export class LobbyProcessor {
                 return
             }
         }
-
+        this.logger.debug(`about to set lobby ${lobby.code} to status play_music`)
         lobby = this.lobbyRepository.create(
             await this.lobbyRepository.save({
                 ...lobby,
                 status: LobbyStatuses.PlayingMusic,
             }),
         )
+        this.logger.debug(`set lobby ${lobby.code} to status play_music`)
 
         const lobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: {
