@@ -43,6 +43,10 @@ import { UsersModule } from './users/users.module'
                     port: configService.get<number>('REDIS_PORT'),
                     password: configService.get('REDIS_PASSWORD'),
                 },
+                defaultJobOptions: {
+                    removeOnComplete: true,
+                    removeOnFail: true,
+                },
             }),
             inject: [ConfigService],
         }),
