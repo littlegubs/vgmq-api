@@ -60,13 +60,10 @@ export class GameToMusic {
 
     @ManyToOne(() => GameToMusic, (gameToMusic) => gameToMusic.derivedGameToMusics, {
         cascade: ['insert', 'update'],
-        onDelete: 'CASCADE',
     })
     originalGameToMusic: GameToMusic | null
 
-    @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.originalGameToMusic, {
-        cascade: ['remove'],
-    })
+    @OneToMany(() => GameToMusic, (gameToMusic) => gameToMusic.originalGameToMusic)
     derivedGameToMusics?: GameToMusic[]
 
     @Column({ type: 'float', nullable: true })
