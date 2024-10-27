@@ -27,6 +27,7 @@ import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
 import { AddDerivedGameToMusicDto } from './dto/add-derived-game-to-music.dto'
 import { GameToMusicEditDto } from './dto/game-to-music-edit.dto'
+import { LinkGameToMusicDto } from './dto/link-game-to-music.dto'
 import { GameAlbum } from './entity/game-album.entity'
 import { GameToMusic, GameToMusicType } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
@@ -44,8 +45,13 @@ export class GameToMusicController {
 
     @Delete('/:id')
     async delete(@Param('id') id: number): Promise<void> {
-        const gameToMusic = await this.gameToMusicRepository.findOneBy({
-            id,
+        const gameToMusic = await this.gameToMusicRepository.findOne({
+            relations: {
+                derivedGameToMusics: true,
+            },
+            where: {
+                id,
+            },
         })
         if (!gameToMusic) {
             throw new NotFoundException()
@@ -126,6 +132,93 @@ export class GameToMusicController {
             playNumber: 0,
             guessAccuracy: null,
             addedBy: user,
+        })
+
+        return this.gameToMusicRepository.findOne({
+            relations: ['derivedGameToMusics', 'derivedGameToMusics.game'],
+            where: {
+                id,
+            },
+        })
+    }
+
+    @Patch('/:id/link')
+    async link(
+        @Param('id') id: number,
+        @Body() linkGameToMusicDto: LinkGameToMusicDto,
+    ): Promise<GameToMusic | null> {
+        const originalGameToMusic = await this.gameToMusicRepository.findOne({
+            relations: { game: true },
+            where: {
+                id,
+                type: GameToMusicType.Original,
+            },
+        })
+        if (!originalGameToMusic) {
+            throw new NotFoundException()
+        }
+        const gameToMusicToBeDerived = await this.gameToMusicRepository.findOne({
+            relations: { game: true },
+            where: {
+                id: linkGameToMusicDto.gameToMusicId,
+            },
+        })
+        if (!gameToMusicToBeDerived) {
+            throw new NotFoundException()
+        }
+        if (gameToMusicToBeDerived.type === GameToMusicType.Reused) {
+            throw new BadRequestException(
+                "The music you're trying to link is already linked to another game",
+            )
+        }
+        if (gameToMusicToBeDerived.game.id === originalGameToMusic.game.id) {
+            throw new BadRequestException('A link cannot be made on the same game')
+        }
+
+        await this.gameToMusicRepository.save({
+            ...gameToMusicToBeDerived,
+            originalGameToMusic,
+            type: GameToMusicType.Reused,
+        })
+
+        return this.gameToMusicRepository.findOne({
+            relations: ['derivedGameToMusics', 'derivedGameToMusics.game'],
+            where: {
+                id,
+            },
+        })
+    }
+
+    @Patch('/:id/unlink')
+    async unlink(
+        @Param('id') id: number,
+        @Body() linkGameToMusicDto: LinkGameToMusicDto,
+    ): Promise<GameToMusic | null> {
+        const originalGameToMusic = await this.gameToMusicRepository.findOne({
+            where: {
+                id,
+                type: GameToMusicType.Original,
+            },
+        })
+        if (!originalGameToMusic) {
+            throw new NotFoundException()
+        }
+        const gameToMusicToUnlink = await this.gameToMusicRepository.findOne({
+            relations: { originalGameToMusic: true },
+            where: {
+                id: linkGameToMusicDto.gameToMusicId,
+                type: GameToMusicType.Reused,
+                originalGameToMusic: { id: originalGameToMusic.id },
+            },
+        })
+        if (!gameToMusicToUnlink) {
+            throw new NotFoundException()
+        }
+
+        await this.gameToMusicRepository.save({
+            ...gameToMusicToUnlink,
+            originalGameToMusic: null,
+            type: GameToMusicType.Original,
         })
 
         return this.gameToMusicRepository.findOne({
