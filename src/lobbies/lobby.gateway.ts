@@ -364,6 +364,37 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         await this.lobbyUserRepository.remove(lobbyUser)
     }
 
+    @SubscribeMessage('voteSkip')
+    async voteSkip(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        const lobbyUser = await this.lobbyUserService.getLobbyUserNotSpectatorNotDisconnected(
+            client.user,
+        )
+        if (lobbyUser === null) {
+            return
+        }
+        let { lobby } = lobbyUser
+        const countLobbyUsers = await this.lobbyUserRepository.count({
+            relations: { lobby: true },
+            where: {
+                lobby: {
+                    code: lobby.code,
+                },
+                disconnected: false,
+                role: Not(LobbyUserRole.Spectator),
+            },
+        })
+
+        lobby = await this.lobbyRepository.save({ ...lobby, voteSkip: lobby.voteSkip + 1 })
+        if (lobby.voteSkip >= Math.ceil(countLobbyUsers / 2)) {
+            // if a majority of users voted, skip
+            if (lobby.nextJobName !== null && lobby.nextJobId !== null) {
+                await this.lobbyQueue.removeJobs(lobby.nextJobId)
+                await this.lobbyQueue.add(lobby.nextJobName, lobby.code, { jobId: lobby.nextJobId })
+                await this.lobbyRepository.save({ ...lobby, nextJobName: null, nextJobId: null })
+            }
+        }
+    }
+
     @SubscribeMessage('leave')
     async leave(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
         const lobbyUser = await this.lobbyUserRepository.findOne({

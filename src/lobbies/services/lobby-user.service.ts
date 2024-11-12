@@ -68,4 +68,20 @@ export class LobbyUserService {
             },
         })
     }
+
+    getLobbyUserNotSpectatorNotDisconnected(user: User): Promise<LobbyUser | null> {
+        return this.lobbyUserRepository.findOne({
+            relations: {
+                user: true,
+                lobby: true,
+            },
+            where: {
+                user: {
+                    id: user.id,
+                },
+                disconnected: false,
+                role: Not(LobbyUserRole.Spectator),
+            },
+        })
+    }
 }

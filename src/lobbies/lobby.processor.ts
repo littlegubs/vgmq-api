@@ -95,15 +95,9 @@ export class LobbyProcessor {
         })
         if (!lobbyMusic) {
             if (lobby.custom && lobby.musicNumber !== -1) {
-                this.logger.debug(`will call finalResult for lobby ${lobby.code}`)
-                await this.lobbyQueue
-                    .add('finalResult', lobby.code, {
-                        jobId: `lobby${lobby.code}finalResultFromBufferMusic-${Date.now()}`,
-                    })
-                    .catch((reason) => {
-                        this.logger.debug(`finalResult couldn't be called, reason: ${reason}`)
-                    })
-                this.logger.debug(`finalResult called for lobby ${lobby.code}`)
+                await this.lobbyQueue.add('finalResult', lobby.code, {
+                    jobId: `lobby${lobby.code}finalResultFromBufferMusic-${Date.now()}`,
+                })
                 return
             }
             const countUsers = await this.lobbyUserRepository.count({
@@ -164,16 +158,18 @@ export class LobbyProcessor {
         )
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
-        this.logger.debug(`will call playMusic for lobby ${lobby.code}`)
-        await this.lobbyQueue
-            .add('playMusic', lobbyMusic.lobby.code, {
-                delay: 5 * 1000,
-                jobId: `lobby${lobby.code}playMusic-${Date.now()}`,
-            })
-            .catch((reason) => {
-                this.logger.debug(`playMusic couldn't be called, reason: ${reason}`)
-            })
-        this.logger.debug(`playMusic should start in 5s for lobby ${lobby.code}`)
+        const jobId = `lobby${lobby.code}playMusic-${Date.now()}`
+        await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
+            delay: 5 * 1000,
+            jobId: jobId,
+        })
+        lobby = this.lobbyRepository.create(
+            await this.lobbyRepository.save({
+                ...lobby,
+                nextJobName: 'playMusic',
+                nextJobId: jobId,
+            }),
+        )
         if (lobby.status === LobbyStatuses.Buffering) {
             this.lobbyGateway.sendUpdateToRoom(lobby)
         }
@@ -203,7 +199,6 @@ export class LobbyProcessor {
         ffmpegProcess.stderr.on('data', () => {
             // somehow, listening to this event unlocks the event ffmpegProcess.stdout.on('data') for some files ???
         })
-        this.logger.debug(`bufferMusic for ${lobby.code} could be stuck`)
         void new Promise((resolve, reject) => {
             void ffmpegProcess.on('close', (code) => {
                 this.lobbyGateway.sendLobbyBufferEnd(lobby!)
@@ -225,20 +220,13 @@ export class LobbyProcessor {
                                     )
                                 })
                         })
-                    this.logger.debug(`nevermind! bufferMusic for ${lobby!.code} resolved`)
                     resolve(null)
                 } else {
-                    this.logger.debug(
-                        `nevermind! bufferMusic for ${
-                            lobby!.code
-                        } rejected, but could still be stuck`,
-                    )
                     reject('the server could not encode the music')
                 }
             })
         }).catch(async (err: string) => {
             this.lobbyGateway.sendLobbyError(lobby!, err)
-            this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 1/3`)
             lobbyUsers = this.lobbyUserRepository.create(
                 await this.lobbyUserRepository.save(
                     lobbyUsers.map((lobbyUser) => ({
@@ -247,11 +235,8 @@ export class LobbyProcessor {
                     })),
                 ),
             )
-            this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 2/3`)
             await this.lobbyGateway.sendLobbyUsers(lobby!, lobbyUsers)
-            this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 3/3`)
         })
-        this.logger.debug(`bufferMusic for ${lobby.code} fully unstuck!`)
     }
 
     @Process('playMusic')
@@ -318,27 +303,19 @@ export class LobbyProcessor {
                 )
                 await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
                 this.lobbyGateway.sendUpdateToRoom(lobby)
-                this.logger.debug(`will call playMusicForced for lobby ${lobby.code}`)
-                await this.lobbyQueue
-                    .add('playMusic', lobby.code, {
-                        delay: 5 * 1000,
-                        jobId: `lobby${lobby.code}playMusicForced-${Date.now()}`,
-                    })
-                    .catch((reason) => {
-                        this.logger.debug(`playMusic couldn't be called, reason: ${reason}`)
-                    })
-                this.logger.debug(`playMusicForced for lobby ${lobby.code} should start in 5sec...`)
+                await this.lobbyQueue.add('playMusic', lobby.code, {
+                    delay: 5 * 1000,
+                    jobId: `lobby${lobby.code}playMusicForced-${Date.now()}`,
+                })
                 return
             }
         }
-        this.logger.debug(`about to set lobby ${lobby.code} to status play_music`)
         lobby = this.lobbyRepository.create(
             await this.lobbyRepository.save({
                 ...lobby,
                 status: LobbyStatuses.PlayingMusic,
             }),
         )
-        this.logger.debug(`set lobby ${lobby.code} to status play_music`)
 
         const lobbyMusic = await this.lobbyMusicRepository.findOne({
             relations: {
@@ -387,20 +364,10 @@ export class LobbyProcessor {
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
-        this.logger.debug(`will call revealAnswer for lobby ${lobby.code}`)
-        await this.lobbyQueue
-            .add('revealAnswer', lobby.code, {
-                delay: lobby.guessTime * 1000,
-                jobId: `lobby${lobby.code}revealAnswer${
-                    lobby.currentLobbyMusicPosition
-                }-${Date.now()}`,
-            })
-            .catch((reason) => {
-                this.logger.debug(`revealAnswer couldn't be called, reason: ${reason}`)
-            })
-        this.logger.debug(
-            `revealAnswer for lobby ${lobby.code} should start in ${lobby.guessTime}sec...`,
-        )
+        await this.lobbyQueue.add('revealAnswer', lobby.code, {
+            delay: lobby.guessTime * 1000,
+            jobId: `lobby${lobby.code}revealAnswer${lobby.currentLobbyMusicPosition}-${Date.now()}`,
+        })
         await this.lobbyMusicRepository.save({
             ...lobbyMusic,
             musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
@@ -500,29 +467,23 @@ export class LobbyProcessor {
             lobby.custom &&
             lobby.musicNumber !== -1
         ) {
-            this.logger.debug(`will call finalResult for lobby ${lobby.code}`)
-            await this.lobbyQueue
-                .add('finalResult', lobby.code, {
-                    delay: 10000,
-                    jobId: `lobby${lobby.code}finalResult-${Date.now()}`,
-                })
-                .catch((reason) => {
-                    this.logger.debug(`finalResult couldn't be called, reason: ${reason}`)
-                })
-            this.logger.debug(`finalResult for lobby ${lobby.code} should have been called`)
+            const jobId = `lobby${lobby.code}finalResult-${Date.now()}`
+            await this.lobbyQueue.add('finalResult', lobby.code, {
+                delay: 10000,
+                jobId,
+            })
+            lobby = this.lobbyRepository.create(
+                await this.lobbyRepository.save({
+                    ...lobby,
+                    nextJobName: 'finalResult',
+                    nextJobId: jobId,
+                }),
+            )
         } else {
-            this.logger.debug(`will call bufferMusic for lobby ${lobby.code}`)
-            await this.lobbyQueue
-                .add('bufferMusic', lobby.code, {
-                    delay: 5 * 1000,
-                    jobId: `lobby${lobby.code}bufferMusic-${Date.now()}`,
-
-                    // timeout: 10_000, TODO maybe this was the cause ?
-                })
-                .catch((reason) => {
-                    this.logger.debug(`bufferMusic couldn't be called, reason: ${reason}`)
-                })
-            this.logger.debug(`bufferMusic for lobby ${lobby.code} should start in 5sec...`)
+            await this.lobbyQueue.add('bufferMusic', lobby.code, {
+                delay: 5 * 1000,
+                jobId: `lobby${lobby.code}bufferMusic-${Date.now()}`,
+            })
         }
 
         if (

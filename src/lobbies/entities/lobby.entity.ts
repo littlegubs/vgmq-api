@@ -139,6 +139,25 @@ export class Lobby {
     @Expose({ groups: ['lobby', 'lobby-list'] })
     gameMode: string
 
+    /**
+     * Defines the expected next redis job name, used to skip and pause the lobby
+     */
+    @Column({ type: 'varchar', nullable: true })
+    nextJobName: string | null
+
+    /**
+     * Defines the expected next redis job id, used to skip and pause the lobby
+     */
+    @Column({ type: 'varchar', nullable: true })
+    nextJobId: string | null
+
+    /**
+     * The current number of users who voted skip
+     */
+    @Column({ type: 'int', default: 0 })
+    @Expose({ groups: ['lobby'] })
+    voteSkip: number
+
     @Column({
         type: 'enum',
         enum: LobbyHintMode,
