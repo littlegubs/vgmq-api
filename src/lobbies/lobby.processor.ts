@@ -588,6 +588,7 @@ export class LobbyProcessor {
                 lobbyMusics: [],
             }),
         )
+        await this.lobbyQueue.removeJobs(`*${lobbyCode}*`)
         await this.removeDisconnectedUsers(lobby)
         await this.setSpectatorsAsPlayer(lobby)
         await this.resetUserState(lobby)
