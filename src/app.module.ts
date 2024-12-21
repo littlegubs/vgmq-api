@@ -15,6 +15,7 @@ import { LobbyModule } from './lobbies/lobby.module'
 import { MailModule } from './mail/mail.module'
 import { MusicsModule } from './musics/musics.module'
 import { S3Service } from './s3/s3.service'
+import { SkinsModule } from './skins/skins.module'
 import { FileSubscriber } from './subscribers/file.subscriber'
 import { UsersModule } from './users/users.module'
 
@@ -58,6 +59,7 @@ import { UsersModule } from './users/users.module'
         LobbyModule,
         MailModule,
         AdminModule,
+        SkinsModule,
     ],
     controllers: [AppController],
     providers: [AppService, FileSubscriber, S3Service],

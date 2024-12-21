@@ -16,6 +16,7 @@ import {
 
 import { Game } from '../games/entity/game.entity'
 import { LobbyUser } from '../lobbies/entities/lobby-user.entity'
+import { CharacterSkin } from '../skins/entities/character-skin.entity'
 import { Role } from './role.enum'
 
 @Entity()
@@ -66,6 +67,14 @@ export class User {
     @ManyToMany(() => Game, (game) => game.users)
     @JoinTable({ name: 'user_games' })
     games: Game[]
+
+    @ManyToMany(() => CharacterSkin, (characterSkin) => characterSkin.users)
+    @JoinTable({ name: 'user_character_skins' })
+    characterSkins: CharacterSkin[]
+
+    @OneToOne(() => CharacterSkin)
+    @JoinColumn()
+    selectedCharacterSkin?: CharacterSkin
 
     @OneToOne(() => LobbyUser, (lobbyUser) => lobbyUser.user, { onDelete: 'SET NULL' })
     currentLobby?: LobbyUser
