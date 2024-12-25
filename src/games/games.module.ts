@@ -13,6 +13,10 @@ import { AlternativeName } from './entity/alternative-name.entity'
 import { ColorPalette } from './entity/color-palette.entity'
 import { Cover } from './entity/cover.entity'
 import { GameAlbum } from './entity/game-album.entity'
+// import { GameRevisionAlbum } from './entity/game-revision-album.entity'
+// import { GameRevisionMessage } from './entity/game-revision-message.entity'
+// import { GameRevisionMusic } from './entity/game-revision-music.entity'
+import { GameRevision } from './entity/game-revision.entity'
 import { GameToMusic } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
 import { IgdbClient } from './entity/igdb.entity'
@@ -51,6 +55,10 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
             IgdbClient,
             GameAlbum,
             GameToMusic,
+            GameRevision,
+            // GameRevisionMusic,
+            // GameRevisionAlbum,
+            // GameRevisionMessage,
             Music,
             File,
             User,
