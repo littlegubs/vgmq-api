@@ -16,6 +16,7 @@ import {
 
 import { Game } from '../games/entity/game.entity'
 import { LobbyUser } from '../lobbies/entities/lobby-user.entity'
+import { OauthPatreon } from '../oauth/entities/oauth-patreon.entity'
 import { Role } from './role.enum'
 
 @Entity()
@@ -69,6 +70,9 @@ export class User {
 
     @OneToOne(() => LobbyUser, (lobbyUser) => lobbyUser.user, { onDelete: 'SET NULL' })
     currentLobby?: LobbyUser
+
+    @OneToOne(() => OauthPatreon, (oauthPatreon) => oauthPatreon.user, { onDelete: 'SET NULL' })
+    patreonAccount?: OauthPatreon
 
     @Column()
     @CreateDateColumn()
