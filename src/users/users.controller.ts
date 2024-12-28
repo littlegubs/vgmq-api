@@ -9,11 +9,14 @@ import {
     HttpCode,
     Delete,
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { OauthPatreon } from '../oauth/entities/oauth-patreon.entity'
+import { PatreonService } from '../oauth/services/patreon.service'
 import { UsersUpdatePasswordDto } from './dto/users-update-password.dto'
 import { User } from './user.entity'
 
@@ -21,18 +24,46 @@ import { User } from './user.entity'
 @UseGuards(JwtAuthGuard)
 export class UsersController {
     constructor(
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
+        private configService: ConfigService,
+        @InjectRepository(User) private userRepository: Repository<User>,
+        @InjectRepository(OauthPatreon) private oauthPatreonRepository: Repository<OauthPatreon>,
+        private patreonService: PatreonService,
     ) {}
 
     @Get('current')
-    getCurrent(@Req() request: Request): { createdAt: Date; email: string; username: string } {
-        const { createdAt, email, username } = request.user as User
+    async getCurrent(@Req() request: Request): Promise<{
+        createdAt: Date
+        email: string
+        username: string
+        patreonAccount: boolean
+        entitledTiers: string[]
+    }> {
+        const { id, createdAt, email, username } = request.user as User
+        let oauthPatreon = await this.oauthPatreonRepository.findOne({
+            relations: { user: true },
+            where: {
+                user: { id },
+            },
+        })
+
+        const entitledTiers: string[] = []
+        if (oauthPatreon !== null) {
+            oauthPatreon = await this.patreonService.shouldRefreshData(oauthPatreon)
+            for (const tier of oauthPatreon.currentlyEntitledTiers) {
+                if (this.configService.get('PATREON_TIER_1_ID') === tier) {
+                    entitledTiers.push('Gaming!')
+                } else if (this.configService.get('PATREON_TIER_2_ID') === tier) {
+                    entitledTiers.push('Gamer!')
+                }
+            }
+        }
 
         return {
             createdAt,
             email,
             username,
+            patreonAccount: !!oauthPatreon,
+            entitledTiers,
         }
     }
 
