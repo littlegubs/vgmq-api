@@ -139,6 +139,22 @@ export class Lobby {
     @Expose({ groups: ['lobby', 'lobby-list'] })
     gameMode: string
 
+    @Column({ type: 'boolean', default: false })
+    @Expose({ groups: ['lobby', 'lobby-list'] })
+    premium = false
+
+    @Column({ type: 'boolean', default: false })
+    @Expose({ groups: ['lobby'] })
+    filterByYear = false
+
+    @Column({ type: 'int' })
+    @Expose({ groups: ['lobby'] })
+    filterMinYear: number
+
+    @Column({ type: 'int' })
+    @Expose({ groups: ['lobby'] })
+    filterMaxYear: number
+
     @Column({
         type: 'enum',
         enum: LobbyHintMode,

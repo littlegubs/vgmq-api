@@ -23,7 +23,7 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
 
     async beforeInsert(event: InsertEvent<LobbyUser>): Promise<void> {
         const lobbyUser = await event.manager.findOne(LobbyUser, {
-            relations: ['user', 'lobby'],
+            relations: { user: { patreonAccount: true }, lobby: true },
             where: {
                 user: {
                     id: event.entity.user.id,
@@ -33,6 +33,13 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
         if (lobbyUser) {
             await event.manager.remove(LobbyUser, lobbyUser)
             await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby)
+        }
+
+        if (event.entity.user.premium) {
+            const lobby = await event.manager.findOne(Lobby, {
+                where: { id: event.entity.lobby.id },
+            })
+            await event.manager.save(Lobby, { ...lobby, premium: true })
         }
     }
 
@@ -74,16 +81,21 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 this.lobbyGateway.sendLobbyClosed(event.entity?.lobby, 'The host left the lobby!')
             }
         }
-        await this.lobbyGateway.sendLobbyUsers(
-            event.entity?.lobby,
-            await event.manager.find(LobbyUser, {
-                relations: ['user', 'lobby'],
-                where: {
-                    lobby: {
-                        id: event.entity?.lobby.id,
-                    },
+        const lobbyUsers = await event.manager.find(LobbyUser, {
+            relations: { user: { patreonAccount: true }, lobby: true },
+            where: {
+                lobby: {
+                    id: event.entity?.lobby.id,
                 },
-            }),
-        )
+            },
+        })
+        if (
+            !lobbyUsers.some((lobbyUser) => {
+                lobbyUser.user.premium
+            })
+        ) {
+            await event.manager.save(Lobby, { ...event.entity?.lobby, premium: false })
+        }
+        await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby, lobbyUsers)
     }
 }

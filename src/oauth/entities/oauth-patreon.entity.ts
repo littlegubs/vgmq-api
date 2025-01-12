@@ -43,6 +43,6 @@ export class OauthPatreon {
     @UpdateDateColumn()
     updatedAt: Date
 
-    @Expose()
+    @Expose({ groups: ['wsLobby', 'userProfile'] })
     premium = false
 }

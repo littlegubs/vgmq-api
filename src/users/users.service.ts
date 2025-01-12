@@ -50,6 +50,7 @@ export class UsersService {
 
     async findByUsername(username: string): Promise<User | null> {
         return this.userRepository.findOne({
+            relations: { patreonAccount: true },
             where: {
                 username: username,
                 enabled: true,

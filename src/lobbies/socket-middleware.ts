@@ -27,7 +27,7 @@ export const WSAuthMiddleware = (
             if (user !== null) {
                 const lobbyUser = await lobbyUserRepository.findOne({
                     relations: {
-                        user: true,
+                        user: { patreonAccount: true },
                     },
                     where: {
                         user: {
