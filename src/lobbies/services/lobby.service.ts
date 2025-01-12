@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm'
 
 import { GameToMusic } from '../../games/entity/game-to-music.entity'
+import { Role } from '../../users/role.enum'
 import { User } from '../../users/user.entity'
 import { LobbyCreateDto } from '../dto/lobby-create.dto'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
@@ -35,6 +36,9 @@ export class LobbyService {
         const lobby = await this.lobbyRepository.save({
             code: await this.generateCode(),
             ...data,
+            premium:
+                !!user.patreonAccount?.premium ||
+                user.roles.some((role) => [Role.Admin, Role.SuperAdmin].includes(role as Role)),
         })
         await this.lobbyUserRepository.save({
             lobby,
@@ -45,11 +49,14 @@ export class LobbyService {
         return lobby
     }
 
-    async update(lobby: Lobby, data: LobbyCreateDto): Promise<void> {
+    async update(lobby: Lobby, data: LobbyCreateDto, user: User): Promise<void> {
         lobby = this.lobbyRepository.create({
             ...(await this.lobbyRepository.save({
                 ...lobby,
                 ...data,
+                premium:
+                    !!user.patreonAccount?.premium ||
+                    user.roles.some((role) => [Role.Admin, Role.SuperAdmin].includes(role as Role)),
             })),
         })
 
