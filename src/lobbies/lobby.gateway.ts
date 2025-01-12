@@ -77,7 +77,10 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             throw new NotFoundException()
         }
         let lobbyUser = await this.lobbyUserRepository.findOne({
-            relations: ['user', 'lobby'],
+            relations: {
+                user: { patreonAccount: true },
+                lobby: true,
+            },
             where: {
                 user: {
                     id: client.user.id,
@@ -108,13 +111,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             )
         } else {
             // if user was previously in lobby, set them connected
-            lobbyUser = this.lobbyUserRepository.create(
-                await this.lobbyUserRepository.save({
-                    ...lobbyUser,
-                    disconnected: false,
-                    isReconnecting: false,
-                }),
-            )
+            await this.lobbyUserRepository.save({
+                ...lobbyUser,
+                disconnected: false,
+                isReconnecting: false,
+            })
         }
         await client.join(lobby.code)
         await client.join(`lobbyUser${lobbyUser.id}`)
@@ -606,7 +607,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             lobbyUsers = await this.lobbyUserRepository.find({
                 relations: {
                     lobby: true,
-                    user: true,
+                    user: { patreonAccount: true },
                 },
                 where: {
                     lobby: {

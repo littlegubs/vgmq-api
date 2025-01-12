@@ -268,6 +268,16 @@ export class LobbyMusicLoaderService {
                         blackListIds: blackListGameIds,
                     })
                 }
+
+                if (lobby.premium) {
+                    if (lobby.filterByYear) {
+                        gameQueryBuilder.andWhere(
+                            'YEAR(game.firstReleaseDate) BETWEEN :minYear AND :maxYear',
+                            { minYear: lobby.filterMinYear, maxYear: lobby.filterMaxYear },
+                        )
+                    }
+                }
+
                 const game = await this.getGameOrMusic(gameQueryBuilder)
 
                 if (game !== null) {

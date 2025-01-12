@@ -72,6 +72,7 @@ export class User {
     currentLobby?: LobbyUser
 
     @OneToOne(() => OauthPatreon, (oauthPatreon) => oauthPatreon.user, { onDelete: 'SET NULL' })
+    @Expose({ groups: ['wsLobby'] })
     patreonAccount?: OauthPatreon
 
     @Column()
@@ -88,5 +89,13 @@ export class User {
 
     async validatePassword(password: string): Promise<boolean> {
         return bcrypt.compare(password, this.password)
+    }
+
+    @Expose({ groups: ['wsLobby', 'userProfile'] })
+    get premium(): boolean {
+        return (
+            !!this.patreonAccount?.premium ||
+            this.roles.some((role) => [Role.Admin, Role.SuperAdmin].includes(role as Role))
+        )
     }
 }

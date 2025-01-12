@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
+import { classToClass } from 'class-transformer'
 import { Request } from 'express'
 import { Repository } from 'typeorm'
 
@@ -35,7 +36,7 @@ export class UsersController {
         createdAt: Date
         email: string
         username: string
-        patreonAccount: boolean
+        patreonAccount: OauthPatreon | null
         entitledTiers: string[]
     }> {
         const { id, createdAt, email, username } = request.user as User
@@ -62,7 +63,10 @@ export class UsersController {
             createdAt,
             email,
             username,
-            patreonAccount: !!oauthPatreon,
+            patreonAccount: classToClass(oauthPatreon, {
+                groups: ['userProfile'],
+                strategy: 'excludeAll',
+            }),
             entitledTiers,
         }
     }
