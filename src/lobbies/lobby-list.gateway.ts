@@ -1,6 +1,6 @@
 import { UseFilters, UseGuards } from '@nestjs/common'
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets'
-import { classToClass } from 'class-transformer'
+import { classToPlain } from 'class-transformer'
 import { Server } from 'socket.io'
 
 import { WsNotFoundExceptionFilter } from '../auth/exception-filter/ws-not-found.exception-filter'
@@ -20,6 +20,11 @@ export class LobbyListGateway {
     server: Server
 
     sendLobbyList(lobbies: Lobby[]): void {
-        this.server.emit('lobbyList', classToClass<Lobby>(lobbies, { groups: ['lobby-list'] }))
+        this.server.emit(
+            'lobbyList',
+            classToPlain(lobbies, {
+                groups: ['lobby-list'],
+            }),
+        )
     }
 }
