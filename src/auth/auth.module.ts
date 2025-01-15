@@ -1,5 +1,5 @@
 import { HttpModule } from '@nestjs/axios'
-import { Module } from '@nestjs/common'
+import { forwardRef, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
@@ -32,7 +32,7 @@ import { WsStrategy } from './strategies/ws.strategy'
                 }
             },
         }),
-        UsersModule,
+        forwardRef(() => UsersModule),
         HttpModule,
         TypeOrmModule.forFeature([LobbyUser, User]),
     ],
