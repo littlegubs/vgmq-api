@@ -1,22 +1,36 @@
-import { Controller, Get, NotFoundException, Query, Req, UseGuards } from '@nestjs/common'
+import {
+    Controller,
+    Get,
+    NotFoundException,
+    Query,
+    Redirect,
+    Req,
+    Res,
+    UseGuards,
+} from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
 import { Repository } from 'typeorm'
 
+import { AuthService } from '../auth/auth.service'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { User } from '../users/user.entity'
 import { OauthPatreon } from './entities/oauth-patreon.entity'
+import { GoogleOauthGuard } from './guards/google-auth.guard'
 import { PatreonService } from './services/patreon.service'
 
 @Controller('oauth')
-@UseGuards(JwtAuthGuard)
 export class OauthController {
     constructor(
         private patreonService: PatreonService,
+        private authService: AuthService,
+        private configService: ConfigService,
         @InjectRepository(OauthPatreon) private oauthPatreonRepository: Repository<OauthPatreon>,
     ) {}
 
     @Get('patreon')
+    @UseGuards(JwtAuthGuard)
     async patreon(
         @Req() request: Request,
         @Query('code') code: string,
@@ -27,6 +41,7 @@ export class OauthController {
     }
 
     @Get('patreon/refresh')
+    @UseGuards(JwtAuthGuard)
     async refreshPatreonData(@Req() request: Request): Promise<void> {
         const user = request.user as User
         const oauthPatreon = await this.oauthPatreonRepository.findOne({
@@ -40,8 +55,30 @@ export class OauthController {
     }
 
     @Get('patreon/unlink')
+    @UseGuards(JwtAuthGuard)
     async unlinkPatreon(@Req() request: Request): Promise<void> {
         const user = request.user as User
         await this.patreonService.unlinkUserToPatreon(user)
+    }
+
+    @Get('google')
+    @UseGuards(GoogleOauthGuard)
+    googleAuth(): void {
+        // Need to be empty redirect automatically to google
+    }
+
+    @Get('google/callback')
+    @UseGuards(GoogleOauthGuard)
+    @Redirect('https://front-end-host/auth-callback', 301)
+    googleAuthRedirect(@Req() req: Request): { url: string } {
+        const user = req.user as User
+
+        return {
+            url: `${this.configService.get(
+                'VGMQ_CLIENT_URL',
+            )}/auth-callback?accessToken=${this.authService.getJwtAccessToken(
+                user,
+            )}&refreshToken=${this.authService.getJwtAccessToken(user)}`,
+        }
     }
 }

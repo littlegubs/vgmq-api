@@ -1,13 +1,27 @@
 // @ts-nocheck
+import { existsSync } from 'fs'
+
 import * as dotenv from 'dotenv'
 import { DataSource } from 'typeorm'
 
-const env = dotenv.config({
-    path:
-        process.env.NODE_ENV !== undefined
-            ? `./.env.${process.env.NODE_ENV}.local`
-            : './.env.local',
-})
+let envPath
+
+if (process.env.NODE_ENV) {
+    const nodeEnvPath = `./.env.${process.env.NODE_ENV}`
+    if (existsSync(nodeEnvPath)) {
+        envPath = nodeEnvPath
+    }
+}
+
+if (!envPath && existsSync('./.env.local')) {
+    envPath = './.env.local'
+}
+
+if (!envPath) {
+    envPath = './.env'
+}
+
+const env = dotenv.config({ path: envPath })
 
 export const AppDataSource = new DataSource({
     type: 'mysql',
