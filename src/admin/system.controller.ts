@@ -52,4 +52,23 @@ export class SystemController {
             await this.lobbyUserRepository.remove(lobby.lobbyUsers)
         }
     }
+
+    @Roles(Role.SuperAdmin)
+    @Get('resetPrivateLobbies')
+    async resetPrivateLobbies(): Promise<void> {
+        const lobbies = await this.lobbyRepository.find({
+            relations: { lobbyMusics: true, lobbyUsers: true },
+            where: { custom: true, status: LobbyStatuses.Waiting },
+        })
+
+        if (lobbies.length > 0) {
+            for (const lobby of lobbies) {
+                await Promise.all([
+                    this.lobbyMusicRepository.remove(lobby.lobbyMusics),
+                    this.lobbyUserRepository.remove(lobby.lobbyUsers),
+                ])
+                await this.lobbyRepository.remove(lobby)
+            }
+        }
+    }
 }

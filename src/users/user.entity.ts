@@ -31,9 +31,9 @@ export class User {
     @Column({ unique: true })
     email: string
 
-    @Column()
+    @Column({ nullable: true, type: 'varchar' })
     @Exclude()
-    password: string
+    password: string | null
 
     @Column({
         type: 'set',
@@ -87,11 +87,11 @@ export class User {
     updatedAt: Date
 
     @BeforeInsert() async hashPassword(): Promise<void> {
-        this.password = await bcrypt.hash(this.password, 8)
+        this.password = this.password ? await bcrypt.hash(this.password, 8) : null
     }
 
     async validatePassword(password: string): Promise<boolean> {
-        return bcrypt.compare(password, this.password)
+        return this.password ? bcrypt.compare(password, this.password) : false
     }
 
     @Expose({ groups: ['wsLobby', 'userProfile'] })

@@ -23,7 +23,7 @@ import { AdminBanDto } from './dto/admin-ban.dto'
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/users')
-export class UsersController {
+export class AdminController {
     constructor(
         @InjectRepository(User)
         private userRepository: Repository<User>,
