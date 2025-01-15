@@ -45,9 +45,12 @@ export class LobbyController {
     }
 
     @Get('info')
-    async getGlobalInformation(
-        @Req() request: Request,
-    ): Promise<{ filterMaxYear: number; filterMinYear: number; musicAccuracyRatio: number }> {
+    async getGlobalInformation(@Req() request: Request): Promise<{
+        userIsPremium: boolean
+        filterMaxYear: number
+        filterMinYear: number
+        musicAccuracyRatio: number
+    }> {
         const lobbyUser = await this.lobbyUserRepository.findOne({
             relations: {
                 user: true,
@@ -66,6 +69,7 @@ export class LobbyController {
             .getRawOne<{ filterMinYear: string; filterMaxYear: string }>()
 
         return {
+            userIsPremium: (<User>request.user).premium,
             filterMaxYear: Number(filterYear!.filterMaxYear),
             filterMinYear: Number(filterYear!.filterMinYear),
             musicAccuracyRatio:
