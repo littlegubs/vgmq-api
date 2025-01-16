@@ -76,7 +76,7 @@ export class OauthController {
         return {
             url: `${this.configService.get(
                 'VGMQ_CLIENT_URL',
-            )}/auth-callback?accessToken=${this.authService.getJwtAccessToken(
+            )}/oauth/google?accessToken=${this.authService.getJwtAccessToken(
                 user,
             )}&refreshToken=${this.authService.getJwtAccessToken(user)}`,
         }
