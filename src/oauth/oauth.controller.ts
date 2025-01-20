@@ -1,13 +1,4 @@
-import {
-    Controller,
-    Get,
-    NotFoundException,
-    Query,
-    Redirect,
-    Req,
-    Res,
-    UseGuards,
-} from '@nestjs/common'
+import { Controller, Get, NotFoundException, Query, Redirect, Req, UseGuards } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
@@ -70,15 +61,13 @@ export class OauthController {
     @Get('google/callback')
     @UseGuards(GoogleOauthGuard)
     @Redirect('https://front-end-host/auth-callback', 301)
-    googleAuthRedirect(@Req() req: Request): { url: string } {
+    async googleAuthRedirect(@Req() req: Request): Promise<{ url: string }> {
         const user = req.user as User
-
+        const tokens = await this.authService.getUserTokens(user)
         return {
-            url: `${this.configService.get(
-                'VGMQ_CLIENT_URL',
-            )}/oauth/google?accessToken=${this.authService.getJwtAccessToken(
-                user,
-            )}&refreshToken=${this.authService.getJwtAccessToken(user)}`,
+            url: `${this.configService.get('VGMQ_CLIENT_URL')}/oauth/google?accessToken=${
+                tokens.accessToken
+            }&refreshToken=${tokens.refreshToken}`,
         }
     }
 }
