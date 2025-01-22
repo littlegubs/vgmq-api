@@ -113,10 +113,11 @@ export class UsersController {
             username: usersUpdateUsername.username,
         })
         await this.userRepository.save(userWithNewUsername)
+        const tokens = await this.authService.getUserTokens(userWithNewUsername)
 
         return {
-            accessToken: this.authService.getJwtAccessToken(userWithNewUsername),
-            refreshToken: this.authService.getJwtRefreshToken(userWithNewUsername),
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
         }
     }
 
