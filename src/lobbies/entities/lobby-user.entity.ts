@@ -83,6 +83,12 @@ export class LobbyUser {
     @Expose({ groups: ['wsLobby'] })
     keepHintMode = false
 
+    /**
+     * This value is used to determine if we should remove the user after not giving an answer for a while
+     */
+    @Column({ type: 'datetime', nullable: true })
+    lastAnswerAt: Date | null
+
     @OneToOne(() => User, (user) => user.currentLobby, { onDelete: 'CASCADE' })
     @Expose({ groups: ['wsLobby'] })
     @JoinColumn()

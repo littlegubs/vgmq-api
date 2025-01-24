@@ -56,6 +56,7 @@ export class LobbyService {
             lobby,
             user,
             role: LobbyUserRole.Host,
+            lastAnswerAt: new Date(),
         })
 
         return lobby
