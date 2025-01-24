@@ -1,7 +1,7 @@
 import { Transform } from 'class-transformer'
 import { IsNotEmpty, IsNumber, Max, Min } from 'class-validator'
 
-import { LobbyCollectionFilterType } from '../entities/collection-filter.entity'
+import { LobbyFilterType } from '../entities/lobby-collection-filter.entity'
 import { LobbyDifficulties, LobbyGameModes, LobbyHintMode } from '../entities/lobby.entity'
 
 export class LobbyCreateDto {
@@ -48,7 +48,17 @@ export class LobbyCreateDto {
 
     collectionFilters: {
         id: number
-        type: LobbyCollectionFilterType
+        type: LobbyFilterType
+        limitation: number
+    }[]
+    genreFilters: {
+        id: number
+        type: LobbyFilterType
+        limitation: number
+    }[]
+    themeFilters: {
+        id: number
+        type: LobbyFilterType
         limitation: number
     }[]
 }

@@ -25,9 +25,13 @@ import { User } from '../users/user.entity'
 import { CollectionsSearchDto } from './dto/collections-search.dto'
 import { GamesImportDto } from './dto/games-import.dto'
 import { GamesSearchDto } from './dto/games-search.dto'
+import { GenresSearchDto } from './dto/genres-search.dto'
+import { ThemesSearchDto } from './dto/themes-search.dto'
 import { Collection } from './entity/collection.entity'
 import { Game } from './entity/game.entity'
+import { Genre } from './entity/genre.entity'
 import { Platform } from './entity/platform.entity'
+import { Theme } from './entity/theme.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
@@ -45,6 +49,8 @@ export class GamesController {
         private igdbHttpService: IgdbHttpService,
         @InjectRepository(Platform) private platformRepository: Repository<Platform>,
         @InjectRepository(Collection) private collectionRepository: Repository<Collection>,
+        @InjectRepository(Genre) private genreRepository: Repository<Genre>,
+        @InjectRepository(Theme) private themeRepository: Repository<Theme>,
     ) {}
     private readonly logger = new Logger(GamesController.name)
 
@@ -168,7 +174,26 @@ export class GamesController {
 
     @Get('/collections')
     async getCollections(@Query() query: CollectionsSearchDto): Promise<Collection[]> {
-        return this.collectionRepository.findBy({ name: Like(`%${query.query}%`) })
+        return this.collectionRepository.find({
+            where: { name: Like(`%${query.query}%`) },
+            order: { name: 'ASC' },
+        })
+    }
+
+    @Get('/genres')
+    async getGenres(@Query() query: GenresSearchDto): Promise<Genre[]> {
+        return this.genreRepository.find({
+            where: { name: Like(`%${query.query}%`) },
+            order: { name: 'ASC' },
+        })
+    }
+
+    @Get('/themes')
+    async getThemes(@Query() query: ThemesSearchDto): Promise<Theme[]> {
+        return this.themeRepository.find({
+            where: { name: Like(`%${query.query}%`) },
+            order: { name: 'ASC' },
+        })
     }
 
     @Get('/names')
