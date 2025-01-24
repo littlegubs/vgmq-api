@@ -271,7 +271,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         answer: string,
         lobbyUser: LobbyUser,
     ): Promise<LobbyUser> {
-        const lobbyMusic = await this.lobbyMusicRepository
+        const answerQuery = this.lobbyMusicRepository
             .createQueryBuilder('lobbyMusic')
             .innerJoinAndSelect('lobbyMusic.expectedAnswers', 'expectedAnswers')
             .leftJoinAndSelect('expectedAnswers.alternativeNames', 'expectedAnswerAlternativeName')
@@ -284,29 +284,25 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             })
             .andWhere(
                 new Brackets((qb) => {
-                    qb.where(
-                        new Brackets((qb2) => {
-                            qb2.andWhere(
-                                new Brackets((qb3) => {
-                                    qb3.orWhere('expectedAnswerAlternativeName.enabled IS NULL')
-                                    qb3.orWhere('expectedAnswerAlternativeName.enabled = 0')
-                                    qb3.orWhere('expectedAnswerAlternativeName.enabled = 1')
-                                }),
-                            )
-                            qb2.andWhere('expectedAnswers.name LIKE :answer')
-                        }),
-                    )
+                    qb.orWhere('expectedAnswers.name LIKE :answer')
                     qb.orWhere(
                         new Brackets((qb4) => {
                             qb4.andWhere('expectedAnswerAlternativeName.enabled = 1')
                             qb4.andWhere('expectedAnswerAlternativeName.name LIKE :answer')
                         }),
                     )
+                    if (lobby.allowCollection) {
+                        qb.orWhere('expectedAnswerCollection.name LIKE :answer')
+                    }
                 }),
             )
             .setParameter('answer', answer)
             .setParameter('position', lobby.currentLobbyMusicPosition)
-            .getOne()
+
+        if (lobby.allowCollection) {
+            answerQuery.leftJoinAndSelect('expectedAnswers.collections', 'expectedAnswerCollection')
+        }
+        const lobbyMusic = await answerQuery.getOne()
 
         lobbyUser = this.lobbyUserRepository.create({
             ...lobbyUser,

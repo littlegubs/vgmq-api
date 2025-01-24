@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
+import { Collection } from '../games/entity/collection.entity'
 import { GameToMusic } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
@@ -41,6 +42,7 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
             MusicAccuracy,
             Video,
             Screenshot,
+            Collection,
         ]),
         BullModule.registerQueue({
             name: 'lobby',
