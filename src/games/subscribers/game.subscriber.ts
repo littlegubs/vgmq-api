@@ -1,6 +1,5 @@
-import { ElasticsearchService } from '@nestjs/elasticsearch'
 import {
-    Connection,
+    DataSource,
     EntitySubscriberInterface,
     EventSubscriber,
     InsertEvent,
@@ -14,11 +13,7 @@ import { GamesService } from '../services/games.service'
 
 @EventSubscriber()
 export class GameSubscriber implements EntitySubscriberInterface<Game> {
-    constructor(
-        connection: Connection,
-        private elasticsearchService: ElasticsearchService,
-        private gameService: GamesService,
-    ) {
+    constructor(connection: DataSource, private gameService: GamesService) {
         connection.subscribers.push(this)
     }
 
