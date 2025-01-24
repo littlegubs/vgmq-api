@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer'
 import { IsNotEmpty, IsNumber, Max, Min } from 'class-validator'
 
+import { LobbyCollectionFilterType } from '../entities/collection-filter.entity'
 import { LobbyDifficulties, LobbyGameModes, LobbyHintMode } from '../entities/lobby.entity'
 
 export class LobbyCreateDto {
@@ -44,4 +45,10 @@ export class LobbyCreateDto {
     showCorrectAnswersDuringGuessTime: boolean
     @IsNotEmpty()
     hintMode: LobbyHintMode
+
+    collectionFilters: {
+        id: number
+        type: LobbyCollectionFilterType
+        limitation: number
+    }[]
 }

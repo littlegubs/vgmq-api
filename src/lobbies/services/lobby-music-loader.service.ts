@@ -5,6 +5,7 @@ import { Queue } from 'bull'
 import { Duration } from 'luxon'
 import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm'
 
+import { Collection } from '../../games/entity/collection.entity'
 import { GameToMusic, GameToMusicType } from '../../games/entity/game-to-music.entity'
 import { Game } from '../../games/entity/game.entity'
 import { Screenshot } from '../../games/entity/screenshot.entity'
@@ -22,26 +23,17 @@ export class LobbyMusicLoaderService {
     lobby: Lobby
 
     constructor(
-        @InjectRepository(Lobby)
-        private lobbyRepository: Repository<Lobby>,
-        @InjectRepository(Game)
-        private gameRepository: Repository<Game>,
-        @InjectRepository(LobbyMusic)
-        private lobbyMusicRepository: Repository<LobbyMusic>,
-        @InjectRepository(LobbyUser)
-        private lobbyUserRepository: Repository<LobbyUser>,
-        @InjectRepository(GameToMusic)
-        private gameToMusicRepository: Repository<GameToMusic>,
-        @InjectRepository(Video)
-        private videoRepository: Repository<Video>,
-        @InjectRepository(Screenshot)
-        private screenshotRepository: Repository<Screenshot>,
-        @Inject(forwardRef(() => LobbyGateway))
-        private lobbyGateway: LobbyGateway,
-        @InjectQueue('lobby')
-        private lobbyQueue: Queue,
-        @Inject(forwardRef(() => LobbyService))
-        private lobbyService: LobbyService,
+        @InjectRepository(Lobby) private lobbyRepository: Repository<Lobby>,
+        @InjectRepository(Game) private gameRepository: Repository<Game>,
+        @InjectRepository(LobbyMusic) private lobbyMusicRepository: Repository<LobbyMusic>,
+        @InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>,
+        @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
+        @InjectRepository(Video) private videoRepository: Repository<Video>,
+        @InjectRepository(Screenshot) private screenshotRepository: Repository<Screenshot>,
+        @InjectRepository(Collection) private collectionRepository: Repository<Collection>,
+        @Inject(forwardRef(() => LobbyGateway)) private lobbyGateway: LobbyGateway,
+        @InjectQueue('lobby') private lobbyQueue: Queue,
+        @Inject(forwardRef(() => LobbyService)) private lobbyService: LobbyService,
     ) {}
 
     /**
@@ -221,6 +213,7 @@ export class LobbyMusicLoaderService {
         userIdsRandom = shuffle(userIdsRandom)
 
         let alreadyFetchedGameIds: number[] = []
+        let alreadyFetchedCollectionIds: number[] = []
         let blackListGameIds: number[] = []
         let lobbyMusics: LobbyMusic[] = []
         let position = 0
@@ -281,7 +274,42 @@ export class LobbyMusicLoaderService {
                 const game = await this.getGameOrMusic(gameQueryBuilder)
 
                 if (game !== null) {
-                    // TODO maybe remove leftJoinAndSelect and make separate queries to prevent a too long query
+                    if (lobby.premium) {
+                        const collectionFiltersExclusion = lobby.collectionFilters.filter(
+                            (collectionFilter) => collectionFilter.type === 'exclusion',
+                        )
+                        if (
+                            collectionFiltersExclusion.some((collectionFilterExclusion) => {
+                                return game.collections
+                                    .map((collection) => collection.id)
+                                    .includes(collectionFilterExclusion.collection.id)
+                            })
+                        ) {
+                            blackListGameIds = [...blackListGameIds, game.id]
+                            continue
+                        }
+
+                        const collectionFiltersLimitation = lobby.collectionFilters.filter(
+                            (collectionFilter) => collectionFilter.type === 'limitation',
+                        )
+                        let collectionReachedLimit: number[] = []
+                        for (const collectionFilterLimitation of collectionFiltersLimitation) {
+                            if (
+                                alreadyFetchedCollectionIds.filter(
+                                    (id) => id === collectionFilterLimitation.collection.id,
+                                ).length > collectionFilterLimitation.limitation
+                            ) {
+                                collectionReachedLimit = [
+                                    ...collectionReachedLimit,
+                                    collectionFilterLimitation.collection.id,
+                                ]
+                            }
+                        }
+                        if (collectionReachedLimit.length > 0) {
+                            blackListGameIds = [...blackListGameIds, game.id]
+                            continue
+                        }
+                    }
                     const qb = this.gameToMusicRepository
                         .createQueryBuilder('gameToMusic')
                         .leftJoinAndSelect('gameToMusic.music', 'music')
@@ -318,6 +346,10 @@ export class LobbyMusicLoaderService {
                         continue
                     }
                     alreadyFetchedGameIds = [...alreadyFetchedGameIds, game.id]
+                    alreadyFetchedCollectionIds = [
+                        ...alreadyFetchedCollectionIds,
+                        ...game.collections.map((collection) => collection.id),
+                    ]
 
                     position += 1
                     const music = gameToMusic.music

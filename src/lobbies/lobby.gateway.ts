@@ -68,7 +68,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         @MessageBody() body: { code: string; password: string | null },
     ): Promise<undefined> {
         const lobby = await this.lobbyRepository.findOne({
-            relations: ['lobbyMusics'],
+            relations: { lobbyMusics: true, collectionFilters: true },
             where: {
                 code: body.code,
             },
