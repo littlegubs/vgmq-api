@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common'
+import { Cron, CronExpression } from '@nestjs/schedule'
 import { InjectRepository } from '@nestjs/typeorm'
-import { FindManyOptions, Not, Repository } from 'typeorm'
+import { DateTime } from 'luxon'
+import { FindManyOptions, LessThan, Not, Repository } from 'typeorm'
 
 import { User } from '../../users/user.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from '../entities/lobby-user.entity'
@@ -8,10 +10,7 @@ import { Lobby } from '../entities/lobby.entity'
 
 @Injectable()
 export class LobbyUserService {
-    constructor(
-        @InjectRepository(LobbyUser)
-        private lobbyUserRepository: Repository<LobbyUser>,
-    ) {}
+    constructor(@InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>) {}
 
     async areAllUsersReadyToPlay(lobby: Lobby): Promise<boolean> {
         const countOptions: FindManyOptions<LobbyUser> = {
@@ -67,5 +66,15 @@ export class LobbyUserService {
                 role: LobbyUserRole.Host,
             },
         })
+    }
+
+    @Cron(CronExpression.EVERY_HOUR)
+    async checkIfUserIsAFK(): Promise<void> {
+        const lobbyUsers = await this.lobbyUserRepository.find({
+            where: {
+                lastAnswerAt: LessThan(DateTime.now().minus({ minute: 90 }).toJSDate()),
+            },
+        })
+        await this.lobbyUserRepository.remove(lobbyUsers)
     }
 }

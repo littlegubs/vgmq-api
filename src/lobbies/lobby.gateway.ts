@@ -106,6 +106,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                         lobby.status === LobbyStatuses.Waiting || lobby.musicNumber === -1
                             ? LobbyUserRole.Player
                             : LobbyUserRole.Spectator,
+                    lastAnswerAt: new Date(),
                 }),
             )
         } else {
@@ -318,6 +319,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             ...lobbyUser,
             correctAnswer: !!lobbyMusic,
             tries: lobbyUser.tries + 1,
+            lastAnswerAt: new Date(),
         })
 
         if (lobbyUser.correctAnswer && lobbyMusic) {
