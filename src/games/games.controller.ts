@@ -23,7 +23,7 @@ import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
 import { GamesImportDto } from './dto/games-import.dto'
 import { GamesSearchDto } from './dto/games-search.dto'
-import { GameToMusic } from './entity/game-to-music.entity'
+import { Collection } from './entity/collection.entity'
 import { Game } from './entity/game.entity'
 import { Platform } from './entity/platform.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
@@ -215,6 +215,15 @@ export class GamesController {
                             },
                         },
                     ],
+                    ...(query.showCollection === 'true'
+                        ? undefined
+                        : {
+                              must_not: {
+                                  match: {
+                                      type: 'collection_name',
+                                  },
+                              },
+                          }),
                 },
             },
             highlight: {
@@ -235,6 +244,7 @@ export class GamesController {
                         {
                             name: item._source?.name,
                             highlight: item.highlight?.suggest_highlight?.[0],
+                            type: item._source?.type,
                         },
                     ]
                 }

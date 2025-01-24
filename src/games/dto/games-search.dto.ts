@@ -10,6 +10,7 @@ export class GamesSearchDto {
     onlyShowWithoutMusics = false
     nsfw = false
     sortBy: GameSearchSortBy
+    showCollection: string
 }
 
 export enum GameSearchSortBy {
