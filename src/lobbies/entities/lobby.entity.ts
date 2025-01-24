@@ -8,8 +8,11 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     OneToMany,
+    ManyToMany,
+    JoinTable,
 } from 'typeorm'
 
+import { LobbyCollectionFilter } from './collection-filter.entity'
 import { LobbyMusic } from './lobby-music.entity'
 import { LobbyUser } from './lobby-user.entity'
 
@@ -180,6 +183,15 @@ export class Lobby {
     @Expose({ groups: ['lobby-list'] })
     @OneToMany(() => LobbyUser, (lobbyUser) => lobbyUser.lobby)
     lobbyUsers: LobbyUser[]
+
+    @Expose({ groups: ['lobby'] })
+    @ManyToMany(() => LobbyCollectionFilter, {
+        cascade: ['insert', 'remove'],
+        eager: true,
+        onDelete: 'CASCADE',
+    })
+    @JoinTable({ name: 'lobby_lobby_collection_filters' })
+    collectionFilters: LobbyCollectionFilter[]
 
     @Column()
     @CreateDateColumn()

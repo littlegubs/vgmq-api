@@ -14,6 +14,7 @@ import { Video } from '../games/entity/video.entity'
 import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
+import { LobbyCollectionFilter } from './entities/collection-filter.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
@@ -43,6 +44,7 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
             Video,
             Screenshot,
             Collection,
+            LobbyCollectionFilter,
         ]),
         BullModule.registerQueue({
             name: 'lobby',
