@@ -36,10 +36,14 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
         }
 
         if (event.entity.user.premium) {
-            const lobby = await event.manager.findOne(Lobby, {
+            let lobby = await event.manager.findOne(Lobby, {
                 where: { id: event.entity.lobby.id },
             })
-            await event.manager.save(Lobby, { ...lobby, premium: true })
+            if (lobby !== null) {
+                lobby = event.manager.create(Lobby, { ...lobby, premium: true })
+                await event.manager.save(Lobby, lobby)
+                this.lobbyGateway.sendUpdateToRoom(lobby)
+            }
         }
     }
 
@@ -94,7 +98,9 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 lobbyUser.user.premium
             })
         ) {
-            await event.manager.save(Lobby, { ...event.entity?.lobby, premium: false })
+            const lobby = event.manager.create(Lobby, { ...event.entity?.lobby, premium: false })
+            await event.manager.save(Lobby, lobby)
+            this.lobbyGateway.sendUpdateToRoom(lobby)
         }
         await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby, lobbyUsers)
     }
