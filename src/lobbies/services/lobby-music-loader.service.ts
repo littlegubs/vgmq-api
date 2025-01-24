@@ -677,9 +677,13 @@ export class LobbyMusicLoaderService {
         return gameOrGameMusic
     }
 
-    private async getHintModeGames(gameToMusic: GameToMusic, userIds?: number[]): Promise<Game[]> {
+    private async getHintModeGames(
+        gameToMusic: GameToMusic,
+        userIds?: number[],
+        previousGameIds: number[] = [],
+    ): Promise<Game[]> {
         let hintModeGames: Game[] = [gameToMusic.game]
-        let excludedGamesIds = [gameToMusic.game.id]
+        let excludedGamesIds = [gameToMusic.game.id, ...previousGameIds]
         if (gameToMusic.type === GameToMusicType.Original) {
             if (gameToMusic.derivedGameToMusics) {
                 excludedGamesIds = [
