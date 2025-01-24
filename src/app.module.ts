@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { ScheduleModule } from '@nestjs/schedule'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import * as Joi from 'joi'
+import { LoggerModule } from 'nestjs-pino'
 import { DataSource } from 'typeorm'
 
 import { AdminModule } from './admin/admin.module'
@@ -28,6 +29,28 @@ import { UsersModule } from './users/users.module'
                 ENV: Joi.string().valid('dev', 'prod').default('dev'),
             }),
             envFilePath: ['.env.local', '.env'],
+        }),
+        LoggerModule.forRootAsync({
+            useFactory: (configService: ConfigService) => ({
+                pinoHttp: {
+                    customProps: (): { context: string } => ({
+                        context: 'HTTP',
+                    }),
+                    level: configService.get<string>('LOG_LEVEL', 'info'),
+                    base: undefined,
+                    transport:
+                        configService.get<string>('LOG_PRETTY') == 'true'
+                            ? {
+                                  target: 'pino-pretty',
+                                  options: {
+                                      colorize: true,
+                                      singleLine: true,
+                                  },
+                              }
+                            : undefined,
+                },
+            }),
+            inject: [ConfigService],
         }),
         TypeOrmModule.forRoot({
             type: 'mysql',
