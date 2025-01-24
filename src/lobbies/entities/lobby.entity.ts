@@ -155,6 +155,10 @@ export class Lobby {
     @Expose({ groups: ['lobby'] })
     filterMaxYear: number
 
+    @Column({ type: 'boolean', default: false })
+    @Expose({ groups: ['lobby'] })
+    allowCollection = false
+
     @Column({
         type: 'enum',
         enum: LobbyHintMode,

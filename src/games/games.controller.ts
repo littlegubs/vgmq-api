@@ -216,6 +216,15 @@ export class GamesController {
                                 },
                             },
                         ],
+                        ...(query.showCollection === 'true'
+                            ? undefined
+                            : {
+                                  must_not: {
+                                      match: {
+                                          type: 'collection_name',
+                                      },
+                                  },
+                              }),
                     },
                 },
                 highlight: {
@@ -236,6 +245,7 @@ export class GamesController {
                             {
                                 name: item._source?.name,
                                 highlight: item.highlight?.suggest_highlight?.[0],
+                                type: item._source?.type,
                             },
                         ]
                     }
