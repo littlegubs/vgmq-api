@@ -17,13 +17,15 @@ import {
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
-import { Repository } from 'typeorm'
+import { Like, Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
+import { CollectionsSearchDto } from './dto/collections-search.dto'
 import { GamesImportDto } from './dto/games-import.dto'
 import { GamesSearchDto } from './dto/games-search.dto'
+import { Collection } from './entity/collection.entity'
 import { Game } from './entity/game.entity'
 import { Platform } from './entity/platform.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
@@ -42,6 +44,7 @@ export class GamesController {
         private elasticsearchService: ElasticsearchService,
         private igdbHttpService: IgdbHttpService,
         @InjectRepository(Platform) private platformRepository: Repository<Platform>,
+        @InjectRepository(Collection) private collectionRepository: Repository<Collection>,
     ) {}
     private readonly logger = new Logger(GamesController.name)
 
@@ -161,6 +164,11 @@ export class GamesController {
             ...user,
             games: games.filter((game) => game.id !== gameToRemove.id),
         })
+    }
+
+    @Get('/collections')
+    async getCollections(@Query() query: CollectionsSearchDto): Promise<Collection[]> {
+        return this.collectionRepository.findBy({ name: Like(`%${query.query}%`) })
     }
 
     @Get('/names')
