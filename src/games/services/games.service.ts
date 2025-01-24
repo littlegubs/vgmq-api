@@ -21,6 +21,7 @@ import { S3Service } from '../../s3/s3.service'
 import { User } from '../../users/user.entity'
 import { GameSearchSortBy } from '../dto/games-search.dto'
 import { AlternativeName } from '../entity/alternative-name.entity'
+import { Collection } from '../entity/collection.entity'
 import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
 import { GameAlbum } from '../entity/game-album.entity'
@@ -41,6 +42,7 @@ export class GamesService {
         @InjectRepository(AlternativeName)
         private alternativeNameRepository: Repository<AlternativeName>,
         @InjectRepository(GameAlbum) private gameAlbumRepository: Repository<GameAlbum>,
+        @InjectRepository(Collection) private collectionRepository: Repository<Collection>,
         private elasticsearchService: ElasticsearchService,
         private s3Service: S3Service,
         @InjectQueue('game') private gameQueue: Queue,
@@ -353,6 +355,13 @@ export class GamesService {
         for (const alternativeName of alternativeNames) {
             await this.indexAlternativeName(alternativeName)
         }
+        const collections = await this.collectionRepository
+            .createQueryBuilder('c')
+            .select(['c.id', 'c.name'])
+            .getMany()
+        for (const collection of collections) {
+            await this.indexCollectionName(collection)
+        }
     }
 
     indexGameName(game: Game): Promise<IndexResponse> {
@@ -463,6 +472,39 @@ export class GamesService {
                         {
                             match: {
                                 type: 'alternative_name',
+                            },
+                        },
+                    ],
+                },
+            },
+        })
+    }
+
+    indexCollectionName(collection: Collection): Promise<IndexResponse> {
+        return this.elasticsearchService.index<GameNameSearchBody>({
+            index: 'game_name',
+            body: {
+                id: collection.id,
+                name: collection.name,
+                type: 'collection_name',
+            },
+        })
+    }
+
+    removeCollectionName(collection: Collection): Promise<DeleteByQueryResponse> {
+        return this.elasticsearchService.deleteByQuery({
+            index: 'game_name',
+            query: {
+                bool: {
+                    must: [
+                        {
+                            match: {
+                                id: collection.id,
+                            },
+                        },
+                        {
+                            match: {
+                                type: 'collection_name',
                             },
                         },
                     ],

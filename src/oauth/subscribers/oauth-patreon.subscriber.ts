@@ -15,7 +15,7 @@ export class OauthPatreonSubscriber implements EntitySubscriberInterface<OauthPa
 
     afterLoad(entity: OauthPatreon): void {
         if (
-            entity.currentlyEntitledTiers.some(
+            entity.currentlyEntitledTiers?.some(
                 (tier) =>
                     tier === this.configService.get('PATREON_TIER_1_ID') ||
                     tier === this.configService.get('PATREON_TIER_2_ID'),
