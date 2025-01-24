@@ -41,7 +41,11 @@ export class IgdbService {
         @InjectQueue('game') private gameQueue: Queue,
     ) {}
 
-    async import(igdbGame: IgdbGame, user?: User): Promise<Game> {
+    async import(
+        igdbGame: IgdbGame,
+        user?: User,
+        options: { keepEnableAsIs: boolean } = { keepEnableAsIs: false },
+    ): Promise<Game> {
         const oldGame = await this.gamesRepository.findOne({
             where: {
                 igdbId: igdbGame.id,
@@ -58,7 +62,7 @@ export class IgdbService {
             firstReleaseDate: igdbGame.first_release_date
                 ? DateTime.fromSeconds(igdbGame.first_release_date).toISO()
                 : null,
-            enabled: true,
+            ...(!options.keepEnableAsIs && { enabled: true }),
             ...(user && oldGame === null && { addedBy: user }),
         })
 
@@ -69,8 +73,8 @@ export class IgdbService {
         const screenshots = await this.handleScreenshots(igdbGame.screenshots)
 
         const [parent, versionParent] = await Promise.all([
-            this.getParent(igdbGame.parent_game),
-            this.getParent(igdbGame.version_parent),
+            this.getParent(igdbGame.parent_game, options),
+            this.getParent(igdbGame.version_parent, options),
         ])
 
         const platforms = await this.handlePlatforms(igdbGame.platforms)
@@ -98,14 +102,17 @@ export class IgdbService {
         return game
     }
 
-    async getParent(parent?: {
-        id: number
-        url: string
-    }): Promise<Promise<Game | undefined> | undefined> {
+    async getParent(
+        parent?: {
+            id: number
+            url: string
+        },
+        options: { keepEnableAsIs: boolean } = { keepEnableAsIs: false },
+    ): Promise<Promise<Game | undefined> | undefined> {
         if (parent) {
             const [igdbGame] = await this.igdbHttpService.getDataFromUrl(parent.url)
 
-            return igdbGame ? this.import(igdbGame) : undefined
+            return igdbGame ? this.import(igdbGame, undefined, options) : undefined
         }
     }
 

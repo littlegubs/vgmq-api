@@ -4,10 +4,14 @@ import { IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm'
 
 import { Collection } from '../../games/entity/collection.entity'
 import { GameToMusic } from '../../games/entity/game-to-music.entity'
+import { Genre } from '../../games/entity/genre.entity'
+import { Theme } from '../../games/entity/theme.entity'
 import { Role } from '../../users/role.enum'
 import { User } from '../../users/user.entity'
 import { LobbyCreateDto } from '../dto/lobby-create.dto'
-import { LobbyCollectionFilter } from '../entities/collection-filter.entity'
+import { LobbyCollectionFilter } from '../entities/lobby-collection-filter.entity'
+import { LobbyGenreFilter } from '../entities/lobby-genre-filter.entity'
+import { LobbyThemeFilter } from '../entities/lobby-theme-filter.entity'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
 import { Lobby } from '../entities/lobby.entity'
 import { LobbyGateway } from '../lobby.gateway'
@@ -19,8 +23,14 @@ export class LobbyService {
         @InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>,
         @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
         @InjectRepository(Collection) private collectionRepository: Repository<Collection>,
+        @InjectRepository(Genre) private genreRepository: Repository<Genre>,
+        @InjectRepository(Theme) private themeRepository: Repository<Theme>,
         @InjectRepository(LobbyCollectionFilter)
         private collectionFilterRepository: Repository<LobbyCollectionFilter>,
+        @InjectRepository(LobbyGenreFilter)
+        private genreFilterRepository: Repository<LobbyGenreFilter>,
+        @InjectRepository(LobbyThemeFilter)
+        private themeFilterRepository: Repository<LobbyThemeFilter>,
         @Inject(forwardRef(() => LobbyGateway)) private lobbyGateway: LobbyGateway,
     ) {}
     async findByName(query: string): Promise<Lobby[]> {
@@ -39,6 +49,8 @@ export class LobbyService {
             ...data,
             premium: this.isLobbyPremium(user),
             collectionFilters: await this.handleCollectionFilter(data.collectionFilters),
+            genreFilters: await this.handleGenreFilter(data.genreFilters),
+            themeFilters: await this.handleThemeFilter(data.themeFilters),
         })
         await this.lobbyUserRepository.save({
             lobby,
@@ -54,8 +66,9 @@ export class LobbyService {
             ...(await this.lobbyRepository.save({
                 ...lobby,
                 ...data,
-                premium: this.isLobbyPremium(user),
                 collectionFilters: await this.handleCollectionFilter(data.collectionFilters),
+                genreFilters: await this.handleGenreFilter(data.genreFilters),
+                themeFilters: await this.handleThemeFilter(data.themeFilters),
             })),
         })
 
@@ -77,6 +90,46 @@ export class LobbyService {
                     collection,
                     type: collectionFilter.type,
                     limitation: collectionFilter.limitation,
+                })
+            }),
+        )
+    }
+
+    private async handleGenreFilter(
+        data: LobbyCreateDto['genreFilters'],
+    ): Promise<Awaited<LobbyGenreFilter>[]> {
+        return Promise.all(
+            data.map(async (genreFilter) => {
+                const genre = await this.genreRepository.findOneBy({
+                    id: genreFilter.id,
+                })
+                if (genre === null) {
+                    throw new Error('Genre not found')
+                }
+                return this.genreFilterRepository.create({
+                    genre,
+                    type: genreFilter.type,
+                    limitation: genreFilter.limitation,
+                })
+            }),
+        )
+    }
+
+    private async handleThemeFilter(
+        data: LobbyCreateDto['themeFilters'],
+    ): Promise<Awaited<LobbyThemeFilter>[]> {
+        return Promise.all(
+            data.map(async (genreFilter) => {
+                const theme = await this.themeRepository.findOneBy({
+                    id: genreFilter.id,
+                })
+                if (theme === null) {
+                    throw new Error('Theme not found')
+                }
+                return this.themeFilterRepository.create({
+                    theme,
+                    type: genreFilter.type,
+                    limitation: genreFilter.limitation,
                 })
             }),
         )

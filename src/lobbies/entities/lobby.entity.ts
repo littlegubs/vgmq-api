@@ -12,8 +12,10 @@ import {
     JoinTable,
 } from 'typeorm'
 
-import { LobbyCollectionFilter } from './collection-filter.entity'
+import { LobbyCollectionFilter } from './lobby-collection-filter.entity'
+import { LobbyGenreFilter } from './lobby-genre-filter.entity'
 import { LobbyMusic } from './lobby-music.entity'
+import { LobbyThemeFilter } from './lobby-theme-filter.entity'
 import { LobbyUser } from './lobby-user.entity'
 
 export enum LobbyStatuses {
@@ -192,6 +194,24 @@ export class Lobby {
     })
     @JoinTable({ name: 'lobby_lobby_collection_filters' })
     collectionFilters: LobbyCollectionFilter[]
+
+    @Expose({ groups: ['lobby'] })
+    @ManyToMany(() => LobbyGenreFilter, {
+        cascade: ['insert', 'remove'],
+        eager: true,
+        onDelete: 'CASCADE',
+    })
+    @JoinTable({ name: 'lobby_lobby_genre_filters' })
+    genreFilters: LobbyGenreFilter[]
+
+    @Expose({ groups: ['lobby'] })
+    @ManyToMany(() => LobbyThemeFilter, {
+        cascade: ['insert', 'remove'],
+        eager: true,
+        onDelete: 'CASCADE',
+    })
+    @JoinTable({ name: 'lobby_lobby_theme_filters' })
+    themeFilters: LobbyThemeFilter[]
 
     @Column()
     @CreateDateColumn()

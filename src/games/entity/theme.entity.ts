@@ -12,13 +12,14 @@ import { Game } from './game.entity'
 
 @Entity()
 export class Theme {
+    @Expose({ groups: ['lobby'] })
     @PrimaryGeneratedColumn()
     id: number
 
     @Column({ unique: true })
     igdbId: number
 
-    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list', 'lobby'] })
     @Column()
     name: string
 

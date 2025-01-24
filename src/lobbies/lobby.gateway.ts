@@ -67,8 +67,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         @ConnectedSocket() client: AuthenticatedSocket,
         @MessageBody() body: { code: string; password: string | null },
     ): Promise<undefined> {
-        const lobby = await this.lobbyRepository.findOne({
-            relations: { lobbyMusics: true, collectionFilters: true },
+        let lobby = await this.lobbyRepository.findOne({
             where: {
                 code: body.code,
             },
@@ -117,6 +116,17 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 isReconnecting: false,
             })
         }
+        // refresh lobby as it might be premium now
+        lobby = (await this.lobbyRepository.findOne({
+            relations: {
+                collectionFilters: true,
+                genreFilters: true,
+                themeFilters: true,
+            },
+            where: {
+                code: body.code,
+            },
+        })) as Lobby
         await client.join(lobby.code)
         await client.join(`lobbyUser${lobbyUser.id}`)
         client.emit('lobbyJoined', classToClass<Lobby>(lobby, { groups: ['lobby'] }))

@@ -3,7 +3,7 @@ import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm'
 
 import { Collection } from '../../games/entity/collection.entity'
 
-export enum LobbyCollectionFilterType {
+export enum LobbyFilterType {
     Exclusion = 'exclusion',
     Limitation = 'limitation',
 }
@@ -16,11 +16,11 @@ export class LobbyCollectionFilter {
 
     @Column({
         type: 'enum',
-        enum: LobbyCollectionFilterType,
-        default: LobbyCollectionFilterType.Exclusion,
+        enum: LobbyFilterType,
+        default: LobbyFilterType.Exclusion,
     })
     @Expose({ groups: ['lobby'] })
-    type: LobbyCollectionFilterType
+    type: LobbyFilterType
 
     @Column({ type: 'int' })
     @Expose({ groups: ['lobby'] })

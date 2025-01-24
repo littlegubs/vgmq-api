@@ -8,10 +8,15 @@ import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm'
 import { Collection } from '../../games/entity/collection.entity'
 import { GameToMusic, GameToMusicType } from '../../games/entity/game-to-music.entity'
 import { Game } from '../../games/entity/game.entity'
+import { Genre } from '../../games/entity/genre.entity'
 import { Screenshot } from '../../games/entity/screenshot.entity'
+import { Theme } from '../../games/entity/theme.entity'
 import { Video } from '../../games/entity/video.entity'
 import { shuffle } from '../../utils/utils'
+import { LobbyCollectionFilter } from '../entities/lobby-collection-filter.entity'
+import { LobbyGenreFilter } from '../entities/lobby-genre-filter.entity'
 import { LobbyMusic } from '../entities/lobby-music.entity'
+import { LobbyThemeFilter } from '../entities/lobby-theme-filter.entity'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
 import { Lobby, LobbyDifficulties, LobbyStatuses } from '../entities/lobby.entity'
 import { LobbyGateway } from '../lobby.gateway'
@@ -30,7 +35,6 @@ export class LobbyMusicLoaderService {
         @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
         @InjectRepository(Video) private videoRepository: Repository<Video>,
         @InjectRepository(Screenshot) private screenshotRepository: Repository<Screenshot>,
-        @InjectRepository(Collection) private collectionRepository: Repository<Collection>,
         @Inject(forwardRef(() => LobbyGateway)) private lobbyGateway: LobbyGateway,
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyService)) private lobbyService: LobbyService,
@@ -219,6 +223,8 @@ export class LobbyMusicLoaderService {
 
         let alreadyFetchedGameIds: number[] = []
         let alreadyFetchedCollectionIds: number[] = []
+        let alreadyFetchedGenreIds: number[] = []
+        let alreadyFetchedThemeIds: number[] = []
         let blackListGameIds: number[] = []
         let lobbyMusics: LobbyMusic[] = []
         let position = 0
@@ -281,43 +287,44 @@ export class LobbyMusicLoaderService {
                     gameId === null
                         ? null
                         : await this.gameRepository.findOne({
-                              relations: { collections: true },
-                              where: { id: gameId?.id },
+                              relations: { collections: true, genres: true, themes: true },
+                              where: { id: gameId.id },
                           })
 
                 if (game !== null) {
                     if (lobby.premium) {
-                        const collectionFiltersExclusion = lobby.collectionFilters.filter(
-                            (collectionFilter) => collectionFilter.type === 'exclusion',
-                        )
                         if (
-                            collectionFiltersExclusion.some((collectionFilterExclusion) => {
-                                return game.collections
-                                    .map((collection) => collection.id)
-                                    .includes(collectionFilterExclusion.collection.id)
-                            })
+                            this.collectionIsExcluded(game.collections, lobby.collectionFilters) ||
+                            this.collectionsReachedLimit(
+                                game.collections,
+                                lobby.collectionFilters,
+                                alreadyFetchedCollectionIds,
+                            ).length > 0
                         ) {
                             blackListGameIds = [...blackListGameIds, game.id]
                             continue
                         }
 
-                        const collectionFiltersLimitation = lobby.collectionFilters.filter(
-                            (collectionFilter) => collectionFilter.type === 'limitation',
-                        )
-                        let collectionReachedLimit: number[] = []
-                        for (const collectionFilterLimitation of collectionFiltersLimitation) {
-                            if (
-                                alreadyFetchedCollectionIds.filter(
-                                    (id) => id === collectionFilterLimitation.collection.id,
-                                ).length > collectionFilterLimitation.limitation
-                            ) {
-                                collectionReachedLimit = [
-                                    ...collectionReachedLimit,
-                                    collectionFilterLimitation.collection.id,
-                                ]
-                            }
+                        if (
+                            this.genresAreExcluded(game.genres, lobby.genreFilters) ||
+                            this.genresReachedLimit(
+                                game.genres,
+                                lobby.genreFilters,
+                                alreadyFetchedGenreIds,
+                            ).length > 0
+                        ) {
+                            blackListGameIds = [...blackListGameIds, game.id]
+                            continue
                         }
-                        if (collectionReachedLimit.length > 0) {
+
+                        if (
+                            this.themesAreExcluded(game.themes, lobby.themeFilters) ||
+                            this.themesReachedLimit(
+                                game.themes,
+                                lobby.themeFilters,
+                                alreadyFetchedThemeIds,
+                            ).length > 0
+                        ) {
                             blackListGameIds = [...blackListGameIds, game.id]
                             continue
                         }
@@ -365,6 +372,14 @@ export class LobbyMusicLoaderService {
                         ...alreadyFetchedCollectionIds,
                         ...game.collections.map((collection) => collection.id),
                     ]
+                    alreadyFetchedGenreIds = [
+                        ...alreadyFetchedGenreIds,
+                        ...game.genres.map((genre) => genre.id),
+                    ]
+                    alreadyFetchedThemeIds = [
+                        ...alreadyFetchedThemeIds,
+                        ...game.themes.map((theme) => theme.id),
+                    ]
 
                     position += 1
                     const music = gameToMusic.music
@@ -381,6 +396,7 @@ export class LobbyMusicLoaderService {
                     const hintModeGames = await this.getHintModeGames(
                         gameToMusic,
                         userId === 'unplayed' ? undefined : userIds,
+                        alreadyFetchedGameIds,
                     )
                     const video = await this.getVideo(gameToMusic)
                     let startVideoAt = 0
@@ -472,6 +488,107 @@ export class LobbyMusicLoaderService {
         await this.lobbyQueue.add('bufferMusic', lobby.code, {
             timeout: 10_000,
         })
+    }
+
+    private collectionsReachedLimit(
+        collections: Collection[],
+        collectionFilters: LobbyCollectionFilter[],
+        alreadyFetchedCollectionIds: number[],
+    ): number[] {
+        const gameCollectionFilters = collectionFilters.filter(
+            (collectionFilter) =>
+                collectionFilter.type === 'limitation' &&
+                collections
+                    .map((collection) => collection.id)
+                    .includes(collectionFilter.collection.id),
+        )
+        let collectionReachedLimit: number[] = []
+        for (const collectionFilterLimitation of gameCollectionFilters) {
+            if (
+                alreadyFetchedCollectionIds.filter(
+                    (id) => id === collectionFilterLimitation.collection.id,
+                ).length >= collectionFilterLimitation.limitation
+            ) {
+                collectionReachedLimit = [
+                    ...collectionReachedLimit,
+                    collectionFilterLimitation.collection.id,
+                ]
+            }
+        }
+        return collectionReachedLimit
+    }
+
+    private collectionIsExcluded(
+        collections: Collection[],
+        collectionFilters: LobbyCollectionFilter[],
+    ): boolean {
+        return collectionFilters.some(
+            (collectionFilter) =>
+                collectionFilter.type === 'exclusion' &&
+                collections
+                    .map((collection) => collection.id)
+                    .includes(collectionFilter.collection.id),
+        )
+    }
+
+    private genresReachedLimit(
+        genres: Genre[],
+        genreFilters: LobbyGenreFilter[],
+        alreadyFetchedGenreIds: number[],
+    ): number[] {
+        const gameGenreFilters = genreFilters.filter(
+            (genreFilter) =>
+                genreFilter.type === 'limitation' &&
+                genres.map((genre) => genre.id).includes(genreFilter.genre.id),
+        )
+        let genreReachedLimit: number[] = []
+        for (const genreFilter of gameGenreFilters) {
+            if (
+                alreadyFetchedGenreIds.filter((id) => id === genreFilter.genre.id).length >=
+                genreFilter.limitation
+            ) {
+                genreReachedLimit = [...genreReachedLimit, genreFilter.genre.id]
+            }
+        }
+        return genreReachedLimit
+    }
+
+    private genresAreExcluded(genres: Genre[], genreFilters: LobbyGenreFilter[]): boolean {
+        return genreFilters.some(
+            (genreFilter) =>
+                genreFilter.type === 'exclusion' &&
+                genres.map((genre) => genre.id).includes(genreFilter.genre.id),
+        )
+    }
+
+    private themesReachedLimit(
+        themes: Theme[],
+        themeFilters: LobbyThemeFilter[],
+        alreadyFetchedThemeIds: number[],
+    ): number[] {
+        const gameThemeFilters = themeFilters.filter(
+            (themeFilter) =>
+                themeFilter.type === 'limitation' &&
+                themes.map((theme) => theme.id).includes(themeFilter.theme.id),
+        )
+        let themeReachedLimit: number[] = []
+        for (const themeFilter of gameThemeFilters) {
+            if (
+                alreadyFetchedThemeIds.filter((id) => id === themeFilter.theme.id).length >=
+                themeFilter.limitation
+            ) {
+                themeReachedLimit = [...themeReachedLimit, themeFilter.theme.id]
+            }
+        }
+        return themeReachedLimit
+    }
+
+    private themesAreExcluded(themes: Theme[], themeFilters: LobbyThemeFilter[]): boolean {
+        return themeFilters.some(
+            (themeFilter) =>
+                themeFilter.type === 'exclusion' &&
+                themes.map((theme) => theme.id).includes(themeFilter.theme.id),
+        )
     }
 
     private getExpectedAnswers(gameToMusic: GameToMusic): Game[] {

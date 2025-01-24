@@ -7,15 +7,19 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { Collection } from '../games/entity/collection.entity'
 import { GameToMusic } from '../games/entity/game-to-music.entity'
 import { Game } from '../games/entity/game.entity'
+import { Genre } from '../games/entity/genre.entity'
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
 import { Music } from '../games/entity/music.entity'
 import { Screenshot } from '../games/entity/screenshot.entity'
+import { Theme } from '../games/entity/theme.entity'
 import { Video } from '../games/entity/video.entity'
 import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
-import { LobbyCollectionFilter } from './entities/collection-filter.entity'
+import { LobbyCollectionFilter } from './entities/lobby-collection-filter.entity'
+import { LobbyGenreFilter } from './entities/lobby-genre-filter.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
+import { LobbyThemeFilter } from './entities/lobby-theme-filter.entity'
 import { LobbyUser } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
 import { LobbyFileGateway } from './lobby-file.gateway'
@@ -44,7 +48,11 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
             Video,
             Screenshot,
             Collection,
+            Genre,
+            Theme,
             LobbyCollectionFilter,
+            LobbyGenreFilter,
+            LobbyThemeFilter,
         ]),
         BullModule.registerQueue({
             name: 'lobby',
