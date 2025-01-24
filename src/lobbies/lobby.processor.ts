@@ -686,12 +686,12 @@ export class LobbyProcessor {
 
     @OnQueueWaiting()
     onWaiting(jobId: number): void {
-        this.logger.warn(`Job waiting ${jobId}`)
+        this.logger.log(`Job waiting ${jobId}`)
     }
 
     @OnQueueCompleted()
     onComplete(job: Job): void {
-        this.logger.warn(`Job completed ${job.id} of type ${job.name} with data ${job.data}...`)
+        this.logger.log(`Job completed ${job.id} of type ${job.name} with data ${job.data}...`)
     }
 
     @OnQueueFailed()
