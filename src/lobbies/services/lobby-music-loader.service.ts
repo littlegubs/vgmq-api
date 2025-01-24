@@ -65,23 +65,28 @@ export class LobbyMusicLoaderService {
         const qb = this.gameToMusicRepository
             .createQueryBuilder('gameToMusic')
             .leftJoinAndSelect('gameToMusic.music', 'music')
-            .leftJoinAndSelect('music.file', 'file')
             .leftJoinAndSelect('gameToMusic.game', 'game')
-            .leftJoinAndSelect('gameToMusic.derivedGameToMusics', 'derivedGameToMusics')
-            .leftJoinAndSelect('derivedGameToMusics.game', 'derivedGames')
-            .leftJoinAndSelect('gameToMusic.originalGameToMusic', 'originalGameToMusic')
-            .leftJoinAndSelect('originalGameToMusic.game', 'originalGame')
-            .leftJoinAndSelect(
-                'originalGameToMusic.derivedGameToMusics',
-                'originalDerivedGameToMusics',
-            )
-            .leftJoinAndSelect('originalDerivedGameToMusics.game', 'originalDerivedGames')
             .andWhere('gameToMusic.game = :game')
             .andWhere('music.duration >= :guessTime')
             .setParameter('game', game.id)
             .setParameter('guessTime', lobby.guessTime)
             .orderBy('RAND()')
-        const gameToMusic = await this.getGameOrMusic(qb)
+        const gameToMusicId = await this.getGameOrMusic(qb)
+        const gameToMusic =
+            gameToMusicId === null
+                ? null
+                : await this.gameToMusicRepository.findOne({
+                      relations: {
+                          music: { file: true },
+                          game: true,
+                          derivedGameToMusics: { game: true },
+                          originalGameToMusic: {
+                              game: true,
+                              derivedGameToMusics: { game: true },
+                          },
+                      },
+                      where: { id: gameToMusicId?.id },
+                  })
         if (gameToMusic === null) {
             return this.loadMusic(lobby)
         }
@@ -271,7 +276,14 @@ export class LobbyMusicLoaderService {
                     }
                 }
 
-                const game = await this.getGameOrMusic(gameQueryBuilder)
+                const gameId = await this.getGameOrMusic(gameQueryBuilder)
+                const game =
+                    gameId === null
+                        ? null
+                        : await this.gameRepository.findOne({
+                              relations: { collections: true },
+                              where: { id: gameId?.id },
+                          })
 
                 if (game !== null) {
                     if (lobby.premium) {
@@ -312,21 +324,9 @@ export class LobbyMusicLoaderService {
                     }
                     const qb = this.gameToMusicRepository
                         .createQueryBuilder('gameToMusic')
+                        .select('gameToMusic.id')
                         .leftJoinAndSelect('gameToMusic.music', 'music')
-                        .leftJoinAndSelect('music.file', 'file')
                         .leftJoinAndSelect('gameToMusic.game', 'game')
-                        .leftJoinAndSelect('gameToMusic.derivedGameToMusics', 'derivedGameToMusics')
-                        .leftJoinAndSelect('derivedGameToMusics.game', 'derivedGames')
-                        .leftJoinAndSelect('gameToMusic.originalGameToMusic', 'originalGameToMusic')
-                        .leftJoinAndSelect('originalGameToMusic.game', 'originalGame')
-                        .leftJoinAndSelect(
-                            'originalGameToMusic.derivedGameToMusics',
-                            'originalDerivedGameToMusics',
-                        )
-                        .leftJoinAndSelect(
-                            'originalDerivedGameToMusics.game',
-                            'originalDerivedGames',
-                        )
                         .andWhere('gameToMusic.game = :game')
                         .andWhere('music.duration >= :guessTime')
                         .setParameter('game', game.id)
@@ -339,7 +339,22 @@ export class LobbyMusicLoaderService {
                         })
                     }
 
-                    const gameToMusic = await this.getGameOrMusic(qb)
+                    const gameToMusicId = await this.getGameOrMusic(qb)
+                    const gameToMusic =
+                        gameToMusicId === null
+                            ? null
+                            : await this.gameToMusicRepository.findOne({
+                                  relations: {
+                                      music: { file: true },
+                                      game: true,
+                                      derivedGameToMusics: { game: true },
+                                      originalGameToMusic: {
+                                          game: true,
+                                          derivedGameToMusics: { game: true },
+                                      },
+                                  },
+                                  where: { id: gameToMusicId?.id },
+                              })
 
                     if (!gameToMusic) {
                         blackListGameIds = [...blackListGameIds, game.id]
@@ -490,7 +505,7 @@ export class LobbyMusicLoaderService {
 
     private async getGameOrMusic<T extends Game | GameToMusic>(
         baseQueryBuilder: SelectQueryBuilder<T>,
-    ): Promise<T | null> {
+    ): Promise<Pick<T, 'id'> | null> {
         let gameOrGameMusic: T | null
         const qbGuessAccuracyIsNull = baseQueryBuilder.clone()
         qbGuessAccuracyIsNull.andWhere('gameToMusic.guessAccuracy IS NULL')
