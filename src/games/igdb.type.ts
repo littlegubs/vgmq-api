@@ -38,8 +38,19 @@ export type IgdbGame = {
         id: number
         image_id: string
     }[]
+    genres?: {
+        id: number
+        name: string
+        slug: string
+    }[]
     themes?: {
         id: number
+        name: string
+        slug: string
+    }[]
+    collections?: {
+        id: number
+        name: string
         slug: string
     }[]
 }
