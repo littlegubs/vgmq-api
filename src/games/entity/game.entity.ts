@@ -15,11 +15,14 @@ import {
 
 import { User } from '../../users/user.entity'
 import { AlternativeName } from './alternative-name.entity'
+import { Collection } from './collection.entity'
 import { Cover } from './cover.entity'
 import { GameAlbum } from './game-album.entity'
 import { GameToMusic } from './game-to-music.entity'
+import { Genre } from './genre.entity'
 import { Platform } from './platform.entity'
 import { Screenshot } from './screenshot.entity'
+import { Theme } from './theme.entity'
 import { Video } from './video.entity'
 
 @Entity()
@@ -110,6 +113,27 @@ export class Game {
     })
     @JoinTable({ name: 'games_platforms' })
     platforms: Platform[]
+
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
+    @ManyToMany(() => Genre, (genre) => genre.games, {
+        cascade: ['insert', 'update'],
+    })
+    @JoinTable({ name: 'games_genres' })
+    genres: Genre[]
+
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
+    @ManyToMany(() => Theme, (theme) => theme.games, {
+        cascade: ['insert', 'update'],
+    })
+    @JoinTable({ name: 'games_themes' })
+    themes: Theme[]
+
+    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
+    @ManyToMany(() => Collection, (collection) => collection.games, {
+        cascade: ['insert', 'update'],
+    })
+    @JoinTable({ name: 'games_collections' })
+    collections: Collection[]
 
     @ManyToMany(() => Game, (game) => game.isSimilarTo, {
         cascade: ['insert', 'update'],

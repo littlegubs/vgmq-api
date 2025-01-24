@@ -10,11 +10,14 @@ import { Repository } from 'typeorm'
 
 import { User } from '../../users/user.entity'
 import { AlternativeName } from '../entity/alternative-name.entity'
+import { Collection } from '../entity/collection.entity'
 import { ColorPalette } from '../entity/color-palette.entity'
 import { Cover } from '../entity/cover.entity'
 import { Game } from '../entity/game.entity'
+import { Genre } from '../entity/genre.entity'
 import { Platform } from '../entity/platform.entity'
 import { Screenshot } from '../entity/screenshot.entity'
+import { Theme } from '../entity/theme.entity'
 import { Video } from '../entity/video.entity'
 import { IgdbHttpService } from '../http/igdb.http.service'
 import { IgdbGame } from '../igdb.type'
@@ -24,22 +27,18 @@ export class IgdbService {
     constructor(
         private igdbHttpService: IgdbHttpService,
         private configService: ConfigService,
-        @InjectRepository(Game)
-        private gamesRepository: Repository<Game>,
-        @InjectRepository(Cover)
-        private coversRepository: Repository<Cover>,
+        @InjectRepository(Game) private gamesRepository: Repository<Game>,
+        @InjectRepository(Cover) private coversRepository: Repository<Cover>,
         @InjectRepository(AlternativeName)
         private alternativeNamesRepository: Repository<AlternativeName>,
-        @InjectRepository(ColorPalette)
-        private colorPaletteRepository: Repository<ColorPalette>,
-        @InjectRepository(Platform)
-        private platformRepository: Repository<Platform>,
-        @InjectRepository(Video)
-        private videoRepository: Repository<Video>,
-        @InjectRepository(Screenshot)
-        private screenshotRepository: Repository<Screenshot>,
-        @InjectQueue('game')
-        private gameQueue: Queue,
+        @InjectRepository(ColorPalette) private colorPaletteRepository: Repository<ColorPalette>,
+        @InjectRepository(Platform) private platformRepository: Repository<Platform>,
+        @InjectRepository(Video) private videoRepository: Repository<Video>,
+        @InjectRepository(Screenshot) private screenshotRepository: Repository<Screenshot>,
+        @InjectRepository(Genre) private genreRepository: Repository<Genre>,
+        @InjectRepository(Theme) private themeRepository: Repository<Theme>,
+        @InjectRepository(Collection) private collectionRepository: Repository<Collection>,
+        @InjectQueue('game') private gameQueue: Queue,
     ) {}
 
     async import(igdbGame: IgdbGame, user?: User): Promise<Game> {
@@ -65,16 +64,19 @@ export class IgdbService {
 
         const cover = await this.getCover(game, igdbGame.cover)
 
-        const alternativeNames = await this.handleAlternativeNames(game, igdbGame.alternative_names)
-        const videos = await this.handleVideos(game, igdbGame.videos)
-        const screenshots = await this.handleScreenshots(game, igdbGame.screenshots)
+        const alternativeNames = await this.handleAlternativeNames(igdbGame.alternative_names)
+        const videos = await this.handleVideos(igdbGame.videos)
+        const screenshots = await this.handleScreenshots(igdbGame.screenshots)
 
         const [parent, versionParent] = await Promise.all([
             this.getParent(igdbGame.parent_game),
             this.getParent(igdbGame.version_parent),
         ])
 
-        const platforms = await this.handlePlatforms(game, igdbGame.platforms)
+        const platforms = await this.handlePlatforms(igdbGame.platforms)
+        const genres = await this.handleGenres(igdbGame.genres)
+        const themes = await this.handleThemes(igdbGame.themes)
+        const collections = await this.handleCollections(igdbGame.collections)
 
         game = {
             ...game,
@@ -85,6 +87,9 @@ export class IgdbService {
             ...(platforms ? { platforms } : undefined),
             ...(videos ? { videos: videos.filter((v) => v !== undefined) as Video[] } : undefined),
             ...(screenshots ? { screenshots } : undefined),
+            ...(genres ? { genres } : undefined),
+            ...(themes ? { themes } : undefined),
+            ...(collections ? { collections } : undefined),
         }
 
         game = await this.updateOrCreateGame(game, oldGame)
@@ -166,11 +171,7 @@ export class IgdbService {
     }
 
     handleAlternativeNames(
-        game: Game,
-        igdbAlternativeNames?: Array<{
-            id: number
-            name: string
-        }>,
+        igdbAlternativeNames?: IgdbGame['alternative_names'],
     ): Promise<AlternativeName[]> {
         if (Array.isArray(igdbAlternativeNames) && igdbAlternativeNames.length > 0) {
             return Promise.all(
@@ -194,13 +195,7 @@ export class IgdbService {
         return Promise.resolve([])
     }
 
-    async handleVideos(
-        game: Game,
-        igdbVideos?: Array<{
-            id: number
-            video_id: string
-        }>,
-    ): Promise<Array<Video | undefined>> {
+    async handleVideos(igdbVideos?: IgdbGame['videos']): Promise<Array<Video | undefined>> {
         const youtubeApi = youtube({
             version: 'v3',
             auth: this.configService.get('YOUTUBE_API_AUTH'),
@@ -233,13 +228,7 @@ export class IgdbService {
         return Promise.resolve([])
     }
 
-    async handleScreenshots(
-        game: Game,
-        igdbImages?: Array<{
-            id: number
-            image_id: string
-        }>,
-    ): Promise<Screenshot[]> {
+    async handleScreenshots(igdbImages?: IgdbGame['screenshots']): Promise<Screenshot[]> {
         if (Array.isArray(igdbImages) && igdbImages.length > 0) {
             return Promise.all(
                 igdbImages.map(async (igdbImage) => {
@@ -259,14 +248,7 @@ export class IgdbService {
         return Promise.resolve([])
     }
 
-    handlePlatforms(
-        game: Game,
-        igdbPlatforms?: Array<{
-            id: number
-            name: string
-            abbreviation: string
-        }>,
-    ): Promise<Platform[]> {
+    handlePlatforms(igdbPlatforms?: IgdbGame['platforms']): Promise<Platform[]> {
         if (Array.isArray(igdbPlatforms) && igdbPlatforms.length > 0) {
             return Promise.all(
                 igdbPlatforms.map(async (igdbPlatform) => {
@@ -284,6 +266,81 @@ export class IgdbService {
                         ...platform,
                         name: igdbPlatform.name,
                         abbreviation: igdbPlatform.abbreviation ?? igdbPlatform.name,
+                    })
+                }),
+            )
+        }
+        return Promise.resolve([])
+    }
+
+    handleGenres(igdbGenres?: IgdbGame['genres']): Promise<Genre[]> {
+        if (Array.isArray(igdbGenres) && igdbGenres.length > 0) {
+            return Promise.all(
+                igdbGenres.map(async (igdbGenre) => {
+                    const genre = await this.genreRepository.findOneBy({
+                        igdbId: igdbGenre.id,
+                    })
+                    if (genre === null) {
+                        return this.genreRepository.create({
+                            igdbId: igdbGenre.id,
+                            name: igdbGenre.name,
+                            slug: igdbGenre.slug,
+                        })
+                    }
+                    return this.genreRepository.save({
+                        ...genre,
+                        name: igdbGenre.name,
+                        slug: igdbGenre.slug,
+                    })
+                }),
+            )
+        }
+        return Promise.resolve([])
+    }
+
+    handleThemes(igdbThemes?: IgdbGame['themes']): Promise<Theme[]> {
+        if (Array.isArray(igdbThemes) && igdbThemes.length > 0) {
+            return Promise.all(
+                igdbThemes.map(async (igdbTheme) => {
+                    const theme = await this.themeRepository.findOneBy({
+                        igdbId: igdbTheme.id,
+                    })
+                    if (theme === null) {
+                        return this.themeRepository.create({
+                            igdbId: igdbTheme.id,
+                            name: igdbTheme.name,
+                            slug: igdbTheme.slug,
+                        })
+                    }
+                    return this.themeRepository.save({
+                        ...theme,
+                        name: igdbTheme.name,
+                        slug: igdbTheme.slug,
+                    })
+                }),
+            )
+        }
+        return Promise.resolve([])
+    }
+
+    handleCollections(igdbCollections?: IgdbGame['collections']): Promise<Collection[]> {
+        if (Array.isArray(igdbCollections) && igdbCollections.length > 0) {
+            return Promise.all(
+                igdbCollections.map(async (igdbCollection) => {
+                    const collection = await this.collectionRepository.findOneBy({
+                        igdbId: igdbCollection.id,
+                    })
+                    if (collection === null) {
+                        return this.collectionRepository.create({
+                            igdbId: igdbCollection.id,
+                            name: igdbCollection.name,
+                            slug: igdbCollection.slug,
+                        })
+                    }
+                    return this.collectionRepository.save({
+                        ...collection,
+                        name: igdbCollection.name,
+                        slug: igdbCollection.slug,
                     })
                 }),
             )

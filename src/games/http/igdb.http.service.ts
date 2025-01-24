@@ -70,9 +70,10 @@ export class IgdbHttpService {
             this.httpService
                 .post<IgdbGame[]>(
                     'https://api.igdb.com/v4/games',
-                    `fields category, parent_game.url, url, category,alternative_names.name, cover.*,
+                    `fields category, parent_game.url, url ,alternative_names.name, cover.*,
                     first_release_date, version_parent.url, name, slug, videos.video_id, platforms.name, 
-                    platforms.abbreviation, similar_games.url, screenshots.image_id, themes.slug;
+                    platforms.abbreviation, similar_games.url, screenshots.image_id, genres.name, genres.slug, 
+                    themes.slug, themes.name, collections.name, collections.slug;
                 sort popularity desc; 
                 limit 500; 
                 where url = "${url}";`,
