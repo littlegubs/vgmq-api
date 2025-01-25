@@ -162,7 +162,11 @@ export class Lobby {
 
     @Column({ type: 'boolean', default: false })
     @Expose({ groups: ['lobby'] })
-    allowCollection = false
+    allowCollectionAnswer = false
+
+    @Column({ type: 'int', default: 0 })
+    @Expose({ groups: ['lobby'] })
+    limitAllCollectionsTo = 0
 
     @Column({
         type: 'enum',
