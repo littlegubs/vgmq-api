@@ -154,14 +154,13 @@ export class LobbyProcessor {
                 disconnected: false,
             },
         })
-        lobbyUsers = this.lobbyUserRepository.create(
-            await this.lobbyUserRepository.save(
-                lobbyUsers.map((lobbyUser) => ({
-                    ...lobbyUser,
-                    correctAnswer: lobbyUser.correctAnswer || null,
-                })),
-            ),
+        lobbyUsers = lobbyUsers.map((lobbyUser) =>
+            Object.assign(lobbyUser, {
+                ...lobbyUser,
+                correctAnswer: lobbyUser.correctAnswer || null,
+            }),
         )
+        await this.lobbyUserRepository.save(lobbyUsers)
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.logger.debug(`will call playMusic for lobby ${lobby.code}`)
@@ -208,23 +207,22 @@ export class LobbyProcessor {
             void ffmpegProcess.on('close', (code) => {
                 this.lobbyGateway.sendLobbyBufferEnd(lobby!)
                 if (code === 0) {
-                    void this.lobbyUserRepository
-                        .save(
-                            lobbyUsers.map((lobbyUser) => ({
-                                ...lobbyUser,
-                                status: LobbyUserStatus.Buffering,
-                            })),
-                        )
-                        .then((lbs) => {
-                            void this.lobbyGateway
-                                .sendLobbyUsers(lobby!, this.lobbyUserRepository.create(lbs))
-                                .then(() => {
-                                    this.lobbyGateway.sendLobbyMusicToLoad(
-                                        lobby!,
-                                        Buffer.concat(output),
-                                    )
-                                })
-                        })
+                    lobbyUsers = lobbyUsers.map((lobbyUser) =>
+                        Object.assign(lobbyUser, {
+                            ...lobbyUser,
+                            status: LobbyUserStatus.Buffering,
+                        }),
+                    )
+                    void this.lobbyUserRepository.save(lobbyUsers).then(() => {
+                        void this.lobbyGateway
+                            .sendLobbyUsers(lobby!, this.lobbyUserRepository.create(lobbyUsers))
+                            .then(() => {
+                                this.lobbyGateway.sendLobbyMusicToLoad(
+                                    lobby!,
+                                    Buffer.concat(output),
+                                )
+                            })
+                    })
                     this.logger.debug(`nevermind! bufferMusic for ${lobby!.code} resolved`)
                     resolve(null)
                 } else {
@@ -239,14 +237,13 @@ export class LobbyProcessor {
         }).catch(async (err: string) => {
             this.lobbyGateway.sendLobbyError(lobby!, err)
             this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 1/3`)
-            lobbyUsers = this.lobbyUserRepository.create(
-                await this.lobbyUserRepository.save(
-                    lobbyUsers.map((lobbyUser) => ({
-                        ...lobbyUser,
-                        status: null,
-                    })),
-                ),
+            lobbyUsers = lobbyUsers.map((lobbyUser) =>
+                Object.assign(lobbyUser, {
+                    ...lobbyUser,
+                    status: null,
+                }),
             )
+            await this.lobbyUserRepository.save(lobbyUsers)
             this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 2/3`)
             await this.lobbyGateway.sendLobbyUsers(lobby!, lobbyUsers)
             this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 3/3`)
@@ -304,18 +301,17 @@ export class LobbyProcessor {
                         status: LobbyStatuses.Buffering,
                     }),
                 )
-                lobbyUsers = this.lobbyUserRepository.create(
-                    await this.lobbyUserRepository.save(
-                        lobbyUsers.map((lobbyUser) => ({
-                            ...lobbyUser,
-                            correctAnswer: null,
-                            playedTheGame: null,
-                            hintMode:
-                                lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode, // why do I have to use '!' here ??
-                            answer: null,
-                        })),
-                    ),
+                lobbyUsers = lobbyUsers.map((lobbyUser) =>
+                    Object.assign(lobbyUser, {
+                        ...lobbyUser,
+                        correctAnswer: null,
+                        playedTheGame: null,
+                        hintMode:
+                            lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode, // why do I have to use '!' here ??
+                        answer: null,
+                    }),
                 )
+                await this.lobbyUserRepository.save(lobbyUsers)
                 await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
                 this.lobbyGateway.sendUpdateToRoom(lobby)
                 this.logger.debug(`will call playMusicForced for lobby ${lobby.code}`)
@@ -366,19 +362,18 @@ export class LobbyProcessor {
             return
         }
 
-        lobbyUsers = this.lobbyUserRepository.create(
-            await this.lobbyUserRepository.save(
-                lobbyUsers.map((lobbyUser) => ({
-                    ...lobbyUser,
-                    correctAnswer: null,
-                    playedTheGame: null,
-                    tries: 0,
-                    ...(lobbyUser.status === LobbyUserStatus.ReadyToPlayMusic && { status: null }),
-                    hintMode: lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode, // why do I have to use '!' here ??
-                    answer: null,
-                })),
-            ),
+        lobbyUsers = lobbyUsers.map((lobbyUser) =>
+            Object.assign(lobbyUser, {
+                ...lobbyUser,
+                correctAnswer: null,
+                playedTheGame: null,
+                tries: 0,
+                ...(lobbyUser.status === LobbyUserStatus.ReadyToPlayMusic && { status: null }),
+                hintMode: lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode, // why do I have to use '!' here ??
+                answer: null,
+            }),
         )
+        await this.lobbyUserRepository.save(lobbyUsers)
         const lobbyUsersHintMode = lobbyUsers.filter((lobbyUser) => lobbyUser.hintMode)
         if (lobbyUsersHintMode.length > 0) {
             this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobbyUsersHintMode)

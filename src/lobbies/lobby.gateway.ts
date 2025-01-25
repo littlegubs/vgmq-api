@@ -238,9 +238,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
 
         if (lobbyUser.hintMode) {
-            lobbyUser = this.lobbyUserRepository.create(
-                await this.lobbyUserRepository.save({ ...lobbyUser, answer }),
-            )
+            Object.assign(lobbyUser, { ...lobbyUser, answer })
+            await this.lobbyUserRepository.save(lobbyUser)
             this.server.to(lobby.code).emit(
                 'lobbyUser',
                 classToClass<LobbyUser>(lobbyUser, {
@@ -302,7 +301,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                             qb4.andWhere('expectedAnswerAlternativeName.name LIKE :answer')
                         }),
                     )
-                    if (lobby.allowCollection) {
+                    if (lobby.allowCollectionAnswer) {
                         qb.orWhere('expectedAnswerCollection.name LIKE :answer')
                     }
                 }),
@@ -315,7 +314,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
         const lobbyMusic = await answerQuery.getOne()
 
-        lobbyUser = this.lobbyUserRepository.create({
+        Object.assign(lobbyUser, {
             ...lobbyUser,
             correctAnswer: !!lobbyMusic,
             tries: lobbyUser.tries + 1,
@@ -333,12 +332,13 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 pointsToWin += 5
             }
             if (lobbyUser.tries === 1) pointsToWin += 5
-            lobbyUser = this.lobbyUserRepository.create({
+            Object.assign(lobbyUser, {
                 ...lobbyUser,
                 points: lobbyUser.points + (lobbyUser.hintMode ? 5 : pointsToWin),
                 musicGuessedRight: lobbyUser.musicGuessedRight + 1,
             })
-            this.lobbyUserRepository.create(await this.lobbyUserRepository.save(lobbyUser))
+
+            await this.lobbyUserRepository.save(lobbyUser)
         }
         return lobbyUser
     }
@@ -461,9 +461,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             throw new WsException('')
         }
         if (!lobbyUser.correctAnswer) {
-            lobbyUser = this.lobbyUserRepository.create(
-                await this.lobbyUserRepository.save({ ...lobbyUser, hintMode: true }),
-            )
+            lobbyUser = Object.assign(lobbyUser, { ...lobbyUser, hintMode: true })
+            await this.lobbyUserRepository.save(lobbyUser)
             await this.showHintModeGames(lobbyUser, client)
         } else {
             await this.showHintModeGames(lobbyUser, client, false)
