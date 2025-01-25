@@ -71,7 +71,10 @@ export class User {
     @OneToOne(() => LobbyUser, (lobbyUser) => lobbyUser.user, { onDelete: 'SET NULL' })
     currentLobby?: LobbyUser
 
-    @OneToOne(() => OauthPatreon, (oauthPatreon) => oauthPatreon.user, { onDelete: 'SET NULL' })
+    @OneToOne(() => OauthPatreon, (oauthPatreon) => oauthPatreon.user, {
+        onDelete: 'SET NULL',
+        eager: true,
+    })
     @Expose({ groups: ['wsLobby'] })
     patreonAccount?: OauthPatreon
 
