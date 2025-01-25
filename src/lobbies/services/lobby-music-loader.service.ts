@@ -293,9 +293,21 @@ export class LobbyMusicLoaderService {
 
                 if (game !== null) {
                     if (lobby.premium) {
+                        if (lobby.limitAllCollectionsTo > 0) {
+                            if (
+                                this.collectionsReachedLimit(
+                                    game.collections,
+                                    alreadyFetchedCollectionIds,
+                                    lobby,
+                                ).length > 0
+                            ) {
+                                blackListGameIds = [...blackListGameIds, game.id]
+                                continue
+                            }
+                        }
                         if (
                             this.collectionIsExcluded(game.collections, lobby.collectionFilters) ||
-                            this.collectionsReachedLimit(
+                            this.collectionsReachedFineTunedLimit(
                                 game.collections,
                                 lobby.collectionFilters,
                                 alreadyFetchedCollectionIds,
@@ -491,6 +503,23 @@ export class LobbyMusicLoaderService {
     }
 
     private collectionsReachedLimit(
+        collections: Collection[],
+        alreadyFetchedCollectionIds: number[],
+        lobby: Lobby,
+    ): number[] {
+        let collectionReachedLimit: number[] = []
+        for (const collection of collections) {
+            if (
+                alreadyFetchedCollectionIds.filter((id) => id === collection.id).length >=
+                lobby.limitAllCollectionsTo
+            ) {
+                collectionReachedLimit = [...collectionReachedLimit, collection.id]
+            }
+        }
+        return collectionReachedLimit
+    }
+
+    private collectionsReachedFineTunedLimit(
         collections: Collection[],
         collectionFilters: LobbyCollectionFilter[],
         alreadyFetchedCollectionIds: number[],
