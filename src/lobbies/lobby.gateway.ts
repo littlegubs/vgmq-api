@@ -310,7 +310,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             .setParameter('answer', answer)
             .setParameter('position', lobby.currentLobbyMusicPosition)
 
-        if (lobby.allowCollection) {
+        if (lobby.allowCollectionAnswer) {
             answerQuery.leftJoinAndSelect('expectedAnswers.collections', 'expectedAnswerCollection')
         }
         const lobbyMusic = await answerQuery.getOne()
