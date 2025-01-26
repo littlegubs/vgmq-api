@@ -95,10 +95,5 @@ export class User {
     }
 
     @Expose({ groups: ['wsLobby', 'userProfile'] })
-    get premium(): boolean {
-        return (
-            !!this.patreonAccount?.premium ||
-            this.roles.some((role) => [Role.Admin, Role.SuperAdmin].includes(role as Role))
-        )
-    }
+    premium = false
 }
