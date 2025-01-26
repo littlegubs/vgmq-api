@@ -5,6 +5,7 @@ import {
     Get,
     HttpCode,
     InternalServerErrorException,
+    Logger,
     NotFoundException,
     Param,
     Query,
@@ -23,7 +24,6 @@ import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
 import { GamesImportDto } from './dto/games-import.dto'
 import { GamesSearchDto } from './dto/games-search.dto'
-import { GameToMusic } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
 import { Platform } from './entity/platform.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
@@ -42,8 +42,8 @@ export class GamesController {
         private elasticsearchService: ElasticsearchService,
         private igdbHttpService: IgdbHttpService,
         @InjectRepository(Platform) private platformRepository: Repository<Platform>,
-        @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
     ) {}
+    private readonly logger = new Logger(GamesController.name)
 
     @Get('')
     @UseInterceptors(ClassSerializerInterceptor)
@@ -167,81 +167,87 @@ export class GamesController {
     async getNames(
         @Query() query: GamesSearchDto,
     ): Promise<{ highlight: string | undefined; name: string | undefined }[]> {
-        // remove accents
-        const queryStr = query.query
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/\p{Diacritic}/gu, '')
+        try {
+            // remove accents
+            const queryStr = query.query
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/\p{Diacritic}/gu, '')
 
-        if (queryStr === '') return []
+            if (queryStr === '') return []
 
-        const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
-            index: 'game_name',
-            sort: ['_score', 'name'],
-            size: 20,
-            query: {
-                bool: {
-                    should: [
-                        {
-                            wildcard: {
-                                name: {
-                                    value: `*${queryStr}*`,
+            const { hits } = await this.elasticsearchService.search<GameNameSearchBody>({
+                index: 'game_name',
+                sort: ['_score', 'name'],
+                size: 20,
+                query: {
+                    bool: {
+                        should: [
+                            {
+                                wildcard: {
+                                    name: {
+                                        value: `*${queryStr}*`,
+                                    },
                                 },
                             },
-                        },
-                        {
-                            wildcard: {
-                                name: {
-                                    value: `${queryStr}*`,
-                                    boost: 2,
+                            {
+                                wildcard: {
+                                    name: {
+                                        value: `${queryStr}*`,
+                                        boost: 2,
+                                    },
                                 },
                             },
-                        },
-                        { wildcard: { name_slug: `*${queryStr}*` } },
-                        {
-                            wildcard: {
-                                name_slug: {
-                                    value: `${queryStr}*`,
-                                    boost: 2,
+                            { wildcard: { name_slug: `*${queryStr}*` } },
+                            {
+                                wildcard: {
+                                    name_slug: {
+                                        value: `${queryStr}*`,
+                                        boost: 2,
+                                    },
                                 },
                             },
-                        },
-                        {
-                            term: {
-                                suggest_highlight: {
-                                    value: `${queryStr.replace(/([:.,-](\s*)?)/, ' ')}`,
-                                    boost: 0,
+                            {
+                                term: {
+                                    suggest_highlight: {
+                                        value: `${queryStr.replace(/([:.,-](\s*)?)/, ' ')}`,
+                                        boost: 0,
+                                    },
                                 },
                             },
-                        },
-                    ],
+                        ],
+                    },
                 },
-            },
-            highlight: {
-                type: 'fvh',
-                boundary_scanner: 'chars',
-                fields: {
-                    suggest_highlight: {},
+                highlight: {
+                    type: 'fvh',
+                    boundary_scanner: 'chars',
+                    fields: {
+                        suggest_highlight: {},
+                    },
+                    pre_tags: ['<span class="highlighted">'],
+                    post_tags: ['</span>'],
                 },
-                pre_tags: ['<span class="highlighted">'],
-                post_tags: ['</span>'],
-            },
-        })
-        return hits.hits.reduce(
-            (previous: { highlight: string | undefined; name: string | undefined }[], item) => {
-                if (!previous.some((i) => i.name === item._source?.name)) {
-                    return [
-                        ...previous,
-                        {
-                            name: item._source?.name,
-                            highlight: item.highlight?.suggest_highlight?.[0],
-                        },
-                    ]
-                }
-                return [...previous]
-            },
-            [],
-        )
+            })
+            return hits.hits.reduce(
+                (previous: { highlight: string | undefined; name: string | undefined }[], item) => {
+                    if (!previous.some((i) => i.name === item._source?.name)) {
+                        return [
+                            ...previous,
+                            {
+                                name: item._source?.name,
+                                highlight: item.highlight?.suggest_highlight?.[0],
+                            },
+                        ]
+                    }
+                    return [...previous]
+                },
+                [],
+            )
+        } catch (e) {
+            this.logger.error(`Elasticsearch failed with query ${query.query}`)
+            this.logger.error(`More detailed object: ${query}`)
+            throw e
+        }
     }
 
     @Get('/:slug')
