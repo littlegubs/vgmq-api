@@ -284,9 +284,7 @@ describe('AuthController (e2e)', () => {
                 })
         })
         it('should return 401: user not found', () => {
-            jest.spyOn(jwtStrategy, 'validate').mockImplementationOnce(() =>
-                Promise.resolve(null),
-            )
+            jest.spyOn(jwtStrategy, 'validate').mockImplementationOnce(() => Promise.resolve(null))
             return request(app.getHttpServer())
                 .get('/auth/logout')
                 .set('Authorization', `bearer ${accessToken}`)

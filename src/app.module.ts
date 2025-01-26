@@ -18,6 +18,7 @@ import { LobbyModule } from './lobbies/lobby.module'
 import { MailModule } from './mail/mail.module'
 import { MusicsModule } from './musics/musics.module'
 import { OauthModule } from './oauth/oauth.module'
+import { RedisModule } from './redis/redis.module'
 import { S3Service } from './s3/s3.service'
 import { FileSubscriber } from './subscribers/file.subscriber'
 import { UsersModule } from './users/users.module'
@@ -65,6 +66,7 @@ import { UsersModule } from './users/users.module'
         BullModule.forRootAsync({
             useFactory: (configService: ConfigService) => ({
                 redis: {
+                    db: 0,
                     host: configService.get('REDIS_HOST'),
                     port: configService.get<number>('REDIS_PORT'),
                     password: configService.get('REDIS_PASSWORD'),
@@ -90,6 +92,7 @@ import { UsersModule } from './users/users.module'
         AdminModule,
         OauthModule,
         DiscordModule,
+        RedisModule,
     ],
     controllers: [AppController],
     providers: [AppService, FileSubscriber, S3Service],
