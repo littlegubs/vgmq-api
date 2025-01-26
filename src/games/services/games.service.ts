@@ -358,7 +358,7 @@ export class GamesService {
     indexGameName(game: Game): Promise<IndexResponse> {
         return this.elasticsearchService.index<GameNameSearchBody>({
             index: 'game_name',
-            body: {
+            document: {
                 id: game.id,
                 name: game.name,
                 type: 'game_name',
@@ -416,7 +416,7 @@ export class GamesService {
     indexAlternativeName(alternativeName: AlternativeName): Promise<IndexResponse> {
         return this.elasticsearchService.index<GameNameSearchBody>({
             index: 'game_name',
-            body: {
+            document: {
                 id: alternativeName.id,
                 name: alternativeName.name,
                 type: 'alternative_name',
