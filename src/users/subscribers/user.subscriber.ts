@@ -1,12 +1,19 @@
 import { ConfigService } from '@nestjs/config'
+import { DateTime } from 'luxon'
 import { DataSource, EntitySubscriberInterface, EventSubscriber, UpdateEvent } from 'typeorm'
 
+import { OauthPatreon } from '../../oauth/entities/oauth-patreon.entity'
+import { PatreonService } from '../../oauth/services/patreon.service'
 import { Role } from '../role.enum'
 import { User } from '../user.entity'
 
 @EventSubscriber()
 export class UserSubscriber implements EntitySubscriberInterface<User> {
-    constructor(connection: DataSource, private configService: ConfigService) {
+    constructor(
+        private connection: DataSource,
+        private configService: ConfigService,
+        private patreonService: PatreonService,
+    ) {
         connection.subscribers.push(this)
     }
 
@@ -14,16 +21,36 @@ export class UserSubscriber implements EntitySubscriberInterface<User> {
         return User
     }
 
-    afterLoad(entity: User): void {
+    async afterLoad(entity: User): Promise<void> {
         if (
-            !!entity.patreonAccount?.premium ||
-            entity.roles?.some((role) => [Role.Admin, Role.SuperAdmin].includes(role as Role)) ||
-            this.configService
-                .get<string>('PATREON_TIER_1_FREE_ACCESS')
-                ?.split(',')
-                .includes(String(entity.id))
+            entity?.premiumCachedAt === null ||
+            DateTime.fromJSDate(entity?.premiumCachedAt).diffNow('seconds').negate().seconds >
+                2678400 // 30 days
         ) {
-            entity.premium = true
+            if (entity.patreonAccount) {
+                const oauthPatreon = await this.connection.manager.findOne(OauthPatreon, {
+                    where: { id: entity.patreonAccount.id },
+                })
+                if (oauthPatreon) {
+                    entity.patreonAccount = await this.patreonService.refreshData(oauthPatreon)
+                }
+            }
+            entity.premium = !!(
+                entity.patreonAccount?.currentlyEntitledTiers?.some(
+                    (tier) =>
+                        tier === this.configService.get('PATREON_TIER_1_ID') ||
+                        tier === this.configService.get('PATREON_TIER_2_ID'),
+                ) ||
+                entity.roles?.some((role) =>
+                    [Role.Admin, Role.SuperAdmin].includes(role as Role),
+                ) ||
+                this.configService
+                    .get<string>('PATREON_TIER_1_FREE_ACCESS')
+                    ?.split(',')
+                    .includes(String(entity.id))
+            )
+            entity.premiumCachedAt = new Date()
+            void this.connection.manager.save(User, entity, { listeners: false })
         }
     }
 

@@ -38,29 +38,22 @@ export class UsersController {
     ) {}
 
     @Get('current')
-    async getCurrent(@Req() request: Request): Promise<{
+    getCurrent(@Req() request: Request): {
         createdAt: Date
         email: string
         username: string
-        patreonAccount: OauthPatreon | null
+        patreonAccount: OauthPatreon | undefined
         entitledTiers: string[]
-    }> {
-        const { id, createdAt, email, username } = request.user as User
-        let oauthPatreon = await this.oauthPatreonRepository.findOne({
-            relations: { user: true },
-            where: {
-                user: { id },
-            },
-        })
+    } {
+        const { createdAt, email, username, patreonAccount } = request.user as User
 
         const entitledTiers: string[] = []
-        if (oauthPatreon !== null) {
-            oauthPatreon = await this.patreonService.shouldRefreshData(oauthPatreon)
-            for (const tier of oauthPatreon.currentlyEntitledTiers) {
+        if (patreonAccount) {
+            for (const tier of patreonAccount.currentlyEntitledTiers) {
                 if (this.configService.get('PATREON_TIER_1_ID') === tier) {
-                    entitledTiers.push('Gaming!')
+                    entitledTiers.push('PATREON TIER 1')
                 } else if (this.configService.get('PATREON_TIER_2_ID') === tier) {
-                    entitledTiers.push('Gamer!')
+                    entitledTiers.push('PATREON TIER 2')
                 }
             }
         }
@@ -69,7 +62,7 @@ export class UsersController {
             createdAt,
             email,
             username,
-            patreonAccount: classToClass(oauthPatreon, {
+            patreonAccount: classToClass(patreonAccount, {
                 groups: ['userProfile'],
                 strategy: 'excludeAll',
             }),

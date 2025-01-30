@@ -42,6 +42,8 @@ export class UsersService {
 
     async findByEmail(email: string): Promise<User | null> {
         return this.userRepository.findOne({
+            relations: { patreonAccount: true },
+
             where: {
                 email: email,
             },
@@ -60,6 +62,7 @@ export class UsersService {
 
     async findByConfirmationToken(token: string): Promise<User | null> {
         return this.userRepository.findOne({
+            relations: { patreonAccount: true },
             where: {
                 confirmationToken: token,
             },

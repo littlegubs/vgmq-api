@@ -214,14 +214,9 @@ export class LobbyProcessor {
                         }),
                     )
                     void this.lobbyUserRepository.save(lobbyUsers).then(() => {
-                        void this.lobbyGateway
-                            .sendLobbyUsers(lobby!, this.lobbyUserRepository.create(lobbyUsers))
-                            .then(() => {
-                                this.lobbyGateway.sendLobbyMusicToLoad(
-                                    lobby!,
-                                    Buffer.concat(output),
-                                )
-                            })
+                        void this.lobbyGateway.sendLobbyUsers(lobby!, lobbyUsers).then(() => {
+                            this.lobbyGateway.sendLobbyMusicToLoad(lobby!, Buffer.concat(output))
+                        })
                     })
                     this.logger.debug(`nevermind! bufferMusic for ${lobby!.code} resolved`)
                     resolve(null)
@@ -540,12 +535,12 @@ export class LobbyProcessor {
             },
         })
         for (const lobbyUser of lobbyUsers) {
-            const userPlayedTheGame = await this.userService.userHasPlayedTheGame(
-                lobbyUser.user,
-                currentLobbyMusic.gameToMusic.game,
-            )
+            if (!lobbyUser.disconnected) {
+                const userPlayedTheGame = await this.userService.userHasPlayedTheGame(
+                    lobbyUser.user,
+                    currentLobbyMusic.gameToMusic.game,
+                )
 
-            if (!lobbyUser.disconnected && lobby.gameMode !== LobbyGameModes.LocalCouch) {
                 await this.musicAccuracyRepository.save({
                     playedTheGame: !!userPlayedTheGame,
                     correctAnswer: !!lobbyUser.correctAnswer,

@@ -18,6 +18,7 @@ export class OauthController {
         private authService: AuthService,
         private configService: ConfigService,
         @InjectRepository(OauthPatreon) private oauthPatreonRepository: Repository<OauthPatreon>,
+        @InjectRepository(User) private userRepository: Repository<User>,
     ) {}
 
     @Get('patreon')
@@ -43,6 +44,7 @@ export class OauthController {
             throw new NotFoundException()
         }
         await this.patreonService.refreshData(oauthPatreon)
+        await this.userRepository.save({ ...user, premiumCachedAt: null })
     }
 
     @Get('patreon/unlink')
