@@ -408,7 +408,7 @@ export class LobbyMusicLoaderService {
                     const hintModeGames = await this.getHintModeGames(
                         gameToMusic,
                         userId === 'unplayed' ? undefined : userIds,
-                        alreadyFetchedGameIds,
+                        lobby.allowDuplicates ? [] : alreadyFetchedGameIds,
                     )
                     const video = await this.getVideo(gameToMusic)
                     let startVideoAt = 0
