@@ -40,12 +40,24 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         if (!user) {
             user = this.userRepository.create({
                 email: profile.emails[0]?.value,
-                username: `${profile.name.givenName} ${profile.name.familyName}`,
+                username: await this.generateUsername(`${profile.name.givenName}`),
                 password: null,
                 enabled: true,
             })
             await this.userRepository.save(user)
         }
         done(null, user)
+    }
+
+    async generateUsername(username: string, retry = 0): Promise<string> {
+        let nextUsername = username
+        if (retry > 0) {
+            nextUsername = `${username}${retry}`
+        }
+        if (await this.userRepository.exists({ where: { username: nextUsername } })) {
+            retry++
+            return this.generateUsername(username, retry)
+        }
+        return nextUsername
     }
 }
