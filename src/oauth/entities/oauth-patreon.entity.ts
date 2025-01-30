@@ -1,4 +1,3 @@
-import { Expose } from 'class-transformer'
 import {
     Column,
     CreateDateColumn,
@@ -42,7 +41,4 @@ export class OauthPatreon {
     @Column()
     @UpdateDateColumn()
     updatedAt: Date
-
-    @Expose({ groups: ['wsLobby', 'userProfile'] })
-    premium = false
 }

@@ -3,7 +3,6 @@ import { HttpException, Injectable, InternalServerErrorException } from '@nestjs
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { AxiosError } from 'axios'
-import { DateTime } from 'luxon'
 import { catchError, firstValueFrom } from 'rxjs'
 import { Repository } from 'typeorm'
 import { DeepPartial } from 'typeorm/common/DeepPartial'
@@ -74,6 +73,7 @@ export class PatreonService {
         private httpService: HttpService,
         private configService: ConfigService,
         @InjectRepository(OauthPatreon) private oauthPatreonRepository: Repository<OauthPatreon>,
+        @InjectRepository(User) private userRepository: Repository<User>,
     ) {
         const patreonClientId = this.configService.get('PATREON_CLIENT_ID')
         const patreonClientSecret = this.configService.get('PATREON_CLIENT_SECRET')
@@ -142,6 +142,7 @@ export class PatreonService {
             },
         }
         oauthPatreon = this.setIdentityDataInEntity(identityData, oauthPatreon)
+        await this.userRepository.save({ ...user, premiumCachedAt: null })
         await this.oauthPatreonRepository.save(oauthPatreon)
 
         return identityData.data.attributes.full_name
@@ -175,6 +176,7 @@ export class PatreonService {
         })
         if (oauthPatreon !== null) {
             await this.oauthPatreonRepository.remove(oauthPatreon)
+            await this.userRepository.save({ ...user, premiumCachedAt: null })
         }
     }
 
@@ -205,22 +207,6 @@ export class PatreonService {
                 ),
         )
         return identityData
-    }
-
-    /**
-     * This should be called everytime a oauthPatreon has been retrieved from the database
-     */
-    public async shouldRefreshData(oauthPatreon: OauthPatreon): Promise<OauthPatreon> {
-        const end = DateTime.now()
-        const start = DateTime.fromJSDate(oauthPatreon.updatedAt)
-
-        const diffInSeconds = end.diff(start, 'seconds')
-
-        if (diffInSeconds.get('seconds') > 2678400) {
-            oauthPatreon = await this.refreshData(oauthPatreon)
-        }
-
-        return oauthPatreon
     }
 
     public async refreshData(oauthPatreon: OauthPatreon): Promise<OauthPatreon> {

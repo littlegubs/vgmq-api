@@ -396,7 +396,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
     @SubscribeMessage('readyToPlayMusic')
     async readyToPlayMusic(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
-        let lobbyUser = await this.lobbyUserRepository.findOne({
+        const lobbyUser = await this.lobbyUserRepository.findOne({
             relations: {
                 user: true,
                 lobby: true,
@@ -414,12 +414,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
         // We do not care if the user is ready or not
         if (lobbyUser.lobby.status === LobbyStatuses.PlayingMusic) {
-            lobbyUser = this.lobbyUserRepository.create(
-                await this.lobbyUserRepository.save({
-                    ...lobbyUser,
-                    status: null,
-                }),
-            )
+            Object.assign(lobbyUser, {
+                ...lobbyUser,
+                status: null,
+            })
+            await this.lobbyUserRepository.save(lobbyUser)
             this.server.to(lobbyUser.lobby.code).emit(
                 'lobbyUser',
                 classToClass<LobbyUser>(lobbyUser, {
@@ -430,12 +429,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             return
         }
 
-        lobbyUser = this.lobbyUserRepository.create(
-            await this.lobbyUserRepository.save({
-                ...lobbyUser,
-                status: LobbyUserStatus.ReadyToPlayMusic,
-            }),
-        )
+        Object.assign(lobbyUser, {
+            ...lobbyUser,
+            status: LobbyUserStatus.ReadyToPlayMusic,
+        })
+        await this.lobbyUserRepository.save(lobbyUser)
         this.server.to(lobbyUser.lobby.code).emit(
             'lobbyUser',
             classToClass<LobbyUser>(lobbyUser, {
