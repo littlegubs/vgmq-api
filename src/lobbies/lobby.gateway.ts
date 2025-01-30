@@ -209,10 +209,12 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
         message = message.trim()
         if (message !== '') {
-            this.server
-                .to(lobbyUser.lobby.code)
-                .emit('chat', { username: lobbyUser.user.username, message })
+            this.emitChat(lobbyUser.lobby.code, lobbyUser.user.username, message)
         }
+    }
+
+    public emitChat(lobbyCode: string, username: string | null, message: string): void {
+        this.server.to(lobbyCode).emit('chat', { username: username, message })
     }
 
     @SubscribeMessage('answer')
