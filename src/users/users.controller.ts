@@ -14,6 +14,7 @@ import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { classToClass } from 'class-transformer'
 import { Request } from 'express'
+import { DateTime } from 'luxon'
 import { Repository } from 'typeorm'
 
 import { AuthService } from '../auth/auth.service'
@@ -98,12 +99,24 @@ export class UsersController {
     ): Promise<{ accessToken: string; refreshToken: string }> {
         const user = request.user as User
 
+        if (!(user.premium || (user.password === null && user.usernameUpdatedAt === null))) {
+            throw new ForbiddenException('Updating your username is a premium feature!')
+        }
+        if (
+            user.usernameUpdatedAt !== null &&
+            DateTime.fromJSDate(user.usernameUpdatedAt).diffNow('months').negate().months === 0
+        ) {
+            throw new ForbiddenException(
+                "You've already updated your username less than a month ago",
+            )
+        }
         if (await this.usersService.findByUsername(usersUpdateUsername.username)) {
-            throw new ConflictException('username already exist')
+            throw new ConflictException('username already used')
         }
         const userWithNewUsername = this.userRepository.create({
             ...user,
             username: usersUpdateUsername.username,
+            usernameUpdatedAt: new Date(),
         })
         await this.userRepository.save(userWithNewUsername)
         const tokens = await this.authService.getUserTokens(userWithNewUsername)

@@ -83,6 +83,9 @@ export class User {
     patreonAccount?: OauthPatreon
 
     @Column({ nullable: true, type: 'datetime' })
+    usernameUpdatedAt: Date | null
+
+    @Column({ nullable: true, type: 'datetime' })
     premiumCachedAt: Date | null
 
     @Column()
