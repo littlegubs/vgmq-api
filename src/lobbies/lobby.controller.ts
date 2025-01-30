@@ -20,21 +20,26 @@ import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { Game } from '../games/entity/game.entity'
+import { Role } from '../users/role.enum'
+import { Roles } from '../users/roles.decorator'
+import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
 import { LobbyCreateDto } from './dto/lobby-create.dto'
 import { LobbySearchDto } from './dto/lobby-search.dto'
 import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
+import { LobbyGateway } from './lobby.gateway'
 import { LobbyService } from './services/lobby.service'
 
 @Controller('lobbies')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class LobbyController {
     constructor(
         @InjectRepository(Lobby) private lobbyRepository: Repository<Lobby>,
         private lobbyService: LobbyService,
         @InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>,
         @InjectRepository(Game) private gameRepository: Repository<Game>,
+        private lobbyGateway: LobbyGateway,
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
@@ -80,6 +85,16 @@ export class LobbyController {
     @Post('/create')
     create(@Body() data: LobbyCreateDto, @Req() request: Request): Promise<Lobby> {
         return this.lobbyService.create(data, request.user as User)
+    }
+
+    @Roles(Role.SuperAdmin)
+    @Post('sendMessageToLobbies')
+    async sendMessageToLobbies(@Body() data: { message: string }): Promise<void> {
+        const lobbies = await this.lobbyRepository.find()
+
+        for (const lobby of lobbies) {
+            this.lobbyGateway.emitChat(lobby.code, null, data.message)
+        }
     }
 
     @Put(':code')
