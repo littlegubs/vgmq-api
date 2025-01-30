@@ -39,10 +39,15 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
             let lobby = await event.manager.findOne(Lobby, {
                 where: { id: event.entity.lobby.id },
             })
-            if (lobby !== null) {
+            if (lobby !== null && lobby.premium === false) {
                 lobby = event.manager.create(Lobby, { ...lobby, premium: true })
                 await event.manager.save(Lobby, lobby)
                 this.lobbyGateway.sendUpdateToRoom(lobby)
+                this.lobbyGateway.emitChat(
+                    lobby.code,
+                    null,
+                    `Lobby premium features unlocked by ${event.entity.user.username}`,
+                )
             }
         }
     }
@@ -101,6 +106,7 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
             const lobby = event.manager.create(Lobby, { ...event.entity?.lobby, premium: false })
             await event.manager.save(Lobby, lobby)
             this.lobbyGateway.sendUpdateToRoom(lobby)
+            this.lobbyGateway.emitChat(lobby.code, null, `Lobby is no longer premium!`)
         }
         await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby, lobbyUsers)
     }
