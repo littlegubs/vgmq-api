@@ -6,7 +6,6 @@ import { Collection } from '../../games/entity/collection.entity'
 import { GameToMusic } from '../../games/entity/game-to-music.entity'
 import { Genre } from '../../games/entity/genre.entity'
 import { Theme } from '../../games/entity/theme.entity'
-import { Role } from '../../users/role.enum'
 import { User } from '../../users/user.entity'
 import { LobbyCreateDto } from '../dto/lobby-create.dto'
 import { LobbyCollectionFilter } from '../entities/lobby-collection-filter.entity'
@@ -47,7 +46,7 @@ export class LobbyService {
         const lobby = await this.lobbyRepository.save({
             code: await this.generateCode(),
             ...data,
-            premium: this.isLobbyPremium(user),
+            premium: user.premium,
             collectionFilters: await this.handleCollectionFilter(data.collectionFilters),
             genreFilters: await this.handleGenreFilter(data.genreFilters),
             themeFilters: await this.handleThemeFilter(data.themeFilters),
@@ -133,13 +132,6 @@ export class LobbyService {
                     limitation: genreFilter.limitation,
                 })
             }),
-        )
-    }
-
-    private isLobbyPremium(user: User): boolean {
-        return (
-            !!user.patreonAccount?.premium ||
-            user.roles.some((role) => [Role.Admin, Role.SuperAdmin].includes(role as Role))
         )
     }
 

@@ -57,6 +57,10 @@ export class User {
     @Column({ type: 'varchar', nullable: true })
     banReason: string | null
 
+    @Expose({ groups: ['wsLobby', 'userProfile'] })
+    @Column({ type: 'boolean', default: false })
+    premium = false
+
     @ManyToOne(() => User, { nullable: true })
     @JoinColumn({ name: 'bannedById' })
     bannedBy?: User | null
@@ -78,6 +82,9 @@ export class User {
     @Expose({ groups: ['wsLobby'] })
     patreonAccount?: OauthPatreon
 
+    @Column({ nullable: true, type: 'datetime' })
+    premiumCachedAt: Date | null
+
     @Column()
     @CreateDateColumn()
     createdAt: Date
@@ -93,7 +100,4 @@ export class User {
     async validatePassword(password: string): Promise<boolean> {
         return this.password ? bcrypt.compare(password, this.password) : false
     }
-
-    @Expose({ groups: ['wsLobby', 'userProfile'] })
-    premium = false
 }
