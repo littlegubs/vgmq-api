@@ -1,10 +1,8 @@
-import * as bcrypt from 'bcrypt'
 import { Exclude, Expose, Transform } from 'class-transformer'
 import {
     Entity,
     Column,
     PrimaryGeneratedColumn,
-    BeforeInsert,
     CreateDateColumn,
     UpdateDateColumn,
     OneToMany,
@@ -224,10 +222,6 @@ export class Lobby {
     @Column()
     @UpdateDateColumn()
     updatedAt: Date
-
-    @BeforeInsert() async hashPassword(): Promise<void> {
-        this.password = this.password ? await bcrypt.hash(this.password, 8) : null
-    }
 
     @Expose({ groups: ['lobby', 'lobby-list'] })
     get hasPassword(): boolean {
