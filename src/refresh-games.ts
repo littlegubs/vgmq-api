@@ -1,8 +1,7 @@
 import 'reflect-metadata'
 
 import { NestFactory } from '@nestjs/core'
-import { DateTime } from 'luxon'
-import { DataSource, LessThan } from 'typeorm'
+import { DataSource, MoreThan } from 'typeorm'
 
 import { AppModule } from './app.module'
 import { Game } from './games/entity/game.entity'
@@ -20,7 +19,7 @@ async function bootstrap(): Promise<void> {
 
     const games = await gameRepository.find({
         relations: { collections: true, genres: true, themes: true },
-        where: { enabled: true, updatedAt: LessThan(DateTime.now().minus({ hour: 2 }).toJSDate()) },
+        where: { enabled: true, id: MoreThan(17794) },
     })
     let i = 1
     for (const game of games) {
