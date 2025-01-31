@@ -73,23 +73,6 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
     async handleHostDisconnected(
         event: UpdateEvent<LobbyUser> | RemoveEvent<LobbyUser>,
     ): Promise<void> {
-        if (event.entity?.role === LobbyUserRole.Host) {
-            const randomPlayer = await event.manager
-                .createQueryBuilder(LobbyUser, 'lobbyUser')
-                .andWhere('lobbyUser.lobby = :lobby')
-                .andWhere('lobbyUser.role = :role')
-                .andWhere('lobbyUser.disconnected = 0')
-                .setParameter('lobby', event.entity?.lobby.id)
-                .setParameter('role', LobbyUserRole.Player)
-                .orderBy('RAND()')
-                .getOne()
-            if (randomPlayer) {
-                await event.manager.save(LobbyUser, { ...randomPlayer, role: LobbyUserRole.Host })
-            } else {
-                await event.manager.remove(Lobby, event.entity?.lobby)
-                this.lobbyGateway.sendLobbyClosed(event.entity?.lobby, 'The host left the lobby!')
-            }
-        }
         const lobbyUsers = await event.manager.find(LobbyUser, {
             relations: { user: { patreonAccount: true }, lobby: true },
             where: {
@@ -109,5 +92,23 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
             this.lobbyGateway.emitChat(lobby.code, null, `Lobby is no longer premium!`)
         }
         await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby, lobbyUsers)
+
+        if (event.entity?.role === LobbyUserRole.Host) {
+            const randomPlayer = await event.manager
+                .createQueryBuilder(LobbyUser, 'lobbyUser')
+                .andWhere('lobbyUser.lobby = :lobby')
+                .andWhere('lobbyUser.role = :role')
+                .andWhere('lobbyUser.disconnected = 0')
+                .setParameter('lobby', event.entity?.lobby.id)
+                .setParameter('role', LobbyUserRole.Player)
+                .orderBy('RAND()')
+                .getOne()
+            if (randomPlayer) {
+                await event.manager.save(LobbyUser, { ...randomPlayer, role: LobbyUserRole.Host })
+            } else {
+                await event.manager.remove(Lobby, event.entity?.lobby)
+                this.lobbyGateway.sendLobbyClosed(event.entity?.lobby, 'The host left the lobby!')
+            }
+        }
     }
 }
