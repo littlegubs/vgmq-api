@@ -71,6 +71,7 @@ export class LobbyUserService {
     @Cron(CronExpression.EVERY_HOUR)
     async checkIfUserIsAFK(): Promise<void> {
         const lobbyUsers = await this.lobbyUserRepository.find({
+            relations: { lobby: true },
             where: {
                 lastAnswerAt: LessThan(DateTime.now().minus({ minute: 90 }).toJSDate()),
             },
