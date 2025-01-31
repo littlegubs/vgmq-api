@@ -83,7 +83,7 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
         })
         if (
             !lobbyUsers.some((lobbyUser) => {
-                lobbyUser.user.premium
+                return lobbyUser.user.premium
             })
         ) {
             const lobby = event.manager.create(Lobby, { ...event.entity?.lobby, premium: false })
