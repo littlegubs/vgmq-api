@@ -199,7 +199,9 @@ export class GamesController {
     @Get('/names')
     async getNames(
         @Query() query: GamesSearchDto,
-    ): Promise<{ highlight: string | undefined; name: string | undefined }[]> {
+    ): Promise<
+        { highlight: string | undefined; name: string | undefined; type: string | undefined }[]
+    > {
         try {
             // remove accents
             const queryStr = query.query
@@ -271,7 +273,14 @@ export class GamesController {
                 },
             })
             return hits.hits.reduce(
-                (previous: { highlight: string | undefined; name: string | undefined }[], item) => {
+                (
+                    previous: {
+                        highlight: string | undefined
+                        name: string | undefined
+                        type: string | undefined
+                    }[],
+                    item,
+                ) => {
                     if (!previous.some((i) => i.name === item._source?.name)) {
                         return [
                             ...previous,
@@ -281,6 +290,14 @@ export class GamesController {
                                 type: item._source?.type,
                             },
                         ]
+                    } else {
+                        if (item._source?.type === 'collection_name') {
+                            const alreadyExistingItem = previous.find(
+                                (i) => i.name === item._source?.name,
+                            )
+                            if (alreadyExistingItem !== undefined)
+                                alreadyExistingItem.type = item._source?.type
+                        }
                     }
                     return [...previous]
                 },
