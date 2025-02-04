@@ -81,7 +81,13 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 },
             },
         })
+        const lobby = await event.manager.findOne(Lobby, {
+            where: {
+                id: event.entity?.lobby.id,
+            },
+        })
         if (
+            lobby?.premium &&
             !lobbyUsers.some((lobbyUser) => {
                 return lobbyUser.user.premium
             })
