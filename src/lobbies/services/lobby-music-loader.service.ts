@@ -225,7 +225,10 @@ export class LobbyMusicLoaderService {
         let alreadyFetchedCollectionIds: number[] = []
         let alreadyFetchedGenreIds: number[] = []
         let alreadyFetchedThemeIds: number[] = []
-        let blackListGameIds: number[] = []
+        let excludedGameIds: number[] = []
+        let excludedCollectionIds: number[] = []
+        let excludedGenreIds: number[] = []
+        let excludedThemeIds: number[] = []
         let lobbyMusics: LobbyMusic[] = []
         let position = 0
 
@@ -267,18 +270,124 @@ export class LobbyMusicLoaderService {
                         ids: alreadyFetchedGameIds,
                     })
                 }
-                if (blackListGameIds.length > 0) {
-                    gameQueryBuilder.andWhere('game.id not in (:blackListIds)', {
-                        blackListIds: blackListGameIds,
+                if (excludedGameIds.length > 0) {
+                    gameQueryBuilder.andWhere('game.id not in (:excludedGameIds)', {
+                        excludedGameIds: excludedGameIds,
                     })
                 }
 
                 if (lobby.premium) {
+                    gameQueryBuilder
+                        .leftJoin('game.collections', 'collection')
+                        .leftJoin('game.genres', 'genre')
+                        .leftJoin('game.themes', 'theme')
+
                     if (lobby.filterByYear) {
                         gameQueryBuilder.andWhere(
                             'YEAR(game.firstReleaseDate) BETWEEN :minYear AND :maxYear',
                             { minYear: lobby.filterMinYear, maxYear: lobby.filterMaxYear },
                         )
+                    }
+                    const includeCollectionFilter = lobby.collectionFilters.filter(
+                        (collectionFilter) => collectionFilter.type === 'inclusion',
+                    )
+                    if (includeCollectionFilter.length > 0) {
+                        gameQueryBuilder.andWhere('collection.id in (:includedCollectionIds)', {
+                            includedCollectionIds: includeCollectionFilter.map(
+                                (collectionFilter) => collectionFilter.collection.id,
+                            ),
+                        })
+                    }
+                    const includeGenreFilter = lobby.genreFilters.filter(
+                        (genreFilter) => genreFilter.type === 'inclusion',
+                    )
+                    if (includeGenreFilter.length > 0) {
+                        gameQueryBuilder.andWhere('genre.id in (:includedGenreIds)', {
+                            includedGenreIds: includeGenreFilter.map(
+                                (genreFilter) => genreFilter.genre.id,
+                            ),
+                        })
+                    }
+                    const includeThemeFilter = lobby.themeFilters.filter(
+                        (themeFilter) => themeFilter.type === 'inclusion',
+                    )
+                    if (includeThemeFilter.length > 0) {
+                        gameQueryBuilder.andWhere('theme.id in (:includedThemeIds)', {
+                            includedThemeIds: includeThemeFilter.map(
+                                (themeFilter) => themeFilter.theme.id,
+                            ),
+                        })
+                    }
+
+                    // Exclude filter
+                    const excludeCollectionFilter = lobby.collectionFilters.filter(
+                        (collectionFilter) => collectionFilter.type === 'exclusion',
+                    )
+                    if (excludeCollectionFilter.length > 0 || excludedCollectionIds.length > 0) {
+                        gameQueryBuilder.andWhere((qb) => {
+                            const subQuery = qb
+                                .subQuery()
+                                .select('1')
+                                .from('games_collections', 'gc_exclude')
+                                .where('gc_exclude.gameId = game.id')
+                                .andWhere('gc_exclude.collectionId in (:excludedCollectionIds)', {
+                                    excludedCollectionIds: [
+                                        ...excludeCollectionFilter.map(
+                                            (collectionFilter) => collectionFilter.collection.id,
+                                        ),
+                                        ...excludedCollectionIds,
+                                    ],
+                                })
+                                .getQuery()
+
+                            return `NOT EXISTS (${subQuery})`
+                        })
+                    }
+                    const excludeGenreFilter = lobby.genreFilters.filter(
+                        (genreFilter) => genreFilter.type === 'exclusion',
+                    )
+                    if (excludeGenreFilter.length > 0 || excludedGenreIds.length > 0) {
+                        gameQueryBuilder.andWhere((qb) => {
+                            const subQuery = qb
+                                .subQuery()
+                                .select('1')
+                                .from('games_genres', 'gg_exclude')
+                                .where('gg_exclude.gameId = game.id')
+                                .andWhere('gg_exclude.genreId in (:excludedGenreIds)', {
+                                    excludedGenreIds: [
+                                        ...excludeGenreFilter.map(
+                                            (genreFilter) => genreFilter.genre.id,
+                                        ),
+                                        ...excludedGenreIds,
+                                    ],
+                                })
+                                .getQuery()
+
+                            return `NOT EXISTS (${subQuery})`
+                        })
+                    }
+                    const excludeThemeFilter = lobby.themeFilters.filter(
+                        (themeFilter) => themeFilter.type === 'exclusion',
+                    )
+                    if (excludeThemeFilter.length > 0 || excludedThemeIds.length > 0) {
+                        gameQueryBuilder.andWhere((qb) => {
+                            const subQuery = qb
+                                .subQuery()
+                                .select('1')
+                                .from('games_themes', 'gt_exclude')
+                                .where('gt_exclude.gameId = game.id')
+                                .andWhere('gt_exclude.themeId in (:excludedThemeIds)', {
+                                    excludedThemeIds: [
+                                        ...excludeThemeFilter.map(
+                                            (themeFilter) => themeFilter.theme.id,
+                                        ),
+                                        ...excludedThemeIds,
+                                    ],
+                                })
+                                .getQuery()
+
+                            return `NOT EXISTS (${subQuery})`
+                        })
                     }
                 }
 
@@ -292,55 +401,6 @@ export class LobbyMusicLoaderService {
                           })
 
                 if (game !== null) {
-                    if (lobby.premium) {
-                        if (lobby.limitAllCollectionsTo > 0) {
-                            if (
-                                this.collectionsReachedLimit(
-                                    game.collections,
-                                    alreadyFetchedCollectionIds,
-                                    lobby,
-                                ).length > 0
-                            ) {
-                                blackListGameIds = [...blackListGameIds, game.id]
-                                continue
-                            }
-                        }
-                        if (
-                            this.collectionIsExcluded(game.collections, lobby.collectionFilters) ||
-                            this.collectionsReachedFineTunedLimit(
-                                game.collections,
-                                lobby.collectionFilters,
-                                alreadyFetchedCollectionIds,
-                            ).length > 0
-                        ) {
-                            blackListGameIds = [...blackListGameIds, game.id]
-                            continue
-                        }
-
-                        if (
-                            this.genresAreExcluded(game.genres, lobby.genreFilters) ||
-                            this.genresReachedLimit(
-                                game.genres,
-                                lobby.genreFilters,
-                                alreadyFetchedGenreIds,
-                            ).length > 0
-                        ) {
-                            blackListGameIds = [...blackListGameIds, game.id]
-                            continue
-                        }
-
-                        if (
-                            this.themesAreExcluded(game.themes, lobby.themeFilters) ||
-                            this.themesReachedLimit(
-                                game.themes,
-                                lobby.themeFilters,
-                                alreadyFetchedThemeIds,
-                            ).length > 0
-                        ) {
-                            blackListGameIds = [...blackListGameIds, game.id]
-                            continue
-                        }
-                    }
                     const qb = this.gameToMusicRepository
                         .createQueryBuilder('gameToMusic')
                         .select('gameToMusic.id')
@@ -376,22 +436,73 @@ export class LobbyMusicLoaderService {
                               })
 
                     if (!gameToMusic) {
-                        blackListGameIds = [...blackListGameIds, game.id]
+                        excludedGameIds = [...excludedGameIds, game.id]
                         continue
                     }
+
+                    // store already fetched games to prevent duplicates
                     alreadyFetchedGameIds = [...alreadyFetchedGameIds, game.id]
-                    alreadyFetchedCollectionIds = [
-                        ...alreadyFetchedCollectionIds,
-                        ...game.collections.map((collection) => collection.id),
-                    ]
-                    alreadyFetchedGenreIds = [
-                        ...alreadyFetchedGenreIds,
-                        ...game.genres.map((genre) => genre.id),
-                    ]
-                    alreadyFetchedThemeIds = [
-                        ...alreadyFetchedThemeIds,
-                        ...game.themes.map((theme) => theme.id),
-                    ]
+
+                    if (lobby.premium) {
+                        alreadyFetchedCollectionIds = [
+                            ...alreadyFetchedCollectionIds,
+                            ...game.collections.map((collection) => collection.id),
+                        ]
+                        // Check if game collections have to be banned since it reached the filter limitation
+                        if (lobby.limitAllCollectionsTo > 0) {
+                            const collectionsReachedLimit = this.collectionsReachedLimit(
+                                game.collections,
+                                alreadyFetchedCollectionIds,
+                                lobby,
+                            )
+                            if (collectionsReachedLimit.length > 0) {
+                                excludedCollectionIds = [
+                                    ...excludedCollectionIds,
+                                    ...collectionsReachedLimit,
+                                ]
+                            }
+                        }
+                        const collectionsReachedFineTunedLimit =
+                            this.collectionsReachedFineTunedLimit(
+                                game.collections,
+                                lobby.collectionFilters,
+                                alreadyFetchedCollectionIds,
+                            )
+                        if (collectionsReachedFineTunedLimit.length > 0) {
+                            excludedCollectionIds = [
+                                ...excludedCollectionIds,
+                                ...collectionsReachedFineTunedLimit,
+                            ]
+                        }
+
+                        alreadyFetchedGenreIds = [
+                            ...alreadyFetchedGenreIds,
+                            ...game.genres.map((genre) => genre.id),
+                        ]
+                        // Check if game genres have to be banned since it reached the filter limitation
+                        const genresReachedLimit = this.genresReachedLimit(
+                            game.genres,
+                            lobby.genreFilters,
+                            alreadyFetchedGenreIds,
+                        )
+                        if (genresReachedLimit.length > 0) {
+                            excludedGenreIds = [...excludedGenreIds, ...genresReachedLimit]
+                        }
+
+                        alreadyFetchedThemeIds = [
+                            ...alreadyFetchedThemeIds,
+                            ...game.themes.map((theme) => theme.id),
+                        ]
+                        // Check if game themes have to be banned since it reached the filter limitation
+                        const themesReachedLimit = this.themesReachedLimit(
+                            game.themes,
+                            lobby.themeFilters,
+                            alreadyFetchedThemeIds,
+                        )
+                        if (themesReachedLimit.length > 0) {
+                            excludedThemeIds = [...excludedThemeIds, ...themesReachedLimit]
+                        }
+                    }
 
                     position += 1
                     const music = gameToMusic.music
@@ -547,19 +658,6 @@ export class LobbyMusicLoaderService {
         return collectionReachedLimit
     }
 
-    private collectionIsExcluded(
-        collections: Collection[],
-        collectionFilters: LobbyCollectionFilter[],
-    ): boolean {
-        return collectionFilters.some(
-            (collectionFilter) =>
-                collectionFilter.type === 'exclusion' &&
-                collections
-                    .map((collection) => collection.id)
-                    .includes(collectionFilter.collection.id),
-        )
-    }
-
     private genresReachedLimit(
         genres: Genre[],
         genreFilters: LobbyGenreFilter[],
@@ -582,14 +680,6 @@ export class LobbyMusicLoaderService {
         return genreReachedLimit
     }
 
-    private genresAreExcluded(genres: Genre[], genreFilters: LobbyGenreFilter[]): boolean {
-        return genreFilters.some(
-            (genreFilter) =>
-                genreFilter.type === 'exclusion' &&
-                genres.map((genre) => genre.id).includes(genreFilter.genre.id),
-        )
-    }
-
     private themesReachedLimit(
         themes: Theme[],
         themeFilters: LobbyThemeFilter[],
@@ -610,14 +700,6 @@ export class LobbyMusicLoaderService {
             }
         }
         return themeReachedLimit
-    }
-
-    private themesAreExcluded(themes: Theme[], themeFilters: LobbyThemeFilter[]): boolean {
-        return themeFilters.some(
-            (themeFilter) =>
-                themeFilter.type === 'exclusion' &&
-                themes.map((theme) => theme.id).includes(themeFilter.theme.id),
-        )
     }
 
     private getExpectedAnswers(gameToMusic: GameToMusic): Game[] {

@@ -6,6 +6,7 @@ import { Collection } from '../../games/entity/collection.entity'
 export enum LobbyFilterType {
     Exclusion = 'exclusion',
     Limitation = 'limitation',
+    Inclusion = 'inclusion',
 }
 
 @Entity()
