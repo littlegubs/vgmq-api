@@ -197,10 +197,12 @@ export class GamesController {
     }
 
     @Get('/names')
-    async getNames(
-        @Query() query: GamesSearchDto,
-    ): Promise<
-        { highlight: string | undefined; name: string | undefined; type: string | undefined }[]
+    async getNames(@Query() query: GamesSearchDto): Promise<
+        {
+            highlight: string[] | undefined
+            name: string | undefined
+            type: string | undefined
+        }[]
     > {
         try {
             // remove accents
@@ -268,14 +270,12 @@ export class GamesController {
                     fields: {
                         suggest_highlight: {},
                     },
-                    pre_tags: ['<span class="highlighted">'],
-                    post_tags: ['</span>'],
                 },
             })
             return hits.hits.reduce(
                 (
                     previous: {
-                        highlight: string | undefined
+                        highlight: string[] | undefined
                         name: string | undefined
                         type: string | undefined
                     }[],
@@ -286,7 +286,10 @@ export class GamesController {
                             ...previous,
                             {
                                 name: item._source?.name,
-                                highlight: item.highlight?.suggest_highlight?.[0],
+                                highlight:
+                                    item.highlight?.suggest_highlight?.[0]?.split(
+                                        /<em>(.*?)<\/em>/,
+                                    ),
                                 type: item._source?.type,
                             },
                         ]
