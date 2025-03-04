@@ -1,3 +1,4 @@
+import { HttpModule } from '@nestjs/axios'
 import { BullModule } from '@nestjs/bull'
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
@@ -13,6 +14,8 @@ import { Music } from '../games/entity/music.entity'
 import { Screenshot } from '../games/entity/screenshot.entity'
 import { Theme } from '../games/entity/theme.entity'
 import { Video } from '../games/entity/video.entity'
+import { OauthPatreon } from '../oauth/entities/oauth-patreon.entity'
+import { PatreonService } from '../oauth/services/patreon.service'
 import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
@@ -53,6 +56,7 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
             LobbyCollectionFilter,
             LobbyGenreFilter,
             LobbyThemeFilter,
+            OauthPatreon,
         ]),
         BullModule.registerQueue({
             name: 'lobby',
@@ -65,6 +69,7 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
                 }
             },
         }),
+        HttpModule,
     ],
     providers: [
         LobbyService,
@@ -78,6 +83,7 @@ import { LobbySubscriber } from './subscribers/lobby.subscriber'
         LobbyUserService,
         UsersService,
         LobbyMusicLoaderService,
+        PatreonService,
     ],
 })
 export class LobbyModule {}

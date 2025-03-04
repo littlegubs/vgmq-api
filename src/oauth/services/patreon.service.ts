@@ -106,7 +106,10 @@ export class PatreonService {
         )
     }
 
-    async linkUserToPatreon(code: string, user: User): Promise<string> {
+    async linkUserToPatreon(
+        code: string,
+        user: User,
+    ): Promise<{ entity: DeepPartial<OauthPatreon>; fullName: string }> {
         const formData = new FormData()
         formData.append('code', code)
         formData.append('grant_type', 'authorization_code')
@@ -142,10 +145,9 @@ export class PatreonService {
             },
         }
         oauthPatreon = this.setIdentityDataInEntity(identityData, oauthPatreon)
-        await this.userRepository.save({ ...user, premiumCachedAt: null })
-        await this.oauthPatreonRepository.save(oauthPatreon)
+        oauthPatreon = await this.oauthPatreonRepository.save(oauthPatreon)
 
-        return identityData.data.attributes.full_name
+        return { entity: oauthPatreon, fullName: identityData.data.attributes.full_name }
     }
 
     private setIdentityDataInEntity(
@@ -220,7 +222,7 @@ export class PatreonService {
         return oauthPatreon
     }
 
-    private async refreshAccessToken(refreshToken: string): Promise<PatreonToken> {
+    async refreshAccessToken(refreshToken: string): Promise<PatreonToken> {
         const formData = new FormData()
         formData.append('grant_type', 'refresh_token')
         formData.append('refresh_token', refreshToken)
