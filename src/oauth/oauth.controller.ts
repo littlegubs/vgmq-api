@@ -7,6 +7,7 @@ import { Repository } from 'typeorm'
 import { AuthService } from '../auth/auth.service'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { User } from '../users/user.entity'
+import { UsersService } from '../users/users.service'
 import { OauthPatreon } from './entities/oauth-patreon.entity'
 import { GoogleOauthGuard } from './guards/google-auth.guard'
 import { PatreonService } from './services/patreon.service'
@@ -15,6 +16,7 @@ import { PatreonService } from './services/patreon.service'
 export class OauthController {
     constructor(
         private patreonService: PatreonService,
+        private usersService: UsersService,
         private authService: AuthService,
         private configService: ConfigService,
         @InjectRepository(OauthPatreon) private oauthPatreonRepository: Repository<OauthPatreon>,
@@ -28,8 +30,14 @@ export class OauthController {
         @Query('code') code: string,
     ): Promise<{ userFullName: string }> {
         const user = request.user as User
-        const userFullName = await this.patreonService.linkUserToPatreon(code, user)
-        return { userFullName }
+        const { fullName, entity } = await this.patreonService.linkUserToPatreon(code, user)
+        await this.userRepository.save({
+            ...user,
+            patreonAccount: entity,
+            premium: await this.usersService.isUserPremium(user),
+            premiumCachedAt: new Date(),
+        })
+        return { userFullName: fullName }
     }
 
     @Get('patreon/refresh')
@@ -43,8 +51,11 @@ export class OauthController {
         if (oauthPatreon === null) {
             throw new NotFoundException()
         }
-        await this.patreonService.refreshData(oauthPatreon)
-        await this.userRepository.save({ ...user, premiumCachedAt: null })
+        await this.userRepository.save({
+            ...user,
+            premium: await this.usersService.isUserPremium(user, true),
+            premiumCachedAt: new Date(),
+        })
     }
 
     @Get('patreon/unlink')
