@@ -119,7 +119,7 @@ export class UsersService {
     /**
      * Verify every 15 days if the user is still premium
      */
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    @Cron(CronExpression.EVERY_DAY_AT_6PM)
     async cronUserPremium(): Promise<void> {
         const users = await this.userRepository.find({
             where: {

@@ -128,7 +128,8 @@ export class AdminGamesController {
 
     @Roles(Role.Admin, Role.SuperAdmin)
     @Post(':slug/create-album')
-    async createAlbum(@Param('slug') slug: string): Promise<Game> {
+    async createAlbum(@Param('slug') slug: string, @Req() request: Request): Promise<Game> {
+        const user = request.user as User
         const game = await this.gamesRepository.findOne({
             where: {
                 slug,
@@ -140,6 +141,8 @@ export class AdminGamesController {
         await this.gameAlbumRepository.save({
             name: 'new Album',
             date: dayjs().year().toString(),
+            createdBy: user,
+            updatedBy: user,
             game,
         })
         return this.gamesService.getGameWithMusics(game.slug)
@@ -147,10 +150,12 @@ export class AdminGamesController {
 
     @Roles(Role.Admin, Role.SuperAdmin)
     @Get(':slug/generate-albums')
-    async generateAlbums(@Param('slug') slug: string): Promise<Game> {
+    async generateAlbums(@Param('slug') slug: string, @Req() request: Request): Promise<Game> {
+        const user = request.user as User
         const game = await this.gamesRepository.findOne({
             relations: {
                 musics: {
+                    game: true,
                     music: {
                         file: true,
                     },
@@ -166,7 +171,7 @@ export class AdminGamesController {
         if (game === null) {
             throw new NotFoundException()
         }
-        await this.gamesService.generateAlbumFromExistingFiles(game)
+        await this.gamesService.generateAlbumFromExistingFiles(game, user)
         return this.gamesService.getGameWithMusics(game.slug)
     }
 }
