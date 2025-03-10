@@ -16,6 +16,7 @@ import { extension } from 'mime-types'
 import Vibrant = require('node-vibrant')
 import { Brackets, Repository } from 'typeorm'
 
+import { DiscordService } from '../../discord/discord.service'
 import { File } from '../../entity/file.entity'
 import { S3Service } from '../../s3/s3.service'
 import { User } from '../../users/user.entity'
@@ -47,6 +48,7 @@ export class GamesService {
         private s3Service: S3Service,
         @InjectQueue('game') private gameQueue: Queue,
         private configService: ConfigService,
+        private discordService: DiscordService,
     ) {}
     async findByName(
         query: string,
@@ -191,16 +193,24 @@ export class GamesService {
             )}`
             await this.s3Service.putObject(filePath, file.buffer)
             const album = await this.generateAlbum(metadata, game, user)
+            const title = metadata.common.title ?? file.originalname
+            const artist = metadata.common.artist ?? 'unknown artist'
+            const disk = metadata.common.disk?.no
+            const track = metadata.common.track?.no
             musics = [
                 ...musics,
                 await this.gameToMusicRepository.save({
                     game,
+                    title,
+                    artist,
+                    disk,
+                    track,
                     music: this.musicRepository.create({
-                        title: metadata.common.title ?? file.originalname,
-                        artist: metadata.common.artist ?? 'unknown artist',
+                        title,
+                        artist,
                         duration: metadata.format.duration,
-                        disk: metadata.common.disk?.no,
-                        track: metadata.common.track?.no,
+                        disk,
+                        track,
                         file: this.fileRepository.create({
                             path: filePath,
                             originalFilename: file.originalname,
@@ -213,7 +223,15 @@ export class GamesService {
                 }),
             ]
         }
-        await this.gameQueue.add('getSimilarGames', game.id, { removeOnComplete: true })
+        try {
+            let content = 'New musics added:\n'
+            for (const music of musics) {
+                content += `${music.music.title} - ${music.music.artist}\n`
+            }
+            void this.discordService.sendUpdateForGame({ game, content, user, type: 'success' })
+        } catch (e) {
+            console.error(e)
+        }
     }
 
     /**
@@ -228,15 +246,13 @@ export class GamesService {
                 where: { name: metadataAlbum, game: { id: game.id } },
             })
             if (album === null) {
-                album = await this.gameAlbumRepository.save(
-                    this.gameAlbumRepository.create({
-                        game,
-                        name: metadataAlbum,
-                        date: String(metadata.common.year),
-                        createdBy: user,
-                        updatedBy: user,
-                    }),
-                )
+                album = this.gameAlbumRepository.create({
+                    game,
+                    name: metadataAlbum,
+                    date: String(metadata.common.year),
+                    createdBy: user,
+                    updatedBy: user,
+                })
                 const metadataCover = metadata.common.picture?.[0]
                 if (metadataCover !== undefined) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -249,7 +265,7 @@ export class GamesService {
                             metadataCover.data,
                             this.configService.get('AMAZON_S3_PUBLIC_BUCKET'),
                         )
-                        album = await this.gameAlbumRepository.save({
+                        album = this.gameAlbumRepository.create({
                             ...album,
                             cover: this.fileRepository.create({
                                 path: coverPath,
@@ -261,6 +277,7 @@ export class GamesService {
                         })
                     }
                 }
+                album = await this.gameAlbumRepository.save(album)
             }
         }
         return album
@@ -514,41 +531,26 @@ export class GamesService {
     }
 
     async getGameWithMusics(slug: string): Promise<Game> {
-        const game = await this.gameRepository.findOne({
-            relations: {
-                cover: {
-                    colorPalette: true,
-                },
-                alternativeNames: true,
-                albums: {
-                    musics: {
-                        derivedGameToMusics: {
-                            game: true,
-                        },
-                        originalGameToMusic: {
-                            game: true,
-                        },
-                    },
-                },
-                platforms: true,
-            },
-            where: {
-                slug,
-            },
-            order: {
-                albums: {
-                    date: 'DESC',
-                    musics: {
-                        disk: 'ASC',
-                        track: 'ASC',
-                        music: {
-                            disk: 'ASC',
-                            track: 'ASC',
-                        },
-                    },
-                },
-            },
-        })
+        const game = await this.gameRepository
+            .createQueryBuilder('game')
+            .leftJoinAndSelect('game.cover', 'cover')
+            .leftJoinAndSelect('cover.colorPalette', 'colorPalette')
+            .leftJoinAndSelect('game.alternativeNames', 'alternativeNames')
+            .leftJoinAndSelect('game.albums', 'albums')
+            .leftJoinAndSelect('albums.musics', 'musics', 'musics.deleted = false')
+            .leftJoinAndSelect('musics.music', 'music')
+            .leftJoinAndSelect('musics.derivedGameToMusics', 'derivedGameToMusics')
+            .leftJoinAndSelect('derivedGameToMusics.game', 'derivedGame')
+            .leftJoinAndSelect('musics.originalGameToMusic', 'originalGameToMusic')
+            .leftJoinAndSelect('originalGameToMusic.game', 'originalGame')
+            .leftJoinAndSelect('game.platforms', 'platforms')
+            .where('game.slug = :slug', { slug })
+            .orderBy('albums.date', 'DESC')
+            .addOrderBy('musics.disk', 'ASC')
+            .addOrderBy('musics.track', 'ASC')
+            .addOrderBy('music.disk', 'ASC')
+            .addOrderBy('music.track', 'ASC')
+            .getOne()
         if (game === null) {
             throw new NotFoundException()
         }
@@ -561,6 +563,7 @@ export class GamesService {
             .leftJoinAndSelect('gmt.music', 'music')
             .andWhere('gmt.gameId = :id', { id: game.id })
             .andWhere('gmt.album IS NULL')
+            .andWhere('gmt.deleted = 0')
             .orderBy({
                 'gmt.disk': 'ASC',
                 'gmt.track': 'ASC',
@@ -608,7 +611,7 @@ export class GamesService {
         }
     }
 
-    public async generateAlbumFromExistingFiles(game: Game): Promise<void> {
+    public async generateAlbumFromExistingFiles(game: Game, user?: User): Promise<void> {
         // eslint-disable-next-line import/no-unresolved
         const mm = await import('music-metadata')
         for (const gameToMusic of game.musics) {
@@ -617,7 +620,7 @@ export class GamesService {
             const metadata = await mm.parseBuffer(buffer, gameToMusic.music.file.mimeType, {
                 duration: true,
             })
-            const album = await this.generateAlbum(metadata, game)
+            const album = await this.generateAlbum(metadata, game, user)
             await this.gameToMusicRepository.save({
                 ...gameToMusic,
                 music: {
@@ -626,6 +629,7 @@ export class GamesService {
                     track: metadata.common.track?.no,
                 },
                 ...(album && { album: album }),
+                ...(user && { updatedBy: user }),
             })
         }
     }

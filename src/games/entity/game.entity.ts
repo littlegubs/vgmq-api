@@ -57,6 +57,9 @@ export class Game {
     @ManyToOne(() => User)
     addedBy?: User
 
+    @ManyToOne(() => User, { eager: true })
+    updatedBy?: User
+
     @Column({ default: true })
     enabled: boolean
 

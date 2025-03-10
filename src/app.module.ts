@@ -12,6 +12,7 @@ import { AlternativeNamesModule } from './alternative-names/alternative-names.mo
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { AuthModule } from './auth/auth.module'
+import { DiscordModule } from './discord/discord.module'
 import { GamesModule } from './games/games.module'
 import { LobbyModule } from './lobbies/lobby.module'
 import { MailModule } from './mail/mail.module'
@@ -85,6 +86,7 @@ import { UsersModule } from './users/users.module'
         MailModule,
         AdminModule,
         OauthModule,
+        DiscordModule,
     ],
     controllers: [AppController],
     providers: [AppService, FileSubscriber, S3Service],

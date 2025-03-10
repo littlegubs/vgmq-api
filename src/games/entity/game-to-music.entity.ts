@@ -43,6 +43,9 @@ export class GameToMusic {
     @Column({ type: 'int', nullable: true })
     disk: number | null
 
+    @Column({ default: false })
+    deleted: boolean
+
     @ManyToOne(() => Game, (game) => game.musics)
     @Expose({ groups: ['lobby-answer-reveal'] })
     game: Game
@@ -80,6 +83,9 @@ export class GameToMusic {
 
     @ManyToOne(() => User)
     addedBy?: User
+
+    @ManyToOne(() => User)
+    updatedBy?: User
 
     @Column()
     @CreateDateColumn()

@@ -8,6 +8,7 @@ import {
     NotFoundException,
     Param,
     Patch,
+    Req,
     UploadedFile,
     UseGuards,
     UseInterceptors,
@@ -15,14 +16,17 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { InjectRepository } from '@nestjs/typeorm'
+import { Request } from 'express'
 import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { DiscordService } from '../discord/discord.service'
 import { File } from '../entity/file.entity'
 import { S3Service } from '../s3/s3.service'
 import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
+import { User } from '../users/user.entity'
 import { GameAlbumDto } from './dto/game-album.dto'
 import { GameAlbum } from './entity/game-album.entity'
 import { Game } from './entity/game.entity'
@@ -41,11 +45,13 @@ export class GameAlbumController {
         @InjectRepository(File) private fileRepository: Repository<File>,
         private configService: ConfigService,
         private s3Service: S3Service,
+        private discordService: DiscordService,
     ) {}
 
     @Roles(Role.Admin, Role.SuperAdmin)
     @Delete('/:id')
-    async delete(@Param('id') id: number): Promise<Game> {
+    async delete(@Param('id') id: number, @Req() request: Request): Promise<Game> {
+        const user = request.user as User
         const gameAlbum = await this.gameAlbumRepository.findOne({
             relations: {
                 game: true,
@@ -58,14 +64,31 @@ export class GameAlbumController {
             throw new NotFoundException()
         }
         await this.gameAlbumRepository.remove(gameAlbum)
+        try {
+            void this.discordService.sendUpdateForGame({
+                game: gameAlbum.game,
+                content: `Album deleted:\n **${gameAlbum.name}**`,
+                user,
+            })
+        } catch (e) {
+            console.error(e)
+        }
         return this.gamesService.getGameWithMusics(gameAlbum.game.slug)
     }
 
     @Roles(Role.Admin, Role.SuperAdmin)
     @Patch('/:id')
-    async edit(@Param('id') id: number, @Body() albumDto: GameAlbumDto): Promise<GameAlbum> {
-        const gameAlbum = await this.gameAlbumRepository.findOneBy({
-            id: id,
+    async edit(
+        @Param('id') id: number,
+        @Body() albumDto: GameAlbumDto,
+        @Req() request: Request,
+    ): Promise<GameAlbum> {
+        const user = request.user as User
+        const gameAlbum = await this.gameAlbumRepository.findOne({
+            relations: { game: true },
+            where: {
+                id: id,
+            },
         })
         if (!gameAlbum) {
             throw new NotFoundException()
@@ -74,6 +97,7 @@ export class GameAlbumController {
             ...gameAlbum,
             name: albumDto.name,
             date: albumDto.date,
+            updatedBy: user,
         })
     }
 

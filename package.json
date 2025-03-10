@@ -24,7 +24,8 @@
     "populate-elasticsearch": "node dist/src/populate-elasticsearch",
     "generate-albums": "node dist/src/generate-albums",
     "files:s3": "node dist/src/move-files-to-s3",
-    "refresh-games": "node dist/src/refresh-games"
+    "refresh-games": "node dist/src/refresh-games",
+    "refresh-game-to-musics": "node dist/src/refresh-game-to-musics"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.496.0",

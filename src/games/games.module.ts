@@ -5,6 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { ElasticsearchModule } from '@nestjs/elasticsearch'
 import { TypeOrmModule } from '@nestjs/typeorm'
 
+import { DiscordHttpService } from '../discord/discord.http.service'
+import { DiscordService } from '../discord/discord.service'
 import { File } from '../entity/file.entity'
 import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
@@ -31,10 +33,12 @@ import { WebhookController } from './games-webhook.controller'
 import { GamesController } from './games.controller'
 import { IgdbHttpService } from './http/igdb.http.service'
 import { IgdbWebhookProcessor } from './igdb-webhook.processor'
+import { GameToMusicsService } from './services/game-to-musics.service'
 import { GamesService } from './services/games.service'
 import { IgdbService } from './services/igdb.service'
 import { AlternativeNameSubscriber } from './subscribers/alternative-name.subscriber'
 import { CollectionSubscriber } from './subscribers/collection.subscriber'
+import { GameAlbumcSubscriber } from './subscribers/game-album.subscriber'
 import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
 import { GameSubscriber } from './subscribers/game.subscriber'
 import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber'
@@ -107,6 +111,10 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
         IgdbWebhookProcessor,
         GameProcessor,
         CollectionSubscriber,
+        DiscordService,
+        DiscordHttpService,
+        GameAlbumcSubscriber,
+        GameToMusicsService,
     ],
 })
 export class GamesModule {}

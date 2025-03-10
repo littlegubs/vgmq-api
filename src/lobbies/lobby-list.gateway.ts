@@ -17,10 +17,10 @@ import { Lobby } from './entities/lobby.entity'
 @UseGuards(WsGuard)
 export class LobbyListGateway {
     @WebSocketServer()
-    server: Server
+    server?: Server
 
     sendLobbyList(lobbies: Lobby[]): void {
-        this.server.emit(
+        this.server?.emit(
             'lobbyList',
             classToPlain(lobbies, {
                 groups: ['lobby-list'],
