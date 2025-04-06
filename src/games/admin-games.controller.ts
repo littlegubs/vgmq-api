@@ -21,12 +21,14 @@ import { Request } from 'express'
 import { IsNull, Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { DiscordService } from '../discord/discord.service'
 import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
 import { User } from '../users/user.entity'
 import { GamesImportDto } from './dto/games-import.dto'
 import { GameAlbum } from './entity/game-album.entity'
+import { GameToMusic } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
 import { IgdbHttpService } from './http/igdb.http.service'
 import { GamesService } from './services/games.service'
@@ -39,9 +41,11 @@ export class AdminGamesController {
         private gamesService: GamesService,
         private igdbService: IgdbService,
         @InjectRepository(Game) private gamesRepository: Repository<Game>,
+        @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
         private configService: ConfigService,
         private igdbHttpService: IgdbHttpService,
         @InjectRepository(GameAlbum) private gameAlbumRepository: Repository<GameAlbum>,
+        private discordService: DiscordService,
     ) {}
 
     @Roles(Role.Admin, Role.SuperAdmin)
@@ -81,6 +85,60 @@ export class AdminGamesController {
     @Patch('/:slug/toggle')
     async toggle(@Param('slug') slug: string): Promise<Game> {
         return this.gamesService.toggle(slug)
+    }
+
+    @Roles(Role.Admin, Role.SuperAdmin)
+    @Get('/:slug/purge')
+    async purge(@Param('slug') slug: string, @Req() request: Request): Promise<void> {
+        const gameToPurge = await this.gamesRepository.findOne({
+            relations: { musics: true, albums: true },
+            where: {
+                slug,
+            },
+        })
+        if (gameToPurge === null) {
+            throw new NotFoundException()
+        }
+        const user = request.user as User
+
+        let content = 'Game purged: The following have been deleted:\n'
+        if (gameToPurge.musics.length > 0) {
+            content += '- musics:\n'
+            for (const gameToMusic of gameToPurge.musics) {
+                content += `  - (#${gameToMusic.id}) ${
+                    gameToMusic.title ?? gameToMusic.music.title
+                } - ${gameToMusic.artist ?? gameToMusic.music.artist}\n`
+            }
+        }
+        if (gameToPurge.albums.length > 0) {
+            content += '- albums:\n'
+            for (const album of gameToPurge.albums) {
+                content += `  - (#${album.id}) ${album.name}\n`
+            }
+        }
+
+        content += '\n'
+        content += `⚠️<@${this.configService.get(
+            'DISCORD_GUBS_ID',
+        )}> can restore these files within 30 days. After that, they will be permanently deleted.\n`
+        content += 'Albums cannot be retrieved.'
+        // don't try catch here, the message MUST be sent before deleting the file
+        await this.discordService.sendUpdateForGame({
+            game: gameToPurge,
+            content: content,
+            user,
+            type: 'danger',
+        })
+        for (const gameToMusic of gameToPurge.musics) {
+            await this.gameToMusicRepository.save({
+                ...gameToMusic,
+                deleted: true,
+                updatedBy: user,
+            })
+        }
+        for (const album of gameToPurge.albums) {
+            await this.gameAlbumRepository.remove(album)
+        }
     }
 
     @Roles(Role.Admin, Role.SuperAdmin)
