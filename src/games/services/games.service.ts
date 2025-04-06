@@ -64,20 +64,10 @@ export class GamesService {
     ): Promise<[Game[], number]> {
         const qb = this.gameRepository
             .createQueryBuilder('game')
-            .addSelect((sbq) => {
-                return sbq
-                    .select('COUNT(*)', 'count')
-                    .from('user_games', 'ug')
-                    .where('ug.gameId = game.id')
-            }, 'countUsers')
-            .addSelect((sbq) => {
-                return sbq
-                    .select('COUNT(*)', 'count')
-                    .from(GameToMusic, 'gtm')
-                    .where('gtm.gameId = game.id')
-            }, 'countMusics')
             .leftJoin('game.alternativeNames', 'alternativeName')
-            .loadRelationCountAndMap('game.countMusics', 'game.musics', 'countMusics')
+            .loadRelationCountAndMap('game.countMusics', 'game.musics', 'countMusics', (qb) => {
+                return qb.andWhere('countMusics.deleted = 0')
+            })
             .loadRelationCountAndMap('game.countUsers', 'game.users', 'countUsers')
             .leftJoinAndSelect('game.cover', 'cover')
             .leftJoinAndSelect('cover.colorPalette', 'colorPalette')
