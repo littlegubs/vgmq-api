@@ -64,6 +64,12 @@ export class GamesService {
     ): Promise<[Game[], number]> {
         const qb = this.gameRepository
             .createQueryBuilder('game')
+            .addSelect((sbq) => {
+                return sbq
+                    .select('COUNT(*)', 'count')
+                    .from('user_games', 'ug')
+                    .where('ug.gameId = game.id')
+            }, 'countUsers')
             .leftJoin('game.alternativeNames', 'alternativeName')
             .loadRelationCountAndMap('game.countMusics', 'game.musics', 'countMusics', (qb) => {
                 return qb.andWhere('countMusics.deleted = 0')
