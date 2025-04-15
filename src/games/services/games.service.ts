@@ -533,6 +533,7 @@ export class GamesService {
             .leftJoinAndSelect('cover.colorPalette', 'colorPalette')
             .leftJoinAndSelect('game.alternativeNames', 'alternativeNames')
             .leftJoinAndSelect('game.albums', 'albums')
+            .leftJoinAndSelect('albums.cover', 'albumCover')
             .leftJoinAndSelect('albums.musics', 'musics', 'musics.deleted = false')
             .leftJoinAndSelect('musics.music', 'music')
             .leftJoinAndSelect('musics.derivedGameToMusics', 'derivedGameToMusics')
