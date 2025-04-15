@@ -122,13 +122,27 @@ export class AdminGamesController {
             'DISCORD_GUBS_ID',
         )}> can restore these files within 30 days. After that, they will be permanently deleted.\n`
         content += 'Albums cannot be retrieved.'
-        // don't try catch here, the message MUST be sent before deleting the file
-        await this.discordService.sendUpdateForGame({
-            game: gameToPurge,
-            content: content,
-            user,
-            type: 'danger',
-        })
+
+        // Split message every 6000 characters to prevent Discord Bad Request
+        for (let i = 0; i < content.length; i += 4000) {
+            const chunk = content.slice(i, i + 4000)
+            // don't try catch here, the message MUST be sent before deleting the file
+            const response = await this.discordService.sendUpdateForGame({
+                game: gameToPurge,
+                content: chunk,
+                user,
+                type: 'danger',
+            })
+
+            // TODO I know I must do this in an interceptor, but eh, this will work for now
+            if (response?.headers['x-ratelimit-remaining'] === '0') {
+                await new Promise<void>((resolve) => {
+                    setTimeout(() => {
+                        resolve()
+                    }, response?.headers['x-ratelimit-reset-after'] * 1000)
+                })
+            }
+        }
         for (const gameToMusic of gameToPurge.musics) {
             await this.gameToMusicRepository.save({
                 ...gameToMusic,
