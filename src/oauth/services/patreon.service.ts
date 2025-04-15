@@ -90,6 +90,7 @@ export class PatreonService {
         this.patreonClientSecret = patreonClientSecret
         this.VGMQClientUrl = VGMQClientUrl
 
+        // TODO, uh oh, this interceptor also intercept requests from Discord and everything else, fix this
         this.httpService.axiosRef.interceptors.response.use(
             (response) => {
                 return response
