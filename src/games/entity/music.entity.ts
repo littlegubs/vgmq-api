@@ -22,7 +22,7 @@ export class Music {
     @Expose({ groups: ['lobby-answer-reveal'] })
     title: string
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, type: 'text' })
     @Expose({ groups: ['lobby-answer-reveal'] })
     artist: string
 
