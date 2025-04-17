@@ -33,7 +33,7 @@ export class GameToMusic {
     @Expose({ groups: ['lobby-answer-reveal'] })
     title: string | null
 
-    @Column({ type: 'varchar', nullable: true })
+    @Column({ type: 'text', nullable: true })
     @Expose({ groups: ['lobby-answer-reveal'] })
     artist: string | null
 
