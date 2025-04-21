@@ -12,7 +12,10 @@ export class IgdbHttpService {
     #twitchClientId: string
     #twitchClientSecret: string
 
-    constructor(private httpService: HttpService, private configService: ConfigService) {
+    constructor(
+        private httpService: HttpService,
+        private configService: ConfigService,
+    ) {
         const twitchClientId = this.configService.get('TWITCH_CLIENT_ID')
         const twitchClientSecret = this.configService.get('TWITCH_CLIENT_SECRET')
 
@@ -40,10 +43,12 @@ export class IgdbHttpService {
 
         return new Promise<string>((resolve) => {
             this.httpService
-                .post<{ access_token: string; expires_in: number; token_type: 'bearer' }>(
-                    `https://id.twitch.tv/oauth2/token?client_id=${
-                        this.#twitchClientId
-                    }&client_secret=${this.#twitchClientSecret}&grant_type=client_credentials`,
+                .post<{
+                    access_token: string
+                    expires_in: number
+                    token_type: 'bearer'
+                }>(
+                    `https://id.twitch.tv/oauth2/token?client_id=${this.#twitchClientId}&client_secret=${this.#twitchClientSecret}&grant_type=client_credentials`,
                     null,
                 )
                 .subscribe({

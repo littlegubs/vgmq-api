@@ -12,7 +12,7 @@ import {
     UseGuards,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 import { Request } from 'express'
 import { MoreThan, Repository } from 'typeorm'
 

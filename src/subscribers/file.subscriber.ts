@@ -5,7 +5,10 @@ import { S3Service } from '../s3/s3.service'
 
 @EventSubscriber()
 export class FileSubscriber implements EntitySubscriberInterface<File> {
-    constructor(connection: DataSource, private s3Service: S3Service) {
+    constructor(
+        connection: DataSource,
+        private s3Service: S3Service,
+    ) {
         connection.subscribers.push(this)
     }
 

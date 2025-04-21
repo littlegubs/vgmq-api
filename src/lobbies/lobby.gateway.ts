@@ -13,8 +13,8 @@ import {
 } from '@nestjs/websockets'
 import { NestGateway } from '@nestjs/websockets/interfaces/nest-gateway.interface'
 import { Queue } from 'bull'
-import { classToClass } from 'class-transformer'
-import * as dayjs from 'dayjs'
+import { instanceToInstance } from 'class-transformer'
+import dayjs from 'dayjs'
 import { Server } from 'socket.io'
 import { Brackets, Not, Repository } from 'typeorm'
 
@@ -130,7 +130,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         })) as Lobby
         await client.join(lobby.code)
         await client.join(`lobbyUser${lobbyUser.id}`)
-        client.emit('lobbyJoined', classToClass<Lobby>(lobby, { groups: ['lobby'] }))
+        client.emit('lobbyJoined', instanceToInstance<Lobby>(lobby, { groups: ['lobby'] }))
         if (lobby.hintMode === LobbyHintMode.Always || lobbyUser.hintMode) {
             await this.showHintModeGames(lobbyUser, client, false)
         }
@@ -172,7 +172,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         await this.sendLobbyUsers(lobby, undefined, client)
         this.server.to(lobby.code).emit(
             'lobbyUser',
-            classToClass<LobbyUser>(lobbyUser, {
+            instanceToInstance<LobbyUser>(lobbyUser, {
                 groups: ['wsLobby'],
                 strategy: 'excludeAll',
             }),
@@ -244,7 +244,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             await this.lobbyUserRepository.save(lobbyUser)
             this.server.to(lobby.code).emit(
                 'lobbyUser',
-                classToClass<LobbyUser>(lobbyUser, {
+                instanceToInstance<LobbyUser>(lobbyUser, {
                     groups: ['wsLobby'],
                     strategy: 'excludeAll',
                 }),
@@ -256,7 +256,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (lobbyUser.correctAnswer && !lobby.showCorrectAnswersDuringGuessTime) {
             client.emit(
                 'lobbyUser',
-                classToClass<LobbyUser>(lobbyUser, {
+                instanceToInstance<LobbyUser>(lobbyUser, {
                     groups: ['wsLobby'],
                     strategy: 'excludeAll',
                 }),
@@ -264,7 +264,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         } else {
             this.server.to(lobby.code).emit(
                 'lobbyUser',
-                classToClass<LobbyUser>(lobbyUser, {
+                instanceToInstance<LobbyUser>(lobbyUser, {
                     groups: ['wsLobby'],
                     strategy: 'excludeAll',
                 }),
@@ -421,7 +421,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             await this.lobbyUserRepository.save(lobbyUser)
             this.server.to(lobbyUser.lobby.code).emit(
                 'lobbyUser',
-                classToClass<LobbyUser>(lobbyUser, {
+                instanceToInstance<LobbyUser>(lobbyUser, {
                     groups: ['wsLobby'],
                     strategy: 'excludeAll',
                 }),
@@ -436,7 +436,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         await this.lobbyUserRepository.save(lobbyUser)
         this.server.to(lobbyUser.lobby.code).emit(
             'lobbyUser',
-            classToClass<LobbyUser>(lobbyUser, {
+            instanceToInstance<LobbyUser>(lobbyUser, {
                 groups: ['wsLobby'],
                 strategy: 'excludeAll',
             }),
@@ -494,7 +494,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             if (emitToLobby) {
                 this.server.to(lobbyUser.lobby.code).emit(
                     'lobbyUser',
-                    classToClass<LobbyUser>(lobbyUser, {
+                    instanceToInstance<LobbyUser>(lobbyUser, {
                         groups: ['wsLobby'],
                         strategy: 'excludeAll',
                     }),
@@ -564,7 +564,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
     sendUpdateToRoom(lobby: Lobby): void {
         this.server.to(lobby.code).emit(
             'lobby',
-            classToClass<Lobby>(lobby, {
+            instanceToInstance<Lobby>(lobby, {
                 groups: ['lobby'],
                 strategy: 'excludeAll',
                 excludeExtraneousValues: false,
@@ -626,7 +626,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         const receiver = client ?? this.server.to(lobby.code)
         receiver.emit(
             'lobbyUsers',
-            classToClass<LobbyUser[]>(lobbyUsers, {
+            instanceToInstance<LobbyUser[]>(lobbyUsers, {
                 groups: ['wsLobby'],
                 strategy: 'excludeAll',
             }),
@@ -634,7 +634,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
     }
 
     sendAnswer(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
-        const data = classToClass<LobbyMusic>(lobbyMusic, {
+        const data = instanceToInstance<LobbyMusic>(lobbyMusic, {
             strategy: 'excludeAll',
             groups: ['lobby-answer-reveal'],
         })
@@ -647,7 +647,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
     sendLobbyReset(lobby: Lobby): void {
         this.server
             .to(lobby.code)
-            .emit('lobbyReset', classToClass<Lobby>(lobby, { groups: ['lobby'] }))
+            .emit('lobbyReset', instanceToInstance<Lobby>(lobby, { groups: ['lobby'] }))
     }
 
     sendLobbyToast(lobby: Lobby, message: string): void {

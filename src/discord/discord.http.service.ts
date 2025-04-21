@@ -8,7 +8,10 @@ import { Observable, of } from 'rxjs'
 export class DiscordHttpService {
     private discordBotToken?: string
 
-    constructor(private httpService: HttpService, private configService: ConfigService) {
+    constructor(
+        private httpService: HttpService,
+        private configService: ConfigService,
+    ) {
         const discordBotToken = this.configService.get('DISCORD_BOT_TOKEN')
 
         if (discordBotToken === undefined) {

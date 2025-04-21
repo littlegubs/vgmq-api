@@ -14,10 +14,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         @InjectRepository(User) private userRepository: Repository<User>,
     ) {
         super({
-            clientID: configService.get('GOOGLE_CLIENT_ID'),
-            clientSecret: configService.get('GOOGLE_CLIENT_SECRET'),
+            clientID: configService.get('GOOGLE_CLIENT_ID')!,
+            clientSecret: configService.get('GOOGLE_CLIENT_SECRET')!,
             callbackURL: configService.get('GOOGLE_CALLBACK_URL'),
             scope: ['profile', 'email'],
+            passReqToCallback: true,
         })
     }
 
