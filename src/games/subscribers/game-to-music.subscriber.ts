@@ -14,7 +14,10 @@ import { Music } from '../entity/music.entity'
 
 @EventSubscriber()
 export class GameToMusicSubscriber implements EntitySubscriberInterface<GameToMusic> {
-    constructor(connection: DataSource, private discordService: DiscordService) {
+    constructor(
+        connection: DataSource,
+        private discordService: DiscordService,
+    ) {
         connection.subscribers.push(this)
     }
 
@@ -73,19 +76,21 @@ export class GameToMusicSubscriber implements EntitySubscriberInterface<GameToMu
                         event.entity?.album === undefined
                             ? undefined
                             : event.entity?.album === null
-                            ? null
-                            : await event.manager.findOne(GameAlbum, {
-                                  where: {
-                                      id: event.entity?.album.id,
-                                  },
-                              })
+                              ? null
+                              : await event.manager.findOne(GameAlbum, {
+                                    where: {
+                                        id: event.entity?.album.id,
+                                    },
+                                })
 
                     content += `- **album**: ${
                         album !== undefined && oldAlbum?.name !== album?.name
                             ? `${oldAlbum?.name} **→** `
                             : ''
                     } ${
-                        oldAlbum?.name !== album?.name ? album?.name : album?.name ?? oldAlbum?.name
+                        oldAlbum?.name !== album?.name
+                            ? album?.name
+                            : (album?.name ?? oldAlbum?.name)
                     }`
                     void this.discordService.sendUpdateForGame({
                         game,

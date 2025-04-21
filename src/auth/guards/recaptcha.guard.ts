@@ -9,7 +9,9 @@ export class RecaptchaGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
         const { body } = context.switchToHttp().getRequest()
         return this.httpService
-            .post<{ success: boolean }>(
+            .post<{
+                success: boolean
+            }>(
                 `https://www.google.com/recaptcha/api/siteverify?response=${body.recaptcha}&secret=${process.env.RECAPTCHA_SECRET_KEY}`,
             )
             .pipe(

@@ -33,7 +33,7 @@ export class WebhookController {
             throw new UnauthorizedException()
         }
 
-        await this.igdbWebhookQueue.add('gameUpdate', body, {removeOnComplete: true})
+        await this.igdbWebhookQueue.add('gameUpdate', body, { removeOnComplete: true })
         return
     }
 
@@ -44,7 +44,7 @@ export class WebhookController {
             throw new UnauthorizedException()
         }
 
-        await this.igdbWebhookQueue.add('gameRemove', body, {removeOnComplete: true})
+        await this.igdbWebhookQueue.add('gameRemove', body, { removeOnComplete: true })
         return
     }
 }

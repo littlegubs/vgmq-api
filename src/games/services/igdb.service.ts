@@ -5,7 +5,6 @@ import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
 import { DateTime } from 'luxon'
-import Vibrant = require('node-vibrant')
 import { Repository } from 'typeorm'
 
 import { User } from '../../users/user.entity'
@@ -21,6 +20,7 @@ import { Theme } from '../entity/theme.entity'
 import { Video } from '../entity/video.entity'
 import { IgdbHttpService } from '../http/igdb.http.service'
 import { IgdbGame } from '../igdb.type'
+import { Vibrant } from 'node-vibrant/node'
 
 @Injectable()
 export class IgdbService {

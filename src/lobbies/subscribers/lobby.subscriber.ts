@@ -13,7 +13,10 @@ import { LobbyListGateway } from '../lobby-list.gateway'
 
 @EventSubscriber()
 export class LobbySubscriber implements EntitySubscriberInterface<Lobby> {
-    constructor(connection: DataSource, private lobbyListGateway: LobbyListGateway) {
+    constructor(
+        connection: DataSource,
+        private lobbyListGateway: LobbyListGateway,
+    ) {
         connection.subscribers.push(this)
     }
 

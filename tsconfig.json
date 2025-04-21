@@ -17,7 +17,7 @@
     "noUnusedLocals": false,
     "strictNullChecks": true,
     "noUncheckedIndexedAccess": true,
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "Node10",
     "skipLibCheck": true
   },
   "emitDecoratorMetadata": true,

@@ -13,7 +13,6 @@ import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
 import { extension } from 'mime-types'
-import Vibrant = require('node-vibrant')
 import { Brackets, Repository } from 'typeorm'
 
 import { DiscordService } from '../../discord/discord.service'
@@ -30,6 +29,7 @@ import { GameToMusic } from '../entity/game-to-music.entity'
 import { Game } from '../entity/game.entity'
 import { Music } from '../entity/music.entity'
 import GameNameSearchBody from '../types/game-name-search-body.interface'
+import { Vibrant } from 'node-vibrant/node'
 
 @Injectable()
 export class GamesService {
@@ -251,13 +251,12 @@ export class GamesService {
                 })
                 const metadataCover = metadata.common.picture?.[0]
                 if (metadataCover !== undefined) {
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                     const coverExtension = extension(metadataCover.format)
                     if (coverExtension !== false) {
                         const coverPath = `games/${game.slug}/album-${album.id}.${coverExtension}`
                         await this.s3Service.putObject(
                             coverPath,
-                            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
                             metadataCover.data,
                             this.configService.get('AMAZON_S3_PUBLIC_BUCKET'),
                         )

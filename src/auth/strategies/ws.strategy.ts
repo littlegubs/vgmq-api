@@ -23,7 +23,7 @@ export class WsStrategy extends PassportStrategy(Strategy, 'ws') {
                 return typeof token === 'string' ? token : null
             },
             ignoreExpiration: false,
-            secretOrKey: process.env.JWT_SECRET,
+            secretOrKey: process.env.JWT_SECRET!,
         })
     }
 

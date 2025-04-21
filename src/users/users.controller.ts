@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
-import { classToClass } from 'class-transformer'
+import { instanceToInstance } from 'class-transformer'
 import { Request } from 'express'
 import { DateTime } from 'luxon'
 import { Repository } from 'typeorm'
@@ -63,7 +63,7 @@ export class UsersController {
             createdAt,
             email,
             username,
-            patreonAccount: classToClass(patreonAccount, {
+            patreonAccount: instanceToInstance(patreonAccount, {
                 groups: ['userProfile'],
                 strategy: 'excludeAll',
             }),

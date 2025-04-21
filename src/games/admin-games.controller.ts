@@ -16,7 +16,7 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { FilesInterceptor } from '@nestjs/platform-express'
 import { InjectRepository } from '@nestjs/typeorm'
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 import { Request } from 'express'
 import { IsNull, Repository } from 'typeorm'
 

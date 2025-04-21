@@ -15,7 +15,7 @@ import { Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 import { Exception } from 'handlebars'
 import { In, Not, Repository } from 'typeorm'
 

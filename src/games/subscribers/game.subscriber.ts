@@ -13,7 +13,10 @@ import { GamesService } from '../services/games.service'
 
 @EventSubscriber()
 export class GameSubscriber implements EntitySubscriberInterface<Game> {
-    constructor(connection: DataSource, private gameService: GamesService) {
+    constructor(
+        connection: DataSource,
+        private gameService: GamesService,
+    ) {
         connection.subscribers.push(this)
     }
 
