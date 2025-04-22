@@ -68,6 +68,9 @@ import { UsersModule } from './users/users.module'
                     host: configService.get('REDIS_HOST'),
                     port: configService.get<number>('REDIS_PORT'),
                     password: configService.get('REDIS_PASSWORD'),
+                    retryStrategy: (times: number): number => {
+                        return Math.max(Math.min(Math.exp(times), 20000), 1000)
+                    },
                 },
                 defaultJobOptions: {
                     removeOnComplete: true,
