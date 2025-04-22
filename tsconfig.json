@@ -18,7 +18,8 @@
     "strictNullChecks": true,
     "noUncheckedIndexedAccess": true,
     "moduleResolution": "Node10",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "esModuleInterop": true,
   },
   "emitDecoratorMetadata": true,
   "experimentalDecorators": true

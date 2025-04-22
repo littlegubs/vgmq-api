@@ -8,7 +8,7 @@ import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
 import { AppModule } from './app.module'
 import { exceptionPipe } from './exception.pipe'
 import { RedisIoAdapter } from './redis-adapter'
-import * as compression from 'compression'
+import compression from 'compression'
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule, { bufferLogs: true })
