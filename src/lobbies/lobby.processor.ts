@@ -16,7 +16,6 @@ import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
 import dayjs from 'dayjs'
-import { Exception } from 'handlebars'
 import { In, Not, Repository } from 'typeorm'
 
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
@@ -180,7 +179,7 @@ export class LobbyProcessor {
         const url = await this.s3Service.getSignedUrl(gameToMusic.music.file.path)
         const ffmpegPath = this.configService.get<string>('FFMPEG_PATH')
         if (ffmpegPath === undefined) {
-            throw new Exception('FFMPEG_PATH could not be found.')
+            throw new Error('FFMPEG_PATH could not be found.')
         }
         const ffmpegArgs = this.configService.get<string>('FFMPEG_ARGS') ?? ''
         const command = `${ffmpegArgs} -i "${url}" -ss ${

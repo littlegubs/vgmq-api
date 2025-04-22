@@ -3,12 +3,12 @@ import 'reflect-metadata'
 import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
 import { useContainer } from 'class-validator'
-import * as cookieParser from 'cookie-parser'
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
 
 import { AppModule } from './app.module'
 import { exceptionPipe } from './exception.pipe'
 import { RedisIoAdapter } from './redis-adapter'
+import compression from 'compression'
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule, { bufferLogs: true })
@@ -20,9 +20,9 @@ async function bootstrap(): Promise<void> {
 
     app.useGlobalPipes(exceptionPipe)
     useContainer(app.select(AppModule), { fallbackOnErrors: true })
-    app.use(cookieParser())
     app.useLogger(app.get(Logger))
     app.useGlobalInterceptors(new LoggerErrorInterceptor())
+    app.use(compression())
 
     const cors = configService.get<string>('CORS_ALLOW_ORIGIN')
     if (cors === undefined) {
