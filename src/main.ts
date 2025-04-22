@@ -31,6 +31,7 @@ async function bootstrap(): Promise<void> {
     app.enableCors({
         origin: new RegExp(cors),
         credentials: true,
+        maxAge: 3000,
     })
 
     const port = configService.get<number>('PORT')
