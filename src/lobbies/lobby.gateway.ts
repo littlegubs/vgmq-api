@@ -351,8 +351,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (lobbyUser === null) {
             return
         }
-        await this.lobbyQueue.add('finalResult', lobbyUser.lobby.code, {
-            jobId: `lobby${lobbyUser.lobby.code}finalResultManual-${Date.now()}`,
+        await this.lobbyQueue.add('restart', lobbyUser.lobby.code, {
+            jobId: `lobby${lobbyUser.lobby.code}restartManual-${Date.now()}`,
         })
     }
 
