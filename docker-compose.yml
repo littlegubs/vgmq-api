@@ -24,6 +24,15 @@ services:
         container_name: vgmq-api-redis
         ports:
             - '6379:6379'
+    redis-commander:
+        image: rediscommander/redis-commander:latest
+        container_name: vgmq-api-redis-commander
+        environment:
+            - REDIS_HOSTS=local:vgmq-api-redis:6379
+        ports:
+            - '8081:8081'
+        depends_on:
+            - redis
     elasticsearch:
         image: docker.elastic.co/elasticsearch/elasticsearch:8.4.1
         build: .
