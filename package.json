@@ -111,6 +111,9 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.8.1"
   },
+  "optionalDependencies": {
+    "@css-inline/css-inline-linux-x64-gnu": "0.14.3"
+  },
   "jest": {
     "moduleFileExtensions": [
       "js",
