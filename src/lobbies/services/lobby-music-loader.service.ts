@@ -713,21 +713,23 @@ export class LobbyMusicLoaderService {
             if (gameToMusic.derivedGameToMusics) {
                 expectedAnswers = [
                     ...expectedAnswers,
-                    ...gameToMusic.derivedGameToMusics.map(
-                        (derivedGameMusic) => derivedGameMusic.game,
-                    ),
+                    ...gameToMusic.derivedGameToMusics
+                        .filter((derivedGameMusic) => !derivedGameMusic.deleted)
+                        .map((derivedGameMusic) => derivedGameMusic.game),
                 ]
             }
         } else {
             const originalGameToMusic = gameToMusic.originalGameToMusic
             if (originalGameToMusic !== null) {
-                expectedAnswers = [originalGameToMusic.game]
+                if (!originalGameToMusic.deleted) {
+                    expectedAnswers = [originalGameToMusic.game]
+                }
                 if (originalGameToMusic.derivedGameToMusics) {
                     expectedAnswers = [
                         ...expectedAnswers,
-                        ...originalGameToMusic.derivedGameToMusics.map(
-                            (derivedGameMusic) => derivedGameMusic.game,
-                        ),
+                        ...originalGameToMusic.derivedGameToMusics
+                            .filter((derivedGameMusic) => !derivedGameMusic.deleted)
+                            .map((derivedGameMusic) => derivedGameMusic.game),
                     ]
                 }
             }
