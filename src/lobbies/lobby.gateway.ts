@@ -31,6 +31,8 @@ import { LobbyFileGateway } from './lobby-file.gateway'
 import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
+import { LobbyStatService } from './services/lobby-stat.service'
+import { OauthPatreon } from '../oauth/entities/oauth-patreon.entity'
 
 export function getHintModeGameNames(lobbyMusic: LobbyMusic): string[] {
     return shuffle(lobbyMusic.hintModeGames.map((game) => game.name))
@@ -47,12 +49,9 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
     server: Server
 
     constructor(
-        @InjectRepository(Lobby)
-        private lobbyRepository: Repository<Lobby>,
-        @InjectRepository(LobbyMusic)
-        private lobbyMusicRepository: Repository<LobbyMusic>,
-        @InjectRepository(LobbyUser)
-        private lobbyUserRepository: Repository<LobbyUser>,
+        @InjectRepository(Lobby) private lobbyRepository: Repository<Lobby>,
+        @InjectRepository(LobbyMusic) private lobbyMusicRepository: Repository<LobbyMusic>,
+        @InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>,
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyMusicLoaderService))
         private lobbyMusicLoaderService: LobbyMusicLoaderService,
@@ -60,6 +59,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         private readonly jwtService: JwtService,
         private readonly userService: UsersService,
         private lobbyFileGateway: LobbyFileGateway,
+        private lobbyStatService: LobbyStatService,
+        @InjectRepository(OauthPatreon) private oAuthPatreonRepository: Repository<OauthPatreon>,
     ) {}
 
     @SubscribeMessage('join')
@@ -68,6 +69,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         @MessageBody() body: { code: string; password: string | null },
     ): Promise<undefined> {
         let lobby = await this.lobbyRepository.findOne({
+            relations: { lobbyUsers: { user: true } },
             where: {
                 code: body.code,
             },
@@ -123,6 +125,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 collectionFilters: true,
                 genreFilters: true,
                 themeFilters: true,
+                lobbyUsers: { user: true },
             },
             where: {
                 code: body.code,
@@ -169,7 +172,13 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 timeout: 10_000,
             })
         }
-        await this.sendLobbyUsers(lobby, undefined, client)
+        if (lobby.status === LobbyStatuses.Result) {
+            await this.lobbyStatService.retrieveResultData(lobby)
+            await this.sendLobbyUsers(lobby, lobby.lobbyUsers, client)
+            await this.sendResultData(lobby)
+        } else {
+            await this.sendLobbyUsers(lobby, undefined, client)
+        }
         this.server.to(lobby.code).emit(
             'lobbyUser',
             instanceToInstance<LobbyUser>(lobbyUser, {
@@ -320,19 +329,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             ...lobbyUser,
             correctAnswer: !!lobbyMusic,
             tries: lobbyUser.tries + 1,
-            lastAnswerAt: new Date(),
+            lastAnswerAt: dayjs().toDate(),
         })
 
         if (lobbyUser.correctAnswer && lobbyMusic) {
             let pointsToWin = 10
-            if (
-                !(await this.userService.userHasPlayedTheGame(
-                    lobbyUser.user,
-                    lobbyMusic.gameToMusic.game,
-                ))
-            ) {
-                pointsToWin += 5
-            }
             if (lobbyUser.tries === 1) pointsToWin += 5
             Object.assign(lobbyUser, {
                 ...lobbyUser,
@@ -342,6 +343,38 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
             await this.lobbyUserRepository.save(lobbyUser)
         }
+
+        if (lobby.custom) {
+            // Stats
+            void this.lobbyStatService.increment(
+                `lobby${lobby.code}:stats:user:${lobbyUser.id}`,
+                lobbyUser.correctAnswer ? 'correct' : 'wrong',
+            )
+            void this.lobbyStatService.increment(
+                `lobby${lobby.code}:stats:user:${lobbyUser.id}`,
+                'tries',
+            )
+            if (!lobbyUser.hintMode) {
+                if (lobbyUser.correctAnswer && lobbyMusic) {
+                    const timeToAnswer = dayjs(lobbyUser.lastAnswerAt).diff(
+                        dayjs(lobbyMusic.musicStartedPlayingAt),
+                        'ms',
+                    )
+                    void this.lobbyStatService.rpush(
+                        `lobby${lobby.code}:stats:user:${lobbyUser.id}:time`,
+                        timeToAnswer,
+                    )
+
+                    if (lobbyUser.tries === 1) {
+                        void this.lobbyStatService.increment(
+                            `lobby${lobby.code}:stats:user:${lobbyUser.id}`,
+                            'firstTry',
+                        )
+                    }
+                }
+            }
+        }
+
         return lobbyUser
     }
 
@@ -464,6 +497,10 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             lobbyUser = Object.assign(lobbyUser, { ...lobbyUser, hintMode: true })
             await this.lobbyUserRepository.save(lobbyUser)
             await this.showHintModeGames(lobbyUser, client)
+            void this.lobbyStatService.increment(
+                `lobby${lobbyUser.lobby.code}:stats:user:${lobbyUser.id}`,
+                'hint',
+            )
         } else {
             await this.showHintModeGames(lobbyUser, client, false)
         }
@@ -656,5 +693,18 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
 
     sendLobbyLoadProgress(lobby: Lobby, message: number | string | undefined): void {
         this.server.to(lobby.code).emit('lobbyLoadProgress', message)
+    }
+
+    async sendResultData(lobby: Lobby) {
+        const patreons = await this.oAuthPatreonRepository.find({
+            relations: { user: true },
+            where: { currentlyEntitledTiers: Not('') },
+            order: { campaignLifetimeSupportCents: 'DESC' },
+        })
+        const data = {
+            patreons: patreons.map((patreon) => patreon.user.username),
+        }
+
+        this.server.to(lobby.code).emit('result', data)
     }
 }

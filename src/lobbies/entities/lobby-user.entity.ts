@@ -1,4 +1,4 @@
-import { Expose, Transform } from 'class-transformer'
+import { Expose, Transform, Type } from 'class-transformer'
 import {
     Column,
     CreateDateColumn,
@@ -22,6 +22,40 @@ export enum LobbyUserRole {
 export enum LobbyUserStatus {
     Buffering = 'buffering',
     ReadyToPlayMusic = 'ready_to_play_music',
+}
+
+class LobbyUserStat {
+    @Expose({ groups: ['wsLobby'] })
+    value?: number
+    @Expose({ groups: ['wsLobby'] })
+    color?: 'best' | 'worst'
+}
+
+class LobbyUserStats {
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStat)
+    correctAnswers: LobbyUserStat
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStat)
+    wrongAnswers: LobbyUserStat
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStat)
+    tries: LobbyUserStat
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStat)
+    firstTries: LobbyUserStat
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStat)
+    hint: LobbyUserStat
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStat)
+    shortestTime: LobbyUserStat
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStat)
+    longestTime: LobbyUserStat
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStat)
+    averageTime: LobbyUserStat
 }
 
 @Entity()
@@ -107,4 +141,8 @@ export class LobbyUser {
     @Column()
     @UpdateDateColumn()
     updatedAt: Date
+
+    @Expose({ groups: ['wsLobby'] })
+    @Type(() => LobbyUserStats)
+    stats: LobbyUserStats
 }

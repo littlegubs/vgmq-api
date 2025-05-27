@@ -408,7 +408,6 @@ export class LobbyMusicLoaderService {
                         .createQueryBuilder('gameToMusic')
                         .select('gameToMusic.id')
                         .leftJoinAndSelect('gameToMusic.music', 'music')
-                        .leftJoinAndSelect('gameToMusic.game', 'game')
                         .andWhere('gameToMusic.game = :game')
                         .andWhere('music.duration >= :guessTime')
                         .andWhere('gameToMusic.deleted = 0')
@@ -791,6 +790,7 @@ export class LobbyMusicLoaderService {
                 }
             }
         }
+        console.log(baseQueryBuilder.getSql())
         return gameOrGameMusic
     }
 
