@@ -28,6 +28,7 @@ import { Lobby, LobbyGameModes, LobbyHintMode, LobbyStatuses } from './entities/
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
+import { LobbyStatService } from './services/lobby-stat.service'
 
 @Processor('lobby')
 export class LobbyProcessor {
@@ -49,6 +50,7 @@ export class LobbyProcessor {
         private s3Service: S3Service,
         private lobbyMusicLoaderService: LobbyMusicLoaderService,
         private configService: ConfigService,
+        private lobbyStatService: LobbyStatService,
     ) {}
     private readonly logger = new Logger(LobbyProcessor.name)
 
@@ -149,6 +151,8 @@ export class LobbyProcessor {
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.logger.debug(`will call playMusic for lobby ${lobby.code}`)
+        console.log('from buffer music')
+
         await this.lobbyQueue
             .add('playMusic', lobbyMusic.lobby.code, {
                 delay: 5 * 1000,
@@ -295,6 +299,8 @@ export class LobbyProcessor {
                 await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
                 this.lobbyGateway.sendUpdateToRoom(lobby)
                 this.logger.debug(`will call playMusicForced for lobby ${lobby.code}`)
+                console.log('from playMusic')
+
                 await this.lobbyQueue
                     .add('playMusic', lobby.code, {
                         delay: 5 * 1000,
@@ -359,6 +365,7 @@ export class LobbyProcessor {
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.logger.debug(`will call revealAnswer for lobby ${lobby.code}`)
+        console.log('pardon ???')
         await this.lobbyQueue
             .add('revealAnswer', lobby.code, {
                 delay: lobby.guessTime * 1000,
@@ -372,9 +379,11 @@ export class LobbyProcessor {
         this.logger.debug(
             `revealAnswer for lobby ${lobby.code} should start in ${lobby.guessTime}sec...`,
         )
+        const date = dayjs()
         await this.lobbyMusicRepository.save({
             ...lobbyMusic,
-            musicFinishPlayingAt: dayjs().add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
+            musicStartedPlayingAt: date.toDate(),
+            musicFinishPlayingAt: date.add(lobbyMusic.lobby.guessTime, 'seconds').toDate(),
         })
     }
 
@@ -383,12 +392,14 @@ export class LobbyProcessor {
         const lobbyCode = job.data
         this.logger.debug(`Start answer reveal to lobby ${lobbyCode}`)
 
+        console.log('hey')
         let lobby = await this.lobbyRepository.findOne({
             relations: {
                 lobbyMusics: true,
             },
             where: { code: lobbyCode, status: LobbyStatuses.PlayingMusic },
         })
+        console.log('hey 2')
         if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
@@ -451,6 +462,11 @@ export class LobbyProcessor {
         for (let lobbyUser of lobbyUsers) {
             if (lobbyUser.hintMode && lobbyUser.answer) {
                 lobbyUser = await this.lobbyGateway.verifyAnswer(lobby, lobbyUser.answer, lobbyUser)
+            } else if (lobbyUser.correctAnswer !== true) {
+                void this.lobbyStatService.increment(
+                    `lobby${lobby.code}:stats:user:${lobbyUser.id}`,
+                    'wrong',
+                )
             }
             const userPlayedTheGame = await this.userService.userHasPlayedTheGame(
                 lobbyUser.user,
@@ -527,6 +543,9 @@ export class LobbyProcessor {
         let lobby = await this.lobbyRepository.findOne({
             relations: {
                 lobbyMusics: true,
+                lobbyUsers: {
+                    user: true,
+                },
             },
             where: { code: lobbyCode, status: LobbyStatuses.AnswerReveal },
         })
@@ -540,6 +559,9 @@ export class LobbyProcessor {
                 status: LobbyStatuses.Result,
             }),
         )
+        await this.lobbyStatService.retrieveResultData(lobby)
+        await this.lobbyGateway.sendLobbyUsers(lobby, lobby.lobbyUsers)
+        await this.lobbyGateway.sendResultData(lobby)
         this.lobbyGateway.sendUpdateToRoom(lobby)
     }
 
@@ -570,6 +592,7 @@ export class LobbyProcessor {
             }),
         )
         await this.lobbyQueue.removeJobs(`*${lobbyCode}*`)
+        await this.lobbyStatService.deleteLobbyStatsKeys(lobbyCode)
         await this.removeDisconnectedUsers(lobby)
         await this.setSpectatorsAsPlayer(lobby)
         await this.resetUserState(lobby)
