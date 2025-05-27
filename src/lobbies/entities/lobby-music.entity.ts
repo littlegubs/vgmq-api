@@ -50,7 +50,10 @@ export class LobbyMusic {
     @JoinTable()
     expectedAnswers: Game[]
 
-    @Column({ type: 'datetime', nullable: true })
+    @Column({ type: 'datetime', nullable: true, precision: 3 })
+    musicStartedPlayingAt: Date
+
+    @Column({ type: 'datetime', nullable: true, precision: 3 })
     musicFinishPlayingAt: Date
 
     @ManyToMany(() => Game, { onDelete: 'CASCADE' })

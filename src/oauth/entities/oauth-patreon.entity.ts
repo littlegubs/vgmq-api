@@ -9,6 +9,7 @@ import {
 } from 'typeorm'
 
 import { User } from '../../users/user.entity'
+import { Expose } from 'class-transformer'
 
 @Entity()
 export class OauthPatreon {

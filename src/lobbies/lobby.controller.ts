@@ -30,6 +30,7 @@ import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyService } from './services/lobby.service'
+import dayjs from 'dayjs'
 
 @Controller('lobbies')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -46,6 +47,7 @@ export class LobbyController {
     @SerializeOptions({ groups: ['lobby-list'] })
     @Get('')
     getAll(@Query() query: LobbySearchDto): Promise<Lobby[]> {
+        console.log(dayjs().unix())
         return this.lobbyService.findByName(query.query)
     }
 
