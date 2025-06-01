@@ -10,13 +10,15 @@ import {
     S3Client,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { Injectable, InternalServerErrorException } from '@nestjs/common'
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 
 @Injectable()
 export class S3Service {
     private client: S3Client
     private bucketName?: string = this.configService.get('AMAZON_S3_BUCKET')
+    private readonly logger = new Logger(S3Service.name)
+
     constructor(private configService: ConfigService) {
         const accessId = this.configService.get('AMAZON_S3_ID')
         const secretKey = this.configService.get('AMAZON_S3_SECRET')
@@ -47,6 +49,7 @@ export class S3Service {
     }
 
     async getObject(filePath: string): Promise<GetObjectCommandOutput> {
+        this.logger.log({ msg: `getting object for ${filePath}`, from: 'getObject' })
         return this.client.send(
             new GetObjectCommand({
                 Bucket: this.bucketName,
@@ -56,6 +59,7 @@ export class S3Service {
     }
 
     async getSignedUrl(filePath: string): Promise<string> {
+        this.logger.log({ msg: `getting signed url for ${filePath}`, from: 'getSignedUrl' })
         return getSignedUrl(
             this.client,
             new GetObjectCommand({
