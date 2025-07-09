@@ -10,12 +10,14 @@ import {
 
 import { Lobby, LobbyDifficulties } from '../entities/lobby.entity'
 import { LobbyListGateway } from '../lobby-list.gateway'
+import { LobbyStatService } from '../services/lobby-stat.service'
 
 @EventSubscriber()
 export class LobbySubscriber implements EntitySubscriberInterface<Lobby> {
     constructor(
         connection: DataSource,
         private lobbyListGateway: LobbyListGateway,
+        private lobbyStatService: LobbyStatService,
     ) {
         connection.subscribers.push(this)
     }
@@ -45,6 +47,9 @@ export class LobbySubscriber implements EntitySubscriberInterface<Lobby> {
     }
 
     async afterRemove(event: RemoveEvent<Lobby>): Promise<void> {
+        if (event.entity) {
+            await this.lobbyStatService.deleteLobbyStatsKeys(event.entity?.code)
+        }
         this.lobbyListGateway.sendLobbyList(
             await event.manager.find(Lobby, { relations: { lobbyUsers: true, lobbyMusics: true } }),
         )

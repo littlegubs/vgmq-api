@@ -100,7 +100,6 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
             this.lobbyGateway.sendUpdateToRoom(lobby)
             this.lobbyGateway.emitChat(lobby.code, null, `Lobby is no longer premium!`)
         }
-        await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby, lobbyUsers)
 
         if (event.entity?.role === LobbyUserRole.Host) {
             const randomPlayer = await event.manager
@@ -119,5 +118,6 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 this.lobbyGateway.sendLobbyClosed(event.entity?.lobby, 'The host left the lobby!')
             }
         }
+        await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby)
     }
 }
