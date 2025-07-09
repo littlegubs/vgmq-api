@@ -672,6 +672,7 @@ export class LobbyProcessor {
         }
         if (
             lobbyUser.lobby.status === LobbyStatuses.Waiting ||
+            lobbyUser.lobby.status === LobbyStatuses.Result ||
             lobbyUser.role === LobbyUserRole.Spectator ||
             (!lobbyUser.lobby.custom && lobbyUser.lobby.musicNumber === -1)
         ) {
@@ -679,6 +680,7 @@ export class LobbyProcessor {
         } else {
             await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: true })
         }
+        await this.lobbyGateway.sendLobbyUsers(lobbyUser.lobby)
     }
 
     @OnQueueStalled()
