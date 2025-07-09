@@ -392,14 +392,12 @@ export class LobbyProcessor {
         const lobbyCode = job.data
         this.logger.debug(`Start answer reveal to lobby ${lobbyCode}`)
 
-        console.log('hey')
         let lobby = await this.lobbyRepository.findOne({
             relations: {
                 lobbyMusics: true,
             },
             where: { code: lobbyCode, status: LobbyStatuses.PlayingMusic },
         })
-        console.log('hey 2')
         if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
