@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bull'
 import { Controller, Get, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
-import { Repository } from 'typeorm'
+import { In, Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { LobbyMusic } from '../lobbies/entities/lobby-music.entity'
@@ -58,7 +58,7 @@ export class SystemController {
     async resetPrivateLobbies(): Promise<void> {
         const lobbies = await this.lobbyRepository.find({
             relations: { lobbyMusics: true, lobbyUsers: true },
-            where: { custom: true, status: LobbyStatuses.Waiting },
+            where: { custom: true, status: In([LobbyStatuses.Waiting, LobbyStatuses.Result]) },
         })
 
         if (lobbies.length > 0) {
