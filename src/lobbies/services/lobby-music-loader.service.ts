@@ -94,6 +94,22 @@ export class LobbyMusicLoaderService {
             .setParameter('game', game.id)
             .setParameter('guessTime', lobby.guessTime)
             .orderBy('RAND()')
+
+        const last100PickedMusics = await this.lobbyMusicRepository
+            .createQueryBuilder('lobbyMusic')
+            .select('lobbyMusic.gameToMusic')
+            .andWhere('lobbyMusic.lobby = :lobby', { lobby: lobby.id })
+            .orderBy('lobbyMusic.id', 'DESC')
+            .limit(100)
+            .getRawMany()
+
+        if (last100PickedMusics.length > 0) {
+            qb.andWhere('gameToMusic.id NOT IN (:last100PickedMusics)', {
+                last100PickedMusics: last100PickedMusics.map(
+                    (lobbyMusic) => lobbyMusic.gameToMusicId,
+                ),
+            })
+        }
         const gameToMusicId = await this.getGameOrMusic(qb)
         const gameToMusic =
             gameToMusicId === null
@@ -807,7 +823,6 @@ export class LobbyMusicLoaderService {
                 }
             }
         }
-        console.log(baseQueryBuilder.getSql())
         return gameOrGameMusic
     }
 
