@@ -3,7 +3,7 @@ import { forwardRef, Inject, Injectable, InternalServerErrorException } from '@n
 import { InjectRepository } from '@nestjs/typeorm'
 import { Queue } from 'bull'
 import { Duration } from 'luxon'
-import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm'
+import { Brackets, DataSource, In, Repository, SelectQueryBuilder } from 'typeorm'
 
 import { Collection } from '../../games/entity/collection.entity'
 import { GameToMusic, GameToMusicType } from '../../games/entity/game-to-music.entity'
@@ -38,17 +38,17 @@ export class LobbyMusicLoaderService {
         @Inject(forwardRef(() => LobbyGateway)) private lobbyGateway: LobbyGateway,
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyService)) private lobbyService: LobbyService,
+        private datasource: DataSource,
     ) {}
 
     /**
-     * Used for infinite lobby
+     * Used for infinite lobbies
      */
     async loadMusic(lobby: Lobby): Promise<LobbyMusic> {
         this.lobby = lobby
 
-        const gameToMusicAccuracyRatio = await this.lobbyService.getMusicAccuracyRatio(this.lobby)
         this.contributeMissingData = this.lobby.allowContributeToMissingData
-            ? Math.random() > gameToMusicAccuracyRatio
+            ? Math.random() > (await this.lobbyService.getMusicAccuracyRatio(this.lobby))
             : false
         //TODO refactor into more functions to prevent too much duplicates
         const gameQueryBuilder = this.gameRepository
@@ -62,6 +62,23 @@ export class LobbyMusicLoaderService {
             .setParameter('guessTime', this.lobby.guessTime)
             .groupBy('game.id')
             .orderBy('RAND()')
+
+        // Fetch from the top 100 games for public lobbies EASY and MEDIUM
+        if (['EASY', 'MEDIUM'].includes(lobby.code)) {
+            const top100Games: { count: number; gameId: number }[] = await this.datasource
+                .createQueryBuilder()
+                .select('COUNT(*)', 'count')
+                .addSelect('gameId')
+                .from('user_games', 'ug')
+                .groupBy('ug.gameId')
+                .orderBy('count', 'DESC')
+                .limit(100)
+                .getRawMany()
+
+            gameQueryBuilder.andWhere('game.id IN (:top100Games)', {
+                top100Games: top100Games.map((game) => game.gameId),
+            })
+        }
 
         const game = await this.getGameOrMusic(gameQueryBuilder)
         if (game === null) {
