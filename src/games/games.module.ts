@@ -42,6 +42,7 @@ import { GameAlbumcSubscriber } from './subscribers/game-album.subscriber'
 import { GameToMusicSubscriber } from './subscribers/game-to-music.subscriber'
 import { GameSubscriber } from './subscribers/game.subscriber'
 import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber'
+import { GameType } from './entity/game-type.entity'
 
 @Module({
     controllers: [
@@ -59,6 +60,7 @@ import { MusicAccuracySubscriber } from './subscribers/music-accuracy.subscriber
             IgdbClient,
             GameAlbum,
             GameToMusic,
+            GameType,
             Music,
             File,
             User,

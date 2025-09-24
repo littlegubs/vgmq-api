@@ -78,7 +78,7 @@ export class IgdbHttpService {
                     `fields category, parent_game.url, url ,alternative_names.name, cover.*,
                     first_release_date, version_parent.url, name, slug, videos.video_id, platforms.name, 
                     platforms.abbreviation, similar_games.url, screenshots.image_id, genres.name, genres.slug, 
-                    themes.slug, themes.name, collections.name, collections.slug;
+                    themes.slug, themes.name, collections.name, collections.slug, game_type.type;
                 sort popularity desc; 
                 limit 500; 
                 where url = "${url}";`,

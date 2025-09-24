@@ -5,6 +5,10 @@ export type IgdbGame = {
         name: string
     }[]
     category: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+    game_type: {
+        id: number
+        type: string
+    }
     cover?: {
         id: number
         image_id: string
