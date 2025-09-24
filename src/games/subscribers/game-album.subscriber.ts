@@ -36,11 +36,12 @@ export class GameAlbumcSubscriber implements EntitySubscriberInterface<GameAlbum
                     content: content,
                     user: event.entity?.createdBy,
                     type: 'success',
-                    ...(event.entity.cover?.path && {
-                        thumbnail: `${this.configService.get('AMAZON_CDN_URL')}${
-                            event.entity.cover?.path
-                        }`,
-                    }),
+                    // TODO fix this, this used to work, something to do with ContentType/Disposition or something
+                    // ...(event.entity.cover?.path && {
+                    //     thumbnail: `${this.configService.get('CDN_URL')}${
+                    //         event.entity.cover?.path
+                    //     }`,
+                    // }),
                 })
             }
         } catch (e) {
@@ -70,11 +71,12 @@ export class GameAlbumcSubscriber implements EntitySubscriberInterface<GameAlbum
                         game,
                         content,
                         user: event.entity?.updatedBy,
-                        ...(event.entity?.cover?.path && {
-                            thumbnail: `${this.configService.get('AMAZON_CDN_URL')}${
-                                event.entity.cover?.path
-                            }`,
-                        }),
+                        // TODO fix this, this used to work, something to do with ContentType/Disposition or something
+                        // ...(event.entity?.cover?.path && {
+                        //     thumbnail: `${this.configService.get('CDN_URL')}${
+                        //         event.entity.cover?.path
+                        //     }`,
+                        // }),
                     })
                 }
             }

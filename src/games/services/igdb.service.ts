@@ -21,6 +21,7 @@ import { Video } from '../entity/video.entity'
 import { IgdbHttpService } from '../http/igdb.http.service'
 import { IgdbGame } from '../igdb.type'
 import { Vibrant } from 'node-vibrant/node'
+import { GameType } from '../entity/game-type.entity'
 
 @Injectable()
 export class IgdbService {
@@ -29,6 +30,7 @@ export class IgdbService {
         private configService: ConfigService,
         @InjectRepository(Game) private gamesRepository: Repository<Game>,
         @InjectRepository(Cover) private coversRepository: Repository<Cover>,
+        @InjectRepository(GameType) private gameTypeRepository: Repository<GameType>,
         @InjectRepository(AlternativeName)
         private alternativeNamesRepository: Repository<AlternativeName>,
         @InjectRepository(ColorPalette) private colorPaletteRepository: Repository<ColorPalette>,
@@ -55,7 +57,6 @@ export class IgdbService {
 
         let game = this.gamesRepository.create({
             igdbId: igdbGame.id,
-            category: igdbGame.category,
             name: igdbGame.name,
             url: igdbGame.url,
             slug: igdbGame.slug,
@@ -67,6 +68,7 @@ export class IgdbService {
         })
 
         const cover = await this.getCover(game, igdbGame.cover)
+        const gameType = await this.getGameType(igdbGame.game_type)
 
         const alternativeNames = await this.handleAlternativeNames(igdbGame.alternative_names)
         const videos = await this.handleVideos(igdbGame.videos)
@@ -86,6 +88,7 @@ export class IgdbService {
             ...game,
             parent,
             versionParent,
+            type: gameType,
             ...(cover ? { cover } : undefined),
             ...(alternativeNames ? { alternativeNames } : undefined),
             ...(platforms ? { platforms } : undefined),
@@ -171,6 +174,21 @@ export class IgdbService {
                 }),
             })
         }
+    }
+
+    async getGameType(igdbGameType: { id: number; type: string }): Promise<GameType> {
+        const gameType = await this.gameTypeRepository.findOne({
+            where: {
+                igdbId: igdbGameType.id,
+            },
+        })
+        if (gameType !== null) {
+            return gameType
+        }
+        return this.gameTypeRepository.create({
+            igdbId: igdbGameType.id,
+            type: igdbGameType.type,
+        })
     }
 
     updateOrCreateGame(game: Game, oldGame: Game | null): Promise<Game> {

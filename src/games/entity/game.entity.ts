@@ -24,6 +24,7 @@ import { Platform } from './platform.entity'
 import { Screenshot } from './screenshot.entity'
 import { Theme } from './theme.entity'
 import { Video } from './video.entity'
+import { GameType } from './game-type.entity'
 
 @Entity()
 export class Game {
@@ -32,10 +33,6 @@ export class Game {
 
     @Column({ unique: true })
     igdbId: number
-
-    @Column()
-    @Expose({ groups: ['lobby-answer-reveal', 'game-list'] })
-    category: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 
     @Column({ type: 'date', nullable: true })
     firstReleaseDate: Date | null
@@ -81,6 +78,9 @@ export class Game {
 
     @ManyToMany(() => User, (user) => user.games)
     users: User[]
+
+    @ManyToOne(() => GameType, { cascade: ['insert'] })
+    type: GameType
 
     countUsers: number
 
