@@ -63,20 +63,20 @@ export class LobbyMusicLoaderService {
             .groupBy('game.id')
             .orderBy('RAND()')
 
-        // Fetch from the top 100 games for public lobbies EASY and MEDIUM
+        // Fetch from the top 250 games for public lobbies EASY and MEDIUM
         if (['EASY', 'MEDIUM'].includes(lobby.code)) {
-            const top100Games: { count: number; gameId: number }[] = await this.datasource
+            const top250Games: { count: number; gameId: number }[] = await this.datasource
                 .createQueryBuilder()
                 .select('COUNT(*)', 'count')
                 .addSelect('gameId')
                 .from('user_games', 'ug')
                 .groupBy('ug.gameId')
                 .orderBy('count', 'DESC')
-                .limit(100)
+                .limit(250)
                 .getRawMany()
 
-            gameQueryBuilder.andWhere('game.id IN (:top100Games)', {
-                top100Games: top100Games.map((game) => game.gameId),
+            gameQueryBuilder.andWhere('game.id IN (:top250Games)', {
+                top250Games: top250Games.map((game) => game.gameId),
             })
         }
 
