@@ -2,31 +2,34 @@ import { Readable } from 'stream'
 
 import {
     DeleteObjectCommand,
-    DeleteObjectCommandOutput,
     GetObjectCommand,
-    GetObjectCommandOutput,
     PutObjectCommand,
-    PutObjectCommandOutput,
     S3Client,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { StorageService } from '../storage.interface'
 
 @Injectable()
-export class S3Service {
-    private client: S3Client
-    private bucketName?: string = this.configService.get('AMAZON_S3_BUCKET')
-    private readonly logger = new Logger(S3Service.name)
+export class S3StorageService implements StorageService {
+    private readonly client: S3Client
+    private readonly bucketName?: string
+    private readonly logger = new Logger(S3StorageService.name)
 
-    constructor(private configService: ConfigService) {
-        const accessId = this.configService.get('AMAZON_S3_ID')
-        const secretKey = this.configService.get('AMAZON_S3_SECRET')
-        if (!accessId || !secretKey || !this.bucketName) {
-            throw new InternalServerErrorException('missing amazon credentials')
+    constructor(
+        private configService: ConfigService,
+        type: 'PRIVATE' | 'PUBLIC',
+    ) {
+        const accessId = this.configService.get(`${type}_S3_ID`)
+        const secretKey = this.configService.get(`${type}_S3_SECRET`)
+        const region = this.configService.get(`${type}_S3_REGION`)
+        this.bucketName = this.configService.get(`${type}_S3_BUCKET`)
+        if (!accessId || !secretKey || region || !this.bucketName) {
+            throw new InternalServerErrorException(`}missing ${type} amazon credentials`)
         }
         this.client = new S3Client({
-            region: 'eu-west-3',
+            region,
             credentials: {
                 accessKeyId: accessId,
                 secretAccessKey: secretKey,
@@ -34,31 +37,28 @@ export class S3Service {
         })
     }
 
-    async putObject(
-        filePath: string,
-        file: Buffer,
-        bucketName?: string,
-    ): Promise<PutObjectCommandOutput> {
-        return this.client.send(
+    async putObject(filePath: string, file: Buffer): Promise<void> {
+        await this.client.send(
             new PutObjectCommand({
-                Bucket: bucketName ?? this.bucketName,
+                Bucket: this.bucketName,
                 Key: filePath,
                 Body: file,
             }),
         )
     }
 
-    async getObject(filePath: string): Promise<GetObjectCommandOutput> {
+    async getObject(filePath: string): Promise<Buffer<ArrayBufferLike>> {
         this.logger.log({ msg: `getting object for ${filePath}`, from: 'getObject' })
-        return this.client.send(
+        const object = await this.client.send(
             new GetObjectCommand({
                 Bucket: this.bucketName,
                 Key: filePath,
             }),
         )
+        return this.streamToBuffer(object.Body as Readable)
     }
 
-    async getSignedUrl(filePath: string): Promise<string> {
+    async getPublicUrl(filePath: string): Promise<string> {
         this.logger.log({ msg: `getting signed url for ${filePath}`, from: 'getSignedUrl' })
         return getSignedUrl(
             this.client,
@@ -69,8 +69,8 @@ export class S3Service {
         )
     }
 
-    async deleteObject(filePath: string): Promise<DeleteObjectCommandOutput> {
-        return this.client.send(
+    async deleteObject(filePath: string): Promise<void> {
+        await this.client.send(
             new DeleteObjectCommand({
                 Bucket: this.bucketName,
                 Key: filePath,
@@ -78,7 +78,7 @@ export class S3Service {
         )
     }
 
-    async streamToBuffer(stream: Readable): Promise<Buffer> {
+    private async streamToBuffer(stream: Readable): Promise<Buffer> {
         return new Promise((resolve, reject) => {
             const chunks: any[] = []
             stream.on('data', (chunk: any) => {

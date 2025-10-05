@@ -1,23 +1,18 @@
 import * as path from 'path'
-import { Readable } from 'stream'
 
 import {
     DeleteByQueryResponse,
     IndexResponse,
     UpdateByQueryResponse,
 } from '@elastic/elasticsearch/lib/api/types'
-import { InjectQueue } from '@nestjs/bull'
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Queue } from 'bull'
 import { extension } from 'mime-types'
 import { Brackets, Repository } from 'typeorm'
 
 import { DiscordService } from '../../discord/discord.service'
 import { File } from '../../entity/file.entity'
-import { S3Service } from '../../s3/s3.service'
 import { User } from '../../users/user.entity'
 import { GameSearchSortBy } from '../dto/games-search.dto'
 import { AlternativeName } from '../entity/alternative-name.entity'
@@ -30,6 +25,8 @@ import { Game } from '../entity/game.entity'
 import { Music } from '../entity/music.entity'
 import GameNameSearchBody from '../types/game-name-search-body.interface'
 import { Vibrant } from 'node-vibrant/node'
+import { StorageService } from '../../storage/storage.interface'
+import { PRIVATE_STORAGE, PUBLIC_STORAGE } from '../../storage/storage.constants'
 
 @Injectable()
 export class GamesService {
@@ -45,9 +42,8 @@ export class GamesService {
         @InjectRepository(GameAlbum) private gameAlbumRepository: Repository<GameAlbum>,
         @InjectRepository(Collection) private collectionRepository: Repository<Collection>,
         private elasticsearchService: ElasticsearchService,
-        private s3Service: S3Service,
-        @InjectQueue('game') private gameQueue: Queue,
-        private configService: ConfigService,
+        @Inject(PRIVATE_STORAGE) private privateStorageService: StorageService,
+        @Inject(PUBLIC_STORAGE) private publicStorageService: StorageService,
         private discordService: DiscordService,
     ) {}
     async findByName(
@@ -187,7 +183,7 @@ export class GamesService {
             const filePath = `${game.slug}/${Math.random().toString(36).slice(2, 9)}${path.extname(
                 file.originalname,
             )}`
-            await this.s3Service.putObject(filePath, file.buffer)
+            await this.privateStorageService.putObject(filePath, file.buffer)
             const album = await this.generateAlbum(metadata, game, user)
             const title = metadata.common.title ?? file.originalname
             const artist = metadata.common.artist ?? 'unknown artist'
@@ -254,12 +250,7 @@ export class GamesService {
                     const coverExtension = extension(metadataCover.format)
                     if (coverExtension !== false) {
                         const coverPath = `games/${game.slug}/album-${album.id}.${coverExtension}`
-                        await this.s3Service.putObject(
-                            coverPath,
-
-                            metadataCover.data,
-                            this.configService.get('AMAZON_S3_PUBLIC_BUCKET'),
-                        )
+                        await this.publicStorageService.putObject(coverPath, metadataCover.data)
                         album = this.gameAlbumRepository.create({
                             ...album,
                             cover: this.fileRepository.create({
@@ -611,8 +602,7 @@ export class GamesService {
         // eslint-disable-next-line import/no-unresolved
         const mm = await import('music-metadata')
         for (const gameToMusic of game.musics) {
-            const file = await this.s3Service.getObject(gameToMusic.music.file.path)
-            const buffer = await this.s3Service.streamToBuffer(file.Body as Readable)
+            const buffer = await this.privateStorageService.getObject(gameToMusic.music.file.path)
             const metadata = await mm.parseBuffer(buffer, gameToMusic.music.file.mimeType, {
                 duration: true,
             })
