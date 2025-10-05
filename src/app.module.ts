@@ -19,9 +19,12 @@ import { MailModule } from './mail/mail.module'
 import { MusicsModule } from './musics/musics.module'
 import { OauthModule } from './oauth/oauth.module'
 import { RedisModule } from './redis/redis.module'
-import { S3Service } from './s3/s3.service'
 import { FileSubscriber } from './subscribers/file.subscriber'
 import { UsersModule } from './users/users.module'
+import { StorageModule } from './storage/storage.module'
+import { ServeStaticModule } from '@nestjs/serve-static'
+import { join } from 'path'
+import * as process from 'node:process'
 
 @Module({
     imports: [
@@ -81,7 +84,12 @@ import { UsersModule } from './users/users.module'
             }),
             inject: [ConfigService],
         }),
+        ServeStaticModule.forRoot({
+            rootPath: join(process.cwd(), 'upload/public'),
+            serveRoot: '/public',
+        }),
         ScheduleModule.forRoot(),
+        StorageModule,
         UsersModule,
         AuthModule,
         GamesModule,
@@ -95,7 +103,7 @@ import { UsersModule } from './users/users.module'
         RedisModule,
     ],
     controllers: [AppController],
-    providers: [AppService, FileSubscriber, S3Service],
+    providers: [AppService, FileSubscriber],
 })
 export class AppModule {
     constructor(private dataSource: DataSource) {}

@@ -8,7 +8,6 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { DiscordHttpService } from '../discord/discord.http.service'
 import { DiscordService } from '../discord/discord.service'
 import { File } from '../entity/file.entity'
-import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { AdminGamesController } from './admin-games.controller'
 import { AlternativeName } from './entity/alternative-name.entity'
@@ -109,7 +108,6 @@ import { GameType } from './entity/game-type.entity'
         GameSubscriber,
         AlternativeNameSubscriber,
         MusicAccuracySubscriber,
-        S3Service,
         IgdbWebhookProcessor,
         GameProcessor,
         CollectionSubscriber,

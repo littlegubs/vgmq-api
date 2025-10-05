@@ -16,7 +16,6 @@ import { Theme } from '../games/entity/theme.entity'
 import { Video } from '../games/entity/video.entity'
 import { OauthPatreon } from '../oauth/entities/oauth-patreon.entity'
 import { PatreonService } from '../oauth/services/patreon.service'
-import { S3Service } from '../s3/s3.service'
 import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
 import { LobbyCollectionFilter } from './entities/lobby-collection-filter.entity'
@@ -80,7 +79,6 @@ import { LobbyStatService } from './services/lobby-stat.service'
         LobbyProcessor,
         LobbySubscriber,
         LobbyUserSubscriber,
-        S3Service,
         LobbyUserService,
         UsersService,
         LobbyMusicLoaderService,

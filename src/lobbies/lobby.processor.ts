@@ -11,7 +11,7 @@ import {
     OnQueueCompleted,
     OnQueueFailed,
 } from '@nestjs/bull'
-import { Logger } from '@nestjs/common'
+import { Inject, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Job, Queue } from 'bull'
@@ -19,8 +19,6 @@ import dayjs from 'dayjs'
 import { In, Not, Repository } from 'typeorm'
 
 import { MusicAccuracy } from '../games/entity/music-accuracy.entity'
-import { S3Service } from '../s3/s3.service'
-import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user.entity'
@@ -29,25 +27,21 @@ import { LobbyGateway } from './lobby.gateway'
 import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyStatService } from './services/lobby-stat.service'
+import { StorageService } from '../storage/storage.interface'
+import { PRIVATE_STORAGE } from '../storage/storage.constants'
 
 @Processor('lobby')
 export class LobbyProcessor {
     constructor(
         private lobbyGateway: LobbyGateway,
-        @InjectRepository(Lobby)
-        private lobbyRepository: Repository<Lobby>,
-        @InjectRepository(LobbyMusic)
-        private lobbyMusicRepository: Repository<LobbyMusic>,
-        @InjectRepository(LobbyUser)
-        private lobbyUserRepository: Repository<LobbyUser>,
-        @InjectRepository(User)
-        private userRepository: Repository<User>,
-        @InjectRepository(MusicAccuracy)
-        private musicAccuracyRepository: Repository<MusicAccuracy>,
+        @InjectRepository(Lobby) private lobbyRepository: Repository<Lobby>,
+        @InjectRepository(LobbyMusic) private lobbyMusicRepository: Repository<LobbyMusic>,
+        @InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>,
+        @InjectRepository(MusicAccuracy) private musicAccuracyRepository: Repository<MusicAccuracy>,
         @InjectQueue('lobby') private lobbyQueue: Queue,
         private lobbyUserService: LobbyUserService,
         private userService: UsersService,
-        private s3Service: S3Service,
+        @Inject(PRIVATE_STORAGE) private privateStorageService: StorageService,
         private lobbyMusicLoaderService: LobbyMusicLoaderService,
         private configService: ConfigService,
         private lobbyStatService: LobbyStatService,
@@ -166,7 +160,7 @@ export class LobbyProcessor {
             this.lobbyGateway.sendUpdateToRoom(lobby)
         }
         const gameToMusic = lobbyMusic.gameToMusic
-        const url = await this.s3Service.getSignedUrl(gameToMusic.music.file.path)
+        const url = await this.privateStorageService.getPublicUrl(gameToMusic.music.file.path)
         const ffmpegPath = this.configService.get<string>('FFMPEG_PATH')
         if (ffmpegPath === undefined) {
             throw new Error('FFMPEG_PATH could not be found.')

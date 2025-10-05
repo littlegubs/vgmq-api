@@ -1,11 +1,10 @@
-import { Readable } from 'stream'
-
 import {
     BadRequestException,
     Body,
     Controller,
     Delete,
     Get,
+    Inject,
     NotFoundException,
     Param,
     Patch,
@@ -22,7 +21,6 @@ import { Repository } from 'typeorm'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { DiscordService } from '../discord/discord.service'
-import { S3Service } from '../s3/s3.service'
 import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
@@ -32,6 +30,8 @@ import { GameToMusicEditDto } from './dto/game-to-music-edit.dto'
 import { LinkGameToMusicDto } from './dto/link-game-to-music.dto'
 import { GameToMusic, GameToMusicType } from './entity/game-to-music.entity'
 import { Game } from './entity/game.entity'
+import { StorageService } from '../storage/storage.interface'
+import { PRIVATE_STORAGE } from '../storage/storage.constants'
 
 @Controller('admin/game-to-music')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,7 +40,7 @@ export class GameToMusicController {
     constructor(
         @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
         @InjectRepository(Game) private gameRepository: Repository<Game>,
-        private s3Service: S3Service,
+        @Inject(PRIVATE_STORAGE) private privatesStorageService: StorageService,
         private discordService: DiscordService,
         private configService: ConfigService,
     ) {}
@@ -90,8 +90,7 @@ export class GameToMusicController {
         if (!gameToMusic) {
             throw new NotFoundException()
         }
-        const file = await this.s3Service.getObject(gameToMusic.music.file.path)
-        const buffer = await this.s3Service.streamToBuffer(file.Body as Readable)
+        const buffer = await this.privatesStorageService.getObject(gameToMusic.music.file.path)
         res.set({
             'Content-Type': 'audio/mpeg',
         })

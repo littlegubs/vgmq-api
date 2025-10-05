@@ -5,6 +5,7 @@ import {
     Body,
     Controller,
     Delete,
+    Inject,
     NotFoundException,
     Param,
     Patch,
@@ -13,7 +14,6 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Request } from 'express'
@@ -22,7 +22,6 @@ import { Repository } from 'typeorm'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { DiscordService } from '../discord/discord.service'
 import { File } from '../entity/file.entity'
-import { S3Service } from '../s3/s3.service'
 import { Role } from '../users/role.enum'
 import { Roles } from '../users/roles.decorator'
 import { RolesGuard } from '../users/roles.guard'
@@ -31,7 +30,8 @@ import { GameAlbumDto } from './dto/game-album.dto'
 import { GameAlbum } from './entity/game-album.entity'
 import { Game } from './entity/game.entity'
 import { GamesService } from './services/games.service'
-import { IgdbService } from './services/igdb.service'
+import { StorageService } from '../storage/storage.interface'
+import { PUBLIC_STORAGE } from '../storage/storage.constants'
 
 @Controller('admin/game-album')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -39,12 +39,9 @@ import { IgdbService } from './services/igdb.service'
 export class GameAlbumController {
     constructor(
         private gamesService: GamesService,
-        private igdbService: IgdbService,
         @InjectRepository(GameAlbum) private gameAlbumRepository: Repository<GameAlbum>,
-        @InjectRepository(Game) private gameRepository: Repository<Game>,
         @InjectRepository(File) private fileRepository: Repository<File>,
-        private configService: ConfigService,
-        private s3Service: S3Service,
+        @Inject(PUBLIC_STORAGE) private publicStorageService: StorageService,
         private discordService: DiscordService,
     ) {}
 
@@ -137,11 +134,7 @@ export class GameAlbumController {
         const coverPath = `games/${gameAlbum.game.slug}/${Math.random()
             .toString(36)
             .slice(2, 9)}${extname(file.originalname)}`
-        await this.s3Service.putObject(
-            coverPath,
-            file.buffer,
-            this.configService.get('AMAZON_S3_PUBLIC_BUCKET'),
-        )
+        await this.publicStorageService.putObject(coverPath, file.buffer)
         gameAlbum = await this.gameAlbumRepository.save({
             ...gameAlbum,
             cover: this.fileRepository.create({
