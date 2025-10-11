@@ -91,7 +91,7 @@ import { dataSourceOptions } from '../ormconfig'
         LobbyModule,
         MailModule,
         AdminModule,
-        OauthModule,
+        OauthModule.register(),
         DiscordModule,
         RedisModule,
     ],
