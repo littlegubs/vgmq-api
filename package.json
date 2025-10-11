@@ -20,6 +20,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "typeorm-ts-node-commonjs -d ormconfig.ts",
+    "db:create": "typeorm-extension db:create -d ormconfig.ts",
+    "db:update-schema": "npm run typeorm schema:sync && npm run typeorm migration:run -- --fake",
+    "db:seed": "npm run build && typeorm-extension seed:run -d ormconfig.ts && node dist/src/seed-games",
     "populate-elasticsearch": "node dist/src/populate-elasticsearch",
     "generate-albums": "node dist/src/generate-albums",
     "files:s3": "node dist/src/move-files-to-s3",
@@ -76,7 +79,7 @@
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.1",
     "typedi": "^0.10.0",
-    "typeorm": "^0.3.22"
+    "typeorm": "^0.3.27"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.6",
@@ -111,7 +114,8 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.8.1"
+    "typescript-eslint": "^8.8.1",
+    "typeorm-extension": "^3.7.1"
   },
   "optionalDependencies": {
     "@css-inline/css-inline-linux-x64-gnu": "0.14.3"

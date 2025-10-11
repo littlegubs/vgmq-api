@@ -1,8 +1,9 @@
-// @ts-nocheck
 import { existsSync } from 'fs'
 
 import * as dotenv from 'dotenv'
-import { DataSource } from 'typeorm'
+import { DataSource, DataSourceOptions } from 'typeorm'
+import { SeederOptions } from 'typeorm-extension'
+import * as process from 'node:process'
 
 let envPath
 
@@ -22,25 +23,19 @@ if (!envPath) {
 }
 
 const env = dotenv.config({ path: envPath })
-
-export const AppDataSource = new DataSource({
+export const dataSourceOptions: DataSourceOptions & SeederOptions = {
     type: 'mysql',
     host: env.parsed?.DATABASE_HOST,
+    // @ts-ignore
     port: env.parsed?.DATABASE_PORT,
     username: env.parsed?.DATABASE_USERNAME,
     password: env.parsed?.DATABASE_PASSWORD,
     database: env.parsed?.DATABASE_NAME,
     logging: false,
-    entities: ['dist/**/*.entity{.ts,.js}'],
-    // entities: ['src/**/*.entity{.ts,.js}'],
-    migrations: ['src/migration/*.ts'],
-    // migrations: ['dist/migration/*{.ts,.js}'],
-})
+    entities: [__dirname + '/src/**/*.entity{.ts,.js}'],
+    migrations: [__dirname + '/src/migration/**/*{.ts,.js}'],
+    seeds: [__dirname + '/src/**/*.seeder{.ts,.js}'],
+    factories: [__dirname + 'src/**/*.factory{.ts,.js}'],
+}
 
-AppDataSource.initialize()
-    .then(() => {
-        console.log('Data Source has been initialized!')
-    })
-    .catch((err) => {
-        console.error('Error during Data Source initialization', err)
-    })
+export const dataSource = new DataSource(dataSourceOptions)

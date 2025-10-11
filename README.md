@@ -1,30 +1,4 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo_text.svg" width="320" alt="Nest Logo" /></a>
-</p>
-
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+# VGMQ API
 
 ## Installation
 
@@ -38,6 +12,32 @@ $ make start
 
 ```bash
 $ npm install
+```
+
+### Create a `.env.local` file
+
+Copy the `.env` file and name it `.env.local`.
+This is used to override the variables set in the `.env` file. It is ignored by Git.
+
+### (optional) Retrieve your Twitch access id/secret
+
+While optional, this is useful for instantiating the database with games, and overall import games.
+
+Follow the [IGDB documentation](https://api-docs.igdb.com/#getting-started) to create your account and retrieve your access id and secret.
+
+Then, set these values in their respective variables in `.env.local`:
+```bash
+TWITCH_CLIENT_ID=YOUR_TWITCH_CLIENT_ID
+TWITCH_CLIENT_SECRET=YOUR_TWITCH_CLIENT_SECRET
+```
+
+
+### Instantiate the database
+
+```bash
+$ npm db:create
+$ npm db:update-schema
+$ npm db:seed
 ```
 
 ## Running the app
@@ -56,6 +56,7 @@ $ npm run start:prod
 ## Accounts
 
 The fake database comes with 5 accounts with the same password: `yoyo`
+- superadmin@vgmq.com
 - admin1@vgmq.com
 - admin2@vgmq.com
 - user1@vgmq.com
@@ -63,23 +64,11 @@ The fake database comes with 5 accounts with the same password: `yoyo`
 - user3@vgmq.com
 
 
-## Test
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
 ## database
 
 the database can be seen at http://localhost:8080/ (user: root, password: yoyo)
 
-## Update database
+## Updating the database schema
 
 When updating an Entity, TypeORM will not update the database automatically, as it is unsafe to do so. We work with migrations.
 
