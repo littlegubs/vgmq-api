@@ -131,6 +131,9 @@ export class GameAlbumController {
         if (!gameAlbum) {
             throw new NotFoundException()
         }
+        if (gameAlbum.cover) {
+            await this.fileRepository.remove(gameAlbum.cover)
+        }
         const coverPath = `games/${gameAlbum.game.slug}/${Math.random()
             .toString(36)
             .slice(2, 9)}${extname(file.originalname)}`

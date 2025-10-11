@@ -4,12 +4,14 @@ import {
     EntitySubscriberInterface,
     EventSubscriber,
     InsertEvent,
+    RemoveEvent,
     UpdateEvent,
 } from 'typeorm'
 
 import { DiscordService } from '../../discord/discord.service'
 import { GameAlbum } from '../entity/game-album.entity'
 import { Game } from '../entity/game.entity'
+import { File } from '../../entity/file.entity'
 
 @EventSubscriber()
 export class GameAlbumcSubscriber implements EntitySubscriberInterface<GameAlbum> {
@@ -82,6 +84,12 @@ export class GameAlbumcSubscriber implements EntitySubscriberInterface<GameAlbum
             }
         } catch (e) {
             console.error(e)
+        }
+    }
+
+    async afterRemove(event: RemoveEvent<GameAlbum>): Promise<void> {
+        if (event.entity?.cover) {
+            await event.manager.remove(File, event.entity.cover)
         }
     }
 }
