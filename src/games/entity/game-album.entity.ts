@@ -23,7 +23,7 @@ export class GameAlbum {
     @Column()
     name: string
 
-    @OneToOne(() => File, { eager: true, cascade: true })
+    @OneToOne(() => File, { eager: true, cascade: true, onDelete: 'SET NULL' })
     @JoinColumn()
     cover?: File
 
