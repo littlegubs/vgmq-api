@@ -930,6 +930,16 @@ export class LobbyMusicLoaderService {
             .getMany()
         hintModeGames = [...hintModeGames, ...gamesWithMusics]
         if (hintModeGames.length === 4) return hintModeGames
+        const games = await this.gameRepository
+            .createQueryBuilder('game')
+            .select('game.id')
+            .andWhere('game.id not in (:ids)', { ids: excludedGamesIds })
+            .groupBy('game.id')
+            .limit(4 - hintModeGames.length)
+            .orderBy('RAND()')
+            .getMany()
+        hintModeGames = [...hintModeGames, ...games]
+        if (hintModeGames.length === 4) return hintModeGames
         throw new InternalServerErrorException()
     }
 

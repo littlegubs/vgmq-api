@@ -221,6 +221,9 @@ export class IgdbService {
     }
 
     async handleVideos(igdbVideos?: IgdbGame['videos']): Promise<Array<Video | undefined>> {
+        if (!this.configService.get('YOUTUBE_API_AUTH')) {
+            return [undefined]
+        }
         const youtubeApi = youtube({
             version: 'v3',
             auth: this.configService.get('YOUTUBE_API_AUTH'),
