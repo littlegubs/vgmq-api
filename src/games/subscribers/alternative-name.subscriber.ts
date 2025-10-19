@@ -13,7 +13,7 @@ import { GamesService } from '../services/games.service'
 @EventSubscriber()
 export class AlternativeNameSubscriber implements EntitySubscriberInterface<AlternativeName> {
     constructor(
-        connection: DataSource,
+        private connection: DataSource,
         private gameService: GamesService,
     ) {
         connection.subscribers.push(this)
@@ -42,8 +42,15 @@ export class AlternativeNameSubscriber implements EntitySubscriberInterface<Alte
         }
     }
     async beforeRemove(event: RemoveEvent<AlternativeName>): Promise<void> {
-        if (event.entity) {
-            await this.gameService.removeAlternativeName(event.entity)
+        if (!event.entityId) {
+            return
         }
+        const alternativeName = await event.manager.findOneBy(AlternativeName, {
+            id: event.entityId,
+        })
+        if (alternativeName === null) {
+            return
+        }
+        await this.gameService.removeAlternativeName(alternativeName)
     }
 }
