@@ -18,7 +18,7 @@ services:
         depends_on:
             - db
         environment:
-            UPLOAD_LIMIT: 300M
+            UPLOAD_LIMIT: 600M
     redis:
         image: redis:alpine
         container_name: vgmq-api-redis
