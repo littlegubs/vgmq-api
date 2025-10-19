@@ -127,6 +127,13 @@ export class UsersController {
         }
     }
 
+    @Get('username/keep')
+    async keepUsername(@Req() request: Request): Promise<void> {
+        const user = request.user as User
+
+        await this.userRepository.save({ ...user, usernameUpdatedAt: new Date() })
+    }
+
     @Delete('')
     async delete(@Req() request: Request): Promise<void> {
         const user = request.user as User
@@ -141,5 +148,11 @@ export class UsersController {
                     currentHashedRefreshToken: null,
                 }),
             ))
+    }
+
+    @Get('should-change-username')
+    shouldChangeUsername(@Req() request: Request): boolean {
+        const user = request.user as User
+        return user.password === null && user.usernameUpdatedAt === null
     }
 }
