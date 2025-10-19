@@ -238,18 +238,22 @@ export class GamesService {
                 where: { name: metadataAlbum, game: { id: game.id } },
             })
             if (album === null) {
-                album = this.gameAlbumRepository.create({
-                    game,
-                    name: metadataAlbum,
-                    date: String(metadata.common.year),
-                    createdBy: user,
-                    updatedBy: user,
-                })
+                album = await this.gameAlbumRepository.save(
+                    this.gameAlbumRepository.create({
+                        game,
+                        name: metadataAlbum,
+                        date: String(metadata.common.year),
+                        createdBy: user,
+                        updatedBy: user,
+                    }),
+                )
                 const metadataCover = metadata.common.picture?.[0]
                 if (metadataCover !== undefined) {
                     const coverExtension = extension(metadataCover.format)
                     if (coverExtension !== false) {
-                        const coverPath = `games/${game.slug}/album-${album.id}.${coverExtension}`
+                        const coverPath = `games/${game.slug}/${Math.random()
+                            .toString(36)
+                            .slice(2, 9)}.${coverExtension}`
                         await this.publicStorageService.putObject(coverPath, metadataCover.data)
                         album = this.gameAlbumRepository.create({
                             ...album,
