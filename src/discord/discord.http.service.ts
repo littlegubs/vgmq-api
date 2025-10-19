@@ -6,18 +6,13 @@ import { Observable, of } from 'rxjs'
 
 @Injectable()
 export class DiscordHttpService {
-    private discordBotToken?: string
+    private readonly discordBotToken?: string
 
     constructor(
         private httpService: HttpService,
         private configService: ConfigService,
     ) {
-        const discordBotToken = this.configService.get('DISCORD_BOT_TOKEN')
-
-        if (discordBotToken === undefined) {
-            console.warn('no Discord bot token set, no Discord message will be sent')
-        }
-        this.discordBotToken = discordBotToken
+        this.discordBotToken = this.configService.get('DISCORD_BOT_TOKEN')
     }
 
     sendMessage(content: {
@@ -34,8 +29,8 @@ export class DiscordHttpService {
                 thumbnail?: { url: string }
             },
         ]
-    }): Observable<null> | Observable<AxiosResponse<any>> {
-        if (this.discordBotToken === undefined) {
+    }): Observable<null> | Observable<AxiosResponse> {
+        if (!this.discordBotToken) {
             console.warn('no Discord bot token set, no Discord message will be sent')
             return of(null)
         }
