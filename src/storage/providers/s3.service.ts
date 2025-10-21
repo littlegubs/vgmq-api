@@ -25,8 +25,8 @@ export class S3StorageService implements StorageService {
         const secretKey = this.configService.get(`${type}_S3_SECRET`)
         const region = this.configService.get(`${type}_S3_REGION`)
         this.bucketName = this.configService.get(`${type}_S3_BUCKET`)
-        if (!accessId || !secretKey || region || !this.bucketName) {
-            throw new InternalServerErrorException(`}missing ${type} amazon credentials`)
+        if (!accessId || !secretKey || !region || !this.bucketName) {
+            throw new InternalServerErrorException(`missing ${type} amazon credentials`)
         }
         this.client = new S3Client({
             region,
