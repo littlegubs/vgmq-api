@@ -151,27 +151,23 @@ export class LobbyService {
     }
 
     async getMusicAccuracyRatio(lobby?: Lobby): Promise<number> {
-        const countGameToMusic = await this.gameToMusicRepository.count({
-            relations: {
-                music: true,
-            },
-            where: {
-                music: {
-                    duration: MoreThanOrEqual(lobby ? lobby.guessTime : 5),
-                },
-            },
-        })
-        const countGameToMusicWithAccuracy = await this.gameToMusicRepository.count({
-            relations: {
-                music: true,
-            },
-            where: {
-                music: {
-                    duration: MoreThanOrEqual(lobby ? lobby.guessTime : 5),
-                },
-                guessAccuracy: Not(IsNull()),
-            },
-        })
+        const minDuration = lobby ? lobby.guessTime : 5
+
+        const counts: { totalCount: string; countWithAccuracy: string } | undefined =
+            await this.gameToMusicRepository
+                .createQueryBuilder('gameToMusic')
+                .leftJoin('gameToMusic.music', 'music')
+                .where('music.duration >= :duration', { duration: minDuration })
+                .select('COUNT(gameToMusic.id)', 'totalCount')
+                .addSelect(
+                    'COUNT(CASE WHEN gameToMusic.guessAccuracy IS NOT NULL THEN 1 END)',
+                    'countWithAccuracy',
+                )
+                .getRawOne()
+
+        const countGameToMusic = parseInt(counts!.totalCount, 10) || 0
+        const countGameToMusicWithAccuracy = parseInt(counts!.countWithAccuracy, 10) || 0
+
         let gameToMusicAccuracyRatio = countGameToMusicWithAccuracy / countGameToMusic
         // force at least a 10% chance of contributing missing data
         if (gameToMusicAccuracyRatio > 0.9) gameToMusicAccuracyRatio = 0.9
