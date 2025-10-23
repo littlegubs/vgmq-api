@@ -33,6 +33,7 @@ import { LobbyUserService } from './services/lobby-user.service'
 import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
 import { LobbyStatService } from './services/lobby-stat.service'
 import { OauthPatreon } from '../oauth/entities/oauth-patreon.entity'
+import { GameToMusic } from '../games/entity/game-to-music.entity'
 
 export function getHintModeGameNames(lobbyMusic: LobbyMusic): string[] {
     return shuffle(lobbyMusic.hintModeGames.map((game) => game.name))
@@ -61,6 +62,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         private lobbyFileGateway: LobbyFileGateway,
         private lobbyStatService: LobbyStatService,
         @InjectRepository(OauthPatreon) private oAuthPatreonRepository: Repository<OauthPatreon>,
+        @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
     ) {}
 
     @SubscribeMessage('join')
@@ -701,8 +703,20 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             where: { currentlyEntitledTiers: Not('') },
             order: { campaignLifetimeSupportCents: 'DESC' },
         })
+
+        const databaseContributors = await this.gameToMusicRepository
+            .createQueryBuilder('gtm')
+            .select('user.username', 'username')
+            .addSelect('count(gtm.id)', 'contributions')
+            .innerJoin('gtm.addedBy', 'user')
+            .groupBy('user.username')
+            .orderBy('contributions', 'DESC')
+            .getRawMany()
+
+        // SELECT count(*), addedById, username FROM vgmq.game_to_music join vgmq.user on user.id = addedById group by addedById;
         const data = {
             patreons: patreons.map((patreon) => patreon.user.username),
+            databaseContributors: databaseContributors.map((contributor) => contributor.username),
         }
 
         this.server.to(lobby.code).emit('result', data)
