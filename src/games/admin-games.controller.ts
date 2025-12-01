@@ -164,7 +164,7 @@ export class AdminGamesController {
             fileFilter(req, file, callback) {
                 if (
                     !['audio/mpeg', 'audio/mp3'].includes(file.mimetype) ||
-                    !new RegExp(/.\.(mp3)$/).test(file.originalname)
+                    !new RegExp(/.\.(mp3)$/i).test(file.originalname)
                 ) {
                     callback(new BadRequestException('File must be a valid mp3 file!'), false)
                 }
