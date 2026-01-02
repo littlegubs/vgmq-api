@@ -31,13 +31,13 @@ export class LobbyMusic {
     endAt = 0
 
     @Column({ type: 'boolean' })
+    loaded = false
+
+    @Column({ type: 'boolean' })
     @Expose({ groups: ['lobby-answer-reveal'] })
     contributeToMissingData = false
 
-    @ManyToOne(() => Lobby, (lobby) => lobby.lobbyMusics, {
-        orphanedRowAction: 'delete',
-        onDelete: 'CASCADE',
-    })
+    @ManyToOne(() => Lobby, (lobby) => lobby.lobbyMusics)
     lobby: Lobby
 
     @ManyToOne(() => GameToMusic, (gameToMusic) => gameToMusic.lobbyMusics, {

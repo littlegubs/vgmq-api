@@ -615,8 +615,8 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         this.server.to(lobby.code).emit('error', message)
     }
 
-    sendLobbyMusicToLoad(lobby: Lobby, buffer: Buffer): void {
-        this.lobbyFileGateway.sendBuffer(lobby.code, buffer)
+    sendCurrentLobbyMusicToLoad(lobby: Lobby): void {
+        this.server.to(lobby.code).emit('currentRoundBufferReady')
     }
 
     playMusic(lobbyMusic: LobbyMusic, client?: AuthenticatedSocket): void {
@@ -632,7 +632,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
     }
 
-    sendLobbyClosed(lobby: Lobby, message: string): void {
+    sendLobbyClosed(lobby: Lobby): void {
         this.server.in(lobby.code).disconnectSockets()
     }
 

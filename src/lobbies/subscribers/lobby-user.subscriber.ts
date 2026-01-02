@@ -10,6 +10,7 @@ import {
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
 import { Lobby } from '../entities/lobby.entity'
 import { LobbyGateway } from '../lobby.gateway'
+import { LobbyMusic } from '../entities/lobby-music.entity'
 
 @EventSubscriber()
 export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser> {
@@ -85,6 +86,7 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
             },
         })
         const lobby = await event.manager.findOne(Lobby, {
+            relations: { lobbyMusics: true },
             where: {
                 id: event.entity?.lobby.id,
             },
@@ -95,7 +97,7 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 return lobbyUser.user.premium
             })
         ) {
-            const lobby = event.manager.create(Lobby, { ...event.entity?.lobby, premium: false })
+            lobby.premium = false
             await event.manager.save(Lobby, lobby)
             this.lobbyGateway.sendUpdateToRoom(lobby)
             this.lobbyGateway.emitChat(lobby.code, null, `Lobby is no longer premium!`)
@@ -107,17 +109,18 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 .andWhere('lobbyUser.lobby = :lobby')
                 .andWhere('lobbyUser.role = :role')
                 .andWhere('lobbyUser.disconnected = 0')
-                .setParameter('lobby', event.entity?.lobby.id)
+                .setParameter('lobby', lobby!.id)
                 .setParameter('role', LobbyUserRole.Player)
                 .orderBy('RAND()')
                 .getOne()
             if (randomPlayer) {
                 await event.manager.save(LobbyUser, { ...randomPlayer, role: LobbyUserRole.Host })
             } else {
-                await event.manager.remove(Lobby, event.entity?.lobby)
-                this.lobbyGateway.sendLobbyClosed(event.entity?.lobby, 'The host left the lobby!')
+                await event.manager.remove(LobbyMusic, lobby!.lobbyMusics)
+                await event.manager.remove(Lobby, lobby)
+                this.lobbyGateway.sendLobbyClosed(lobby!)
             }
         }
-        await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby)
+        await this.lobbyGateway.sendLobbyUsers(lobby!)
     }
 }
