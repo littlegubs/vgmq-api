@@ -29,6 +29,8 @@ import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyStatService } from './services/lobby-stat.service'
 import { StorageService } from '../storage/storage.interface'
 import { PRIVATE_STORAGE } from '../storage/storage.constants'
+import path from 'node:path'
+import * as fs from 'node:fs'
 
 @Processor('lobby')
 export class LobbyProcessor {
@@ -139,13 +141,13 @@ export class LobbyProcessor {
             Object.assign(lobbyUser, {
                 ...lobbyUser,
                 correctAnswer: lobbyUser.correctAnswer || null,
+                status: null,
             }),
         )
         await this.lobbyUserRepository.save(lobbyUsers)
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
         this.logger.debug(`will call playMusic for lobby ${lobby.code}`)
-        console.log('from buffer music')
 
         await this.lobbyQueue
             .add('playMusic', lobbyMusic.lobby.code, {
@@ -187,9 +189,29 @@ export class LobbyProcessor {
         })
         this.logger.debug(`bufferMusic for ${lobby.code} could be stuck`)
         void new Promise((resolve, reject) => {
-            void ffmpegProcess.on('close', (code) => {
+            void ffmpegProcess.on('close', async (code) => {
                 this.lobbyGateway.sendLobbyBufferEnd(lobby!)
                 if (code === 0) {
+                    const finalBuffer = Buffer.concat(output)
+
+                    const clipsDir = path.join('.', 'upload', 'private', 'clips')
+                    const clipFilename = `lobby-${lobby!.code}-round-${lobbyMusic.position}.mp3`
+                    const clipPath = path.join(clipsDir, clipFilename)
+
+                    try {
+                        const dir = path.dirname(clipPath)
+                        fs.mkdirSync(dir, { recursive: true })
+                        fs.writeFileSync(clipPath, finalBuffer)
+                        lobbyMusic!.loaded = true
+                        await this.lobbyMusicRepository.save(lobbyMusic)
+                        this.logger.debug(`clip written: ${clipPath}`)
+                    } catch (error) {
+                        this.logger.error('Error while writing the clip file', error)
+                        console.log(error)
+                        reject('The server could not load the music')
+                        return
+                    }
+
                     lobbyUsers = lobbyUsers.map((lobbyUser) =>
                         Object.assign(lobbyUser, {
                             ...lobbyUser,
@@ -198,7 +220,7 @@ export class LobbyProcessor {
                     )
                     void this.lobbyUserRepository.save(lobbyUsers).then(() => {
                         void this.lobbyGateway.sendLobbyUsers(lobby!, lobbyUsers).then(() => {
-                            this.lobbyGateway.sendLobbyMusicToLoad(lobby!, Buffer.concat(output))
+                            this.lobbyGateway.sendCurrentLobbyMusicToLoad(lobby)
                         })
                     })
                     this.logger.debug(`nevermind! bufferMusic for ${lobby!.code} resolved`)
@@ -359,7 +381,6 @@ export class LobbyProcessor {
         this.lobbyGateway.playMusic(lobbyMusic)
         this.lobbyGateway.sendUpdateToRoom(lobby)
         this.logger.debug(`will call revealAnswer for lobby ${lobby.code}`)
-        console.log('pardon ???')
         await this.lobbyQueue
             .add('revealAnswer', lobby.code, {
                 delay: lobby.guessTime * 1000,
@@ -574,13 +595,13 @@ export class LobbyProcessor {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
+        await this.lobbyMusicRepository.remove(lobby.lobbyMusics)
         lobby = this.lobbyRepository.create(
             await this.lobbyRepository.save({
                 ...lobby,
                 status: LobbyStatuses.Waiting,
                 loopsWithNoUsers: 0,
                 currentLobbyMusicPosition: null,
-                lobbyMusics: [],
             }),
         )
         await this.lobbyQueue.removeJobs(`*${lobbyCode}*`)

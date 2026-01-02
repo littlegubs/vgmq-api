@@ -11,6 +11,7 @@ import {
     Query,
     Req,
     SerializeOptions,
+    StreamableFile,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common'
@@ -30,7 +31,9 @@ import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyService } from './services/lobby.service'
-import dayjs from 'dayjs'
+import fs from 'node:fs'
+import path from 'node:path'
+import { LobbyMusic } from './entities/lobby-music.entity'
 
 @Controller('lobbies')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,6 +43,7 @@ export class LobbyController {
         private lobbyService: LobbyService,
         @InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>,
         @InjectRepository(Game) private gameRepository: Repository<Game>,
+        @InjectRepository(LobbyMusic) private lobbyMusicRepository: Repository<LobbyMusic>,
         private lobbyGateway: LobbyGateway,
     ) {}
 
@@ -47,7 +51,6 @@ export class LobbyController {
     @SerializeOptions({ groups: ['lobby-list'] })
     @Get('')
     getAll(@Query() query: LobbySearchDto): Promise<Lobby[]> {
-        console.log(dayjs().unix())
         return this.lobbyService.findByName(query.query)
     }
 
@@ -97,6 +100,43 @@ export class LobbyController {
         for (const lobby of lobbies) {
             this.lobbyGateway.emitChat(lobby.code, null, data.message)
         }
+    }
+
+    @Get('/music/current')
+    async getCurrentRoundMusic(@Req() request: Request): Promise<StreamableFile> {
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: {
+                user: true,
+                lobby: true,
+            },
+            where: {
+                user: {
+                    id: (<User>request.user).id,
+                },
+            },
+        })
+        if (lobbyUser === null) {
+            throw new ForbiddenException()
+        }
+        const lobbyMusic = await this.lobbyMusicRepository.findOne({
+            relations: { lobby: true },
+            where: {
+                lobby: { id: lobbyUser.lobby.id },
+                loaded: true,
+            },
+            order: {
+                id: 'DESC',
+            },
+        })
+        if (!lobbyMusic) {
+            throw new NotFoundException()
+        }
+        const clipsDir = path.join('.', 'upload', 'private', 'clips')
+        const clipFilename = `lobby-${lobbyUser.lobby.code}-round-${lobbyMusic.position}.mp3`
+        const clipPath = path.join(clipsDir, clipFilename)
+        const buffer = fs.readFileSync(clipPath)
+
+        return new StreamableFile(buffer)
     }
 
     @Put(':code')

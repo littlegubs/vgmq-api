@@ -35,6 +35,7 @@ import { LobbyService } from './services/lobby.service'
 import { LobbyUserSubscriber } from './subscribers/lobby-user.subscriber'
 import { LobbySubscriber } from './subscribers/lobby.subscriber'
 import { LobbyStatService } from './services/lobby-stat.service'
+import { LobbyMusicSubscriber } from './subscribers/lobby-music.subscriber'
 
 @Module({
     controllers: [LobbyController],
@@ -79,6 +80,7 @@ import { LobbyStatService } from './services/lobby-stat.service'
         LobbyProcessor,
         LobbySubscriber,
         LobbyUserSubscriber,
+        LobbyMusicSubscriber,
         LobbyUserService,
         UsersService,
         LobbyMusicLoaderService,

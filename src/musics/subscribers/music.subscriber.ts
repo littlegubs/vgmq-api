@@ -1,13 +1,11 @@
-import * as fs from 'fs'
-
-import { Connection, EntitySubscriberInterface, EventSubscriber, RemoveEvent } from 'typeorm'
+import { DataSource, EntitySubscriberInterface, EventSubscriber, RemoveEvent } from 'typeorm'
 
 import { File } from '../../entity/file.entity'
 import { Music } from '../../games/entity/music.entity'
 
 @EventSubscriber()
 export class MusicSubscriber implements EntitySubscriberInterface<Music> {
-    constructor(connection: Connection) {
+    constructor(connection: DataSource) {
         connection.subscribers.push(this)
     }
 
