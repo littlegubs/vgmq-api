@@ -27,6 +27,8 @@ import GameNameSearchBody from '../types/game-name-search-body.interface'
 import { Vibrant } from 'node-vibrant/node'
 import { StorageService } from '../../storage/storage.interface'
 import { PRIVATE_STORAGE, PUBLIC_STORAGE } from '../../storage/storage.constants'
+import { ConfigService } from '@nestjs/config'
+import { spawn } from 'child_process'
 
 @Injectable()
 export class GamesService {
@@ -45,6 +47,7 @@ export class GamesService {
         @Inject(PRIVATE_STORAGE) private privateStorageService: StorageService,
         @Inject(PUBLIC_STORAGE) private publicStorageService: StorageService,
         private discordService: DiscordService,
+        private configService: ConfigService,
     ) {}
     async findByName(
         query: string,
@@ -180,6 +183,11 @@ export class GamesService {
                 duration: true,
                 skipPostHeaders: true,
             })
+
+            const exactDuration = await this.getExactMusicDuration(file.buffer).catch((err) => {
+                console.warn('ffprobe failed, falling back to metadata guess', err)
+                return metadata.format.duration
+            })
             const filePath = `${game.slug}/${Math.random().toString(36).slice(2, 9)}${path.extname(
                 file.originalname,
             )}`
@@ -200,7 +208,7 @@ export class GamesService {
                     music: this.musicRepository.create({
                         title,
                         artist,
-                        duration: metadata.format.duration,
+                        duration: exactDuration,
                         disk,
                         track,
                         file: this.fileRepository.create({
@@ -224,6 +232,61 @@ export class GamesService {
         } catch (e) {
             console.error(e)
         }
+    }
+
+    private async getExactMusicDuration(buffer: Buffer): Promise<number> {
+        return new Promise((resolve, reject) => {
+            const ffmpegPath = this.configService.get<string>('FFMPEG_PATH') ?? 'ffmpeg'
+            const ffmpegArgs = this.configService.get<string>('FFMPEG_ARGS') ?? ''
+
+            // The magic command:
+            // -i pipe:0 : Read from stdin
+            // -vn       : Ignore all video/image streams (drops the cover art)
+            // -f null - : Throw the output away
+            const commandArgs = `${ffmpegArgs} -i pipe:0 -vn -f null -`
+
+            const ffmpegProcess = spawn(ffmpegPath, commandArgs.split(' ').filter(Boolean), {
+                env: process.env,
+                shell: true,
+            })
+
+            let stderrOutput = ''
+
+            // Note: ffmpeg logs its progress to stderr, NOT stdout!
+            ffmpegProcess.stderr.on('data', (data: Buffer) => {
+                stderrOutput += data.toString()
+            })
+
+            // Keep stdout drained just in case
+            ffmpegProcess.stdout.on('data', () => {})
+
+            ffmpegProcess.on('close', () => {
+                const timeMatches = stderrOutput.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d+)/g)
+                const lastTime = timeMatches ? timeMatches[timeMatches.length - 1] : undefined
+
+                if (lastTime) {
+                    const timeString = lastTime.replace('time=', '') // "00:00:28.47"
+
+                    const parts = timeString.split(':')
+                    const hours = parseInt(parts[0] ?? '0', 10)
+                    const minutes = parseInt(parts[1] ?? '0', 10)
+                    const seconds = parseFloat(parts[2] ?? '0')
+
+                    const totalSeconds = hours * 3600 + minutes * 60 + seconds
+                    resolve(totalSeconds)
+                } else {
+                    reject(
+                        new Error(
+                            'Could not find Duration in ffmpeg output. Output: ' + stderrOutput,
+                        ),
+                    )
+                }
+            })
+
+            // Pipe the file buffer
+            ffmpegProcess.stdin.write(buffer)
+            ffmpegProcess.stdin.end()
+        })
     }
 
     /**
