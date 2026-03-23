@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { forwardRef, Inject, Injectable } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { InjectRepository } from '@nestjs/typeorm'
 import { FindManyOptions, LessThan, Not, Repository } from 'typeorm'
@@ -7,10 +7,18 @@ import { User } from '../../users/user.entity'
 import { LobbyUser, LobbyUserRole, LobbyUserStatus } from '../entities/lobby-user.entity'
 import { Lobby } from '../entities/lobby.entity'
 import dayjs from 'dayjs'
+import { LobbyMusic } from '../entities/lobby-music.entity'
+import { LobbyGateway } from '../lobby.gateway'
 
 @Injectable()
 export class LobbyUserService {
-    constructor(@InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>) {}
+    constructor(
+        @InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>,
+        @InjectRepository(Lobby) private lobbyRepository: Repository<Lobby>,
+        @InjectRepository(LobbyMusic) private lobbyMusicRepository: Repository<LobbyMusic>,
+        @Inject(forwardRef(() => LobbyGateway))
+        private lobbyGateway: LobbyGateway,
+    ) {}
 
     async areAllUsersReadyToPlay(lobby: Lobby): Promise<boolean> {
         const countOptions: FindManyOptions<LobbyUser> = {
@@ -38,7 +46,7 @@ export class LobbyUserService {
         return this.lobbyUserRepository.findOne({
             relations: {
                 user: true,
-                lobby: true,
+                lobby: { lobbyUsers: true },
             },
             where: {
                 user: {
@@ -77,5 +85,56 @@ export class LobbyUserService {
             },
         })
         await this.lobbyUserRepository.remove(lobbyUsers)
+    }
+
+    async handlePlayerDisconnected(lobbyUser: LobbyUser) {
+        const lobbyUsers = await this.lobbyUserRepository.find({
+            relations: { user: { patreonAccount: true }, lobby: true },
+            where: {
+                lobby: {
+                    id: lobbyUser.lobby.id,
+                },
+            },
+        })
+        const lobby = await this.lobbyRepository.findOne({
+            relations: { lobbyMusics: true },
+            where: {
+                id: lobbyUser.lobby.id,
+            },
+        })
+        if (
+            lobby?.premium &&
+            !lobbyUsers.some((lobbyUser) => {
+                return lobbyUser.user.premium
+            })
+        ) {
+            lobby.premium = false
+            await this.lobbyRepository.save(lobby)
+            await this.lobbyGateway.sendUpdateToRoom(lobby.code)
+            this.lobbyGateway.emitChat(lobby.code, null, `Lobby is no longer premium!`)
+        }
+
+        if (lobbyUser.role === LobbyUserRole.Host) {
+            const randomPlayer = await this.lobbyUserRepository
+                .createQueryBuilder('lobbyUser')
+                .andWhere('lobbyUser.lobby = :lobby')
+                .andWhere('lobbyUser.role = :role')
+                .andWhere('lobbyUser.disconnected = 0')
+                .setParameter('lobby', lobby!.id)
+                .setParameter('role', LobbyUserRole.Player)
+                .orderBy('RAND()')
+                .getOne()
+            if (randomPlayer) {
+                await this.lobbyUserRepository.save({
+                    ...randomPlayer,
+                    role: LobbyUserRole.Host,
+                })
+            } else {
+                await this.lobbyMusicRepository.remove(lobby!.lobbyMusics)
+                await this.lobbyRepository.remove(lobby!)
+                this.lobbyGateway.sendLobbyClosed(lobby!)
+            }
+        }
+        await this.lobbyGateway.sendLobbyUsers(lobby!)
     }
 }
