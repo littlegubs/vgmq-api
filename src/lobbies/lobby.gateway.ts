@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bull'
-import { forwardRef, Inject, NotFoundException, UseFilters } from '@nestjs/common'
+import { forwardRef, Inject, Logger, NotFoundException, UseFilters } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -16,7 +16,7 @@ import { Queue } from 'bull'
 import { instanceToInstance } from 'class-transformer'
 import dayjs from 'dayjs'
 import { Server } from 'socket.io'
-import { Brackets, Not, Repository } from 'typeorm'
+import { Brackets, DataSource, Not, Repository } from 'typeorm'
 
 import { WsNotFoundExceptionFilter } from '../auth/exception-filter/ws-not-found.exception-filter'
 import { WsUnauthorizedExceptionFilter } from '../auth/exception-filter/ws-unauthorized.exception-filter'
@@ -27,7 +27,6 @@ import { LobbyUser, LobbyUserRole, LobbyUserStatus } from './entities/lobby-user
 import { Lobby, LobbyHintMode, LobbyStatuses } from './entities/lobby.entity'
 import { InvalidPasswordException } from './exceptions/invalid-password.exception'
 import { MissingPasswordException } from './exceptions/missing-password.exception'
-import { LobbyFileGateway } from './lobby-file.gateway'
 import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
@@ -56,14 +55,17 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyMusicLoaderService))
         private lobbyMusicLoaderService: LobbyMusicLoaderService,
+        @Inject(forwardRef(() => LobbyUserService))
         private lobbyUserService: LobbyUserService,
         private readonly jwtService: JwtService,
         private readonly userService: UsersService,
-        private lobbyFileGateway: LobbyFileGateway,
         private lobbyStatService: LobbyStatService,
         @InjectRepository(OauthPatreon) private oAuthPatreonRepository: Repository<OauthPatreon>,
         @InjectRepository(GameToMusic) private gameToMusicRepository: Repository<GameToMusic>,
+        private dataSource: DataSource,
     ) {}
+
+    private readonly logger = new Logger(LobbyGateway.name)
 
     @SubscribeMessage('join')
     async join(
@@ -441,7 +443,6 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 user: {
                     id: client.user.id,
                 },
-                status: LobbyUserStatus.Buffering,
             },
         })
         if (lobbyUser === null) {
@@ -507,6 +508,168 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         } else {
             await this.showHintModeGames(lobbyUser, client, false)
         }
+    }
+
+    @SubscribeMessage('voteSkip')
+    async voteSkip(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        const lobbyUser = await this.lobbyUserService.getLobbyUserByUsername(client.user.username)
+        if (lobbyUser === null) {
+            throw new WsException('Not found')
+        }
+        if (lobbyUser.voteSkip) return
+        if (!this.canVoteSkip(lobbyUser)) return
+
+        const { lobby } = lobbyUser
+        if (lobby.isPaused) return
+
+        const voteSkip = (lobby.voteSkip += 1)
+        lobbyUser.voteSkip = true
+        await this.lobbyUserRepository.save(lobbyUser)
+        await this.lobbyRepository.save(lobby)
+        await this.sendLobbyUsers(lobby)
+        await this.sendUpdateToRoom(lobby.code)
+        if (voteSkip > lobby.lobbyUsers.length / 2) {
+            const queryRunner = this.dataSource.createQueryRunner()
+            await queryRunner.connect()
+            const lockName = `vote-skip-lobby-${lobby.code}`
+            try {
+                const result = await queryRunner.query('SELECT GET_LOCK(?, 0) as gotLock', [
+                    lockName,
+                ])
+
+                if (result[0].gotLock === 0) {
+                    console.log(`Lobby ${lobby.code} already skipping...`)
+                    return
+                }
+                lobby.voteSkip = 0
+                lobby.lobbyUsers.map((lu) => {
+                    lu.voteSkip = false
+                })
+                await this.lobbyRepository.save(lobby)
+                await this.lobbyUserRepository.save(lobby.lobbyUsers)
+                const delayedJobs = await this.lobbyQueue.getDelayed()
+                const jobToDelete = delayedJobs.filter((j) => {
+                    return j.data === lobby.code
+                })
+                if (jobToDelete.length > 0) {
+                    for (const job of jobToDelete) {
+                        await job.remove()
+                    }
+                    if (lobby.status === LobbyStatuses.PlayingMusic) {
+                        this.logger.log(`Skipped waiting for revealAnswer in lobby ${lobby.code}`)
+                        await this.lobbyQueue.add(
+                            'revealAnswer',
+                            { lobbyCode: lobby.code, skipped: true },
+                            {
+                                jobId: `lobby${lobby.code}RevealAnswerSkipped-${Date.now()}`,
+                            },
+                        )
+                    } else {
+                        this.logger.log(
+                            `Skipped waiting for ${jobToDelete[0]!.name} in lobby ${lobby.code}`,
+                        )
+                        await this.lobbyQueue.add(
+                            jobToDelete[0]!.name,
+                            { lobbyCode: lobby.code, skipped: true },
+                            {
+                                jobId: `lobby${lobby.code}${jobToDelete[0]!.name}Skipped-${Date.now()}`,
+                            },
+                        )
+                    }
+                }
+            } finally {
+                await queryRunner.query('SELECT RELEASE_LOCK(?)', [lockName])
+                await queryRunner.release()
+            }
+        }
+    }
+
+    @SubscribeMessage('unvoteSkip')
+    async unvoteSkip(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        const lobbyUser = await this.lobbyUserService.getLobbyUserByUsername(client.user.username)
+        if (lobbyUser === null) {
+            throw new WsException('Not found')
+        }
+        if (!lobbyUser.voteSkip) return
+        if (!this.canVoteSkip(lobbyUser)) return
+        const { lobby } = lobbyUser
+
+        lobby.voteSkip -= 1
+        lobbyUser.voteSkip = false
+        await this.lobbyUserRepository.save(lobbyUser)
+        await this.lobbyRepository.save(lobby)
+        await this.sendLobbyUsers(lobby)
+        await this.sendUpdateToRoom(lobby.code)
+    }
+
+    @SubscribeMessage('pauseResume')
+    async pause(@ConnectedSocket() client: AuthenticatedSocket): Promise<void> {
+        const lobbyUser = await this.lobbyUserService.getLobbyUserByUsername(client.user.username)
+        if (lobbyUser === null || lobbyUser.role !== LobbyUserRole.Host) {
+            throw new WsException('Not found')
+        }
+        const { lobby } = lobbyUser
+        lobby.isPaused = !lobby.isPaused
+        if (lobby.isPaused) {
+            // 1. Fetch all delayed jobs in the queue
+            const delayedJobs = await this.lobbyQueue.getDelayed()
+
+            // 2. Find the specific job for this lobby
+            // (Since you nicely format your jobIds like `lobby${lobby.code}playMusic...`)
+            const nextLobbyDelayedJob = delayedJobs.find(
+                (job) =>
+                    job.opts.jobId && (job.opts.jobId as string).includes(`lobby${lobby.code}`),
+            )
+
+            if (!nextLobbyDelayedJob) {
+                throw new Error(`Could not find delayed job, couldn't pause lobby ${lobby.code}`)
+            }
+            // 3. Calculate the remaining delay
+            const expectedExecutionTime =
+                nextLobbyDelayedJob.timestamp + (nextLobbyDelayedJob.opts.delay || 0)
+            const remainingTime = expectedExecutionTime - Date.now()
+
+            // 4. Save the job info to the lobby
+            lobby.pausedJobName = nextLobbyDelayedJob.name
+            lobby.pausedJobRemainingDelay = Math.max(remainingTime, 0)
+
+            // 5. Remove the specific delayed job so it doesn't fire
+            await nextLobbyDelayedJob.remove()
+            this.logger.debug(`Saved ${remainingTime}ms delay for job ${nextLobbyDelayedJob.name}`)
+        } else {
+            if (lobby.pausedJobName && lobby.pausedJobRemainingDelay !== null) {
+                await this.lobbyQueue.add(lobby.pausedJobName, lobby.code, {
+                    delay: lobby.pausedJobRemainingDelay,
+                    jobId: `lobby${lobby.code}${lobby.pausedJobName}Resumed-${Date.now()}`,
+                })
+                this.logger.debug(
+                    `Resuming ${lobby.pausedJobName} with ${lobby.pausedJobRemainingDelay}ms left.`,
+                )
+            }
+
+            lobby.pausedJobName = null
+            lobby.pausedJobRemainingDelay = null
+        }
+        await this.lobbyRepository.save(lobby)
+        await this.sendUpdateToRoom(lobby.code)
+    }
+
+    private canVoteSkip(lobbyUser: LobbyUser): boolean {
+        const { lobby } = lobbyUser
+        if (lobbyUser.role === LobbyUserRole.Spectator) return false
+        if (lobbyUser.disconnected || lobbyUser.toDisconnect) return false
+        if (
+            ![LobbyStatuses.PlayingMusic, LobbyStatuses.AnswerReveal].includes(
+                lobby.status as LobbyStatuses,
+            )
+        )
+            return false
+        if (lobby.status === LobbyStatuses.PlayingMusic && !lobby.allowVoteSkipGuessing)
+            return false
+        if (lobby.status === LobbyStatuses.AnswerReveal && !lobby.allowVoteSkipAnswerReveal)
+            return false
+
+        return true
     }
 
     private async showHintModeGames(

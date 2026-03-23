@@ -43,6 +43,9 @@ export class LobbyCreateDto {
     gameMode: LobbyGameModes
     playMusicOnAnswerReveal: boolean
     showCorrectAnswersDuringGuessTime: boolean
+    allowVoteSkipGuessing: boolean
+    allowVoteSkipAnswerReveal: boolean
+
     @IsNotEmpty()
     hintMode: LobbyHintMode
 

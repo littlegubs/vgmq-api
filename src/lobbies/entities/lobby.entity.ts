@@ -166,6 +166,28 @@ export class Lobby {
     @Expose({ groups: ['lobby'] })
     limitAllCollectionsTo = 0
 
+    @Column({ type: 'boolean', default: true })
+    @Expose({ groups: ['lobby'] })
+    allowVoteSkipGuessing = true
+
+    @Column({ type: 'boolean', default: true })
+    @Expose({ groups: ['lobby'] })
+    allowVoteSkipAnswerReveal = true
+
+    @Column({ type: 'int', default: 0 })
+    @Expose({ groups: ['lobby'] })
+    voteSkip = 0
+
+    @Column({ default: false })
+    @Expose({ groups: ['lobby'] })
+    isPaused: boolean
+
+    @Column({ type: 'varchar', nullable: true })
+    pausedJobName: string | null // e.g., 'playMusic' or 'bufferMusic'
+
+    @Column({ type: 'int', nullable: true })
+    pausedJobRemainingDelay: number | null // e.g., 3000 (milliseconds)
+
     @Column({
         type: 'enum',
         enum: LobbyHintMode,
