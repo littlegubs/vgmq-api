@@ -164,6 +164,6 @@ export class LobbyController {
         if (player === null) {
             throw new ForbiddenException()
         }
-        return this.lobbyService.update(lobby, data, request.user as User)
+        return this.lobbyService.update(lobby, data)
     }
 }

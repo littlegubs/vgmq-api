@@ -207,7 +207,7 @@ export class LobbyMusicLoaderService {
                 status: LobbyStatuses.Waiting,
             })
             await this.lobbyRepository.save(this.lobby)
-            this.lobbyGateway.sendUpdateToRoom(this.lobby)
+            await this.lobbyGateway.sendUpdateToRoom(this.lobby.code)
             throw new InternalServerErrorException()
         }
         /**
@@ -636,7 +636,7 @@ export class LobbyMusicLoaderService {
         if (lobbyMusics.length === 0) {
             lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Waiting })
             await this.lobbyRepository.save(lobby)
-            this.lobbyGateway.sendUpdateToRoom(lobby)
+            await this.lobbyGateway.sendUpdateToRoom(lobby.code)
             this.lobbyGateway.sendLobbyToast(lobby, 'No music were found!')
 
             return

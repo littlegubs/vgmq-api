@@ -125,7 +125,7 @@ export class LobbyProcessor {
             }),
         )
 
-        let lobbyUsers = await this.lobbyUserRepository.find({
+        const lobbyUsers = await this.lobbyUserRepository.find({
             relations: {
                 user: true,
                 lobby: true,
@@ -137,16 +137,15 @@ export class LobbyProcessor {
                 disconnected: false,
             },
         })
-        lobbyUsers = lobbyUsers.map((lobbyUser) =>
-            Object.assign(lobbyUser, {
-                ...lobbyUser,
+        const updatePromises = lobbyUsers.map((lobbyUser) =>
+            this.lobbyUserRepository.update(lobbyUser.id, {
                 correctAnswer: lobbyUser.correctAnswer || null,
                 status: null,
             }),
         )
-        await this.lobbyUserRepository.save(lobbyUsers)
+        await Promise.all(updatePromises)
         this.lobbyGateway.sendLobbyStartBuffer(lobby)
-        await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
+        await this.lobbyGateway.sendLobbyUsers(lobby)
         this.logger.debug(`will call playMusic for lobby ${lobby.code}`)
 
         await this.lobbyQueue
@@ -159,7 +158,7 @@ export class LobbyProcessor {
             })
         this.logger.debug(`playMusic should start in 5s for lobby ${lobby.code}`)
         if (lobby.status === LobbyStatuses.Buffering) {
-            this.lobbyGateway.sendUpdateToRoom(lobby)
+            await this.lobbyGateway.sendUpdateToRoom(lobby.code)
         }
         const gameToMusic = lobbyMusic.gameToMusic
         const url = await this.privateStorageService.getPublicUrl(gameToMusic.music.file.path)
@@ -237,15 +236,15 @@ export class LobbyProcessor {
         }).catch(async (err: string) => {
             this.lobbyGateway.sendLobbyError(lobby!, err)
             this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 1/3`)
-            lobbyUsers = lobbyUsers.map((lobbyUser) =>
-                Object.assign(lobbyUser, {
-                    ...lobbyUser,
-                    status: null,
-                }),
-            )
-            await this.lobbyUserRepository.save(lobbyUsers)
+            if (lobbyUsers.length > 0) {
+                await this.lobbyUserRepository.update(
+                    lobbyUsers.map((lu) => lu.id),
+                    { status: null },
+                )
+            }
+
             this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 2/3`)
-            await this.lobbyGateway.sendLobbyUsers(lobby!, lobbyUsers)
+            await this.lobbyGateway.sendLobbyUsers(lobby!)
             this.logger.debug(`bufferMusic for ${lobby!.code}: catch ffmpeg error part 3/3`)
         })
         this.logger.debug(`bufferMusic for ${lobby.code} fully unstuck!`)
@@ -274,7 +273,7 @@ export class LobbyProcessor {
             return
         }
 
-        let lobbyUsers = await this.lobbyUserRepository.find({
+        const lobbyUsers = await this.lobbyUserRepository.find({
             relations: {
                 lobby: true,
                 user: true,
@@ -301,19 +300,19 @@ export class LobbyProcessor {
                         status: LobbyStatuses.Buffering,
                     }),
                 )
-                lobbyUsers = lobbyUsers.map((lobbyUser) =>
-                    Object.assign(lobbyUser, {
-                        ...lobbyUser,
+                const updatePromises = lobbyUsers.map((lobbyUser) => {
+                    return this.lobbyUserRepository.update(lobbyUser.id, {
                         correctAnswer: null,
                         playedTheGame: null,
-                        hintMode:
-                            lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode, // why do I have to use '!' here ??
                         answer: null,
-                    }),
-                )
-                await this.lobbyUserRepository.save(lobbyUsers)
-                await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
-                this.lobbyGateway.sendUpdateToRoom(lobby)
+                        hintMode:
+                            lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode,
+                    })
+                })
+
+                await Promise.all(updatePromises)
+                await this.lobbyGateway.sendLobbyUsers(lobby)
+                await this.lobbyGateway.sendUpdateToRoom(lobby.code)
                 this.logger.debug(`will call playMusicForced for lobby ${lobby.code}`)
                 console.log('from playMusic')
 
@@ -360,9 +359,8 @@ export class LobbyProcessor {
             return
         }
 
-        lobbyUsers = lobbyUsers.map((lobbyUser) =>
-            Object.assign(lobbyUser, {
-                ...lobbyUser,
+        const updatePromises = lobbyUsers.map((lobbyUser) =>
+            this.lobbyUserRepository.update(lobbyUser.id, {
                 correctAnswer: null,
                 playedTheGame: null,
                 tries: 0,
@@ -371,15 +369,15 @@ export class LobbyProcessor {
                 answer: null,
             }),
         )
-        await this.lobbyUserRepository.save(lobbyUsers)
+        await Promise.all(updatePromises)
         const lobbyUsersHintMode = lobbyUsers.filter((lobbyUser) => lobbyUser.hintMode)
         if (lobbyUsersHintMode.length > 0) {
             this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobbyUsersHintMode)
         }
 
-        await this.lobbyGateway.sendLobbyUsers(lobby, lobbyUsers)
+        await this.lobbyGateway.sendLobbyUsers(lobby)
         this.lobbyGateway.playMusic(lobbyMusic)
-        this.lobbyGateway.sendUpdateToRoom(lobby)
+        await this.lobbyGateway.sendUpdateToRoom(lobby.code)
         this.logger.debug(`will call revealAnswer for lobby ${lobby.code}`)
         await this.lobbyQueue
             .add('revealAnswer', lobby.code, {
@@ -457,7 +455,7 @@ export class LobbyProcessor {
                     status: LobbyStatuses.Waiting,
                 }),
             )
-            this.lobbyGateway.sendUpdateToRoom(lobby)
+            await this.lobbyGateway.sendUpdateToRoom(lobby.code)
             return
         }
         let lobbyUsers = await this.lobbyUserRepository.find({
@@ -486,13 +484,12 @@ export class LobbyProcessor {
                 currentLobbyMusic.gameToMusic.game,
             )
 
-            await this.lobbyUserRepository.save({
-                ...lobbyUser,
+            await this.lobbyUserRepository.update(lobbyUser.id, {
                 playedTheGame: !!userPlayedTheGame,
             })
         }
         await this.lobbyGateway.sendLobbyUsers(lobby)
-        this.lobbyGateway.sendUpdateToRoom(lobby)
+        await this.lobbyGateway.sendUpdateToRoom(lobby.code)
         this.lobbyGateway.sendAnswer(currentLobbyMusic)
 
         if (
@@ -575,7 +572,7 @@ export class LobbyProcessor {
         await this.lobbyStatService.retrieveResultData(lobby)
         await this.lobbyGateway.sendLobbyUsers(lobby, lobby.lobbyUsers)
         await this.lobbyGateway.sendResultData(lobby)
-        this.lobbyGateway.sendUpdateToRoom(lobby)
+        await this.lobbyGateway.sendUpdateToRoom(lobby.code)
     }
 
     @Process('restart')
@@ -691,8 +688,9 @@ export class LobbyProcessor {
         ) {
             await this.lobbyUserRepository.remove(lobbyUser)
         } else {
-            await this.lobbyUserRepository.save({ ...lobbyUser, disconnected: true })
+            await this.lobbyUserRepository.update(lobbyUser.id, { disconnected: true })
         }
+        await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
         await this.lobbyGateway.sendLobbyUsers(lobbyUser.lobby)
     }
 

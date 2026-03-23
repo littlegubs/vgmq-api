@@ -205,7 +205,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
         lobby = this.lobbyRepository.create({ ...lobby, status: LobbyStatuses.Loading })
         await this.lobbyRepository.save(lobby)
-        this.sendUpdateToRoom(lobby)
+        await this.sendUpdateToRoom(lobby.code)
         await this.lobbyMusicLoaderService.loadMusics(lobby)
     }
 
@@ -408,6 +408,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             throw new WsException('Not found')
         }
         await this.lobbyUserRepository.remove(lobbyUser)
+        await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
     }
 
     @SubscribeMessage('leave')
@@ -464,11 +465,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             return
         }
 
-        Object.assign(lobbyUser, {
-            ...lobbyUser,
+        const updates = {
             status: LobbyUserStatus.ReadyToPlayMusic,
-        })
-        await this.lobbyUserRepository.save(lobbyUser)
+        }
+        Object.assign(lobbyUser, updates)
+        await this.lobbyUserRepository.update(lobbyUser.id, updates)
         this.server.to(lobbyUser.lobby.code).emit(
             'lobbyUser',
             instanceToInstance<LobbyUser>(lobbyUser, {
@@ -600,7 +601,14 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         })
     }
 
-    sendUpdateToRoom(lobby: Lobby): void {
+    async sendUpdateToRoom(code: string): Promise<void> {
+        const lobby = await this.lobbyRepository.findOne({
+            relations: {
+                lobbyMusics: true,
+            },
+            where: { code },
+        })
+        if (!lobby) return
         this.server.to(lobby.code).emit(
             'lobby',
             instanceToInstance<Lobby>(lobby, {

@@ -40,13 +40,12 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
         }
 
         if (event.entity.user.premium) {
-            let lobby = await event.manager.findOne(Lobby, {
+            const lobby = await event.manager.findOne(Lobby, {
                 where: { id: event.entity.lobby.id },
             })
             if (lobby !== null && lobby.premium === false) {
-                lobby = event.manager.create(Lobby, { ...lobby, premium: true })
-                await event.manager.save(Lobby, lobby)
-                this.lobbyGateway.sendUpdateToRoom(lobby)
+                await event.manager.update(Lobby, lobby.id, { premium: true })
+                await this.lobbyGateway.sendUpdateToRoom(lobby.code)
                 this.lobbyGateway.emitChat(
                     lobby.code,
                     null,
@@ -54,73 +53,5 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
                 )
             }
         }
-    }
-
-    async afterUpdate(event: UpdateEvent<LobbyUser>): Promise<void> {
-        if (event.updatedColumns.some((column) => column.propertyName === 'disconnected')) {
-            if (event.entity?.role === LobbyUserRole.Host) {
-                if (event.entity?.disconnected === true) {
-                    await event.manager.save(LobbyUser, {
-                        ...event.entity,
-                        role: LobbyUserRole.Player,
-                    })
-                }
-            }
-            await this.handleHostDisconnected(event)
-        }
-    }
-
-    async afterRemove(event: RemoveEvent<LobbyUser>): Promise<void> {
-        await this.handleHostDisconnected(event)
-    }
-
-    async handleHostDisconnected(
-        event: UpdateEvent<LobbyUser> | RemoveEvent<LobbyUser>,
-    ): Promise<void> {
-        const lobbyUsers = await event.manager.find(LobbyUser, {
-            relations: { user: { patreonAccount: true }, lobby: true },
-            where: {
-                lobby: {
-                    id: event.entity?.lobby.id,
-                },
-            },
-        })
-        const lobby = await event.manager.findOne(Lobby, {
-            relations: { lobbyMusics: true },
-            where: {
-                id: event.entity?.lobby.id,
-            },
-        })
-        if (
-            lobby?.premium &&
-            !lobbyUsers.some((lobbyUser) => {
-                return lobbyUser.user.premium
-            })
-        ) {
-            lobby.premium = false
-            await event.manager.save(Lobby, lobby)
-            this.lobbyGateway.sendUpdateToRoom(lobby)
-            this.lobbyGateway.emitChat(lobby.code, null, `Lobby is no longer premium!`)
-        }
-
-        if (event.entity?.role === LobbyUserRole.Host) {
-            const randomPlayer = await event.manager
-                .createQueryBuilder(LobbyUser, 'lobbyUser')
-                .andWhere('lobbyUser.lobby = :lobby')
-                .andWhere('lobbyUser.role = :role')
-                .andWhere('lobbyUser.disconnected = 0')
-                .setParameter('lobby', lobby!.id)
-                .setParameter('role', LobbyUserRole.Player)
-                .orderBy('RAND()')
-                .getOne()
-            if (randomPlayer) {
-                await event.manager.save(LobbyUser, { ...randomPlayer, role: LobbyUserRole.Host })
-            } else {
-                await event.manager.remove(LobbyMusic, lobby!.lobbyMusics)
-                await event.manager.remove(Lobby, lobby)
-                this.lobbyGateway.sendLobbyClosed(lobby!)
-            }
-        }
-        await this.lobbyGateway.sendLobbyUsers(lobby!)
     }
 }

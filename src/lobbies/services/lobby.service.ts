@@ -61,18 +61,16 @@ export class LobbyService {
         return lobby
     }
 
-    async update(lobby: Lobby, data: LobbyCreateDto, user: User): Promise<void> {
-        lobby = this.lobbyRepository.create({
-            ...(await this.lobbyRepository.save({
-                ...lobby,
-                ...data,
-                collectionFilters: await this.handleCollectionFilter(data.collectionFilters),
-                genreFilters: await this.handleGenreFilter(data.genreFilters),
-                themeFilters: await this.handleThemeFilter(data.themeFilters),
-            })),
+    async update(lobby: Lobby, data: LobbyCreateDto): Promise<void> {
+        await this.lobbyRepository.save({
+            ...lobby,
+            ...data,
+            collectionFilters: await this.handleCollectionFilter(data.collectionFilters),
+            genreFilters: await this.handleGenreFilter(data.genreFilters),
+            themeFilters: await this.handleThemeFilter(data.themeFilters),
         })
 
-        this.lobbyGateway.sendUpdateToRoom(lobby)
+        await this.lobbyGateway.sendUpdateToRoom(lobby.code)
     }
 
     private async handleCollectionFilter(
