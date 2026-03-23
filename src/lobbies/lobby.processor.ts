@@ -51,8 +51,8 @@ export class LobbyProcessor {
     private readonly logger = new Logger(LobbyProcessor.name)
 
     @Process('bufferMusic')
-    async buffer(job: Job<string>): Promise<void> {
-        const lobbyCode = job.data
+    async buffer(job: Job): Promise<void> {
+        const { lobbyCode, skipped } = this.getJobData(job)
         this.logger.debug(`Start buffering music to lobby ${lobbyCode}`)
         let lobby = await this.lobbyRepository.findOne({
             relations: ['lobbyMusics'],
@@ -63,6 +63,12 @@ export class LobbyProcessor {
         })
         if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
+            return
+        }
+        if (lobby.isPaused) {
+            this.logger.debug(
+                `Job ${job.name} aborted for lobby ${lobbyCode} because it is paused.`,
+            )
             return
         }
         if (lobby.status === LobbyStatuses.Playing) {
@@ -148,15 +154,15 @@ export class LobbyProcessor {
         await this.lobbyGateway.sendLobbyUsers(lobby)
         this.logger.debug(`will call playMusic for lobby ${lobby.code}`)
 
-        await this.lobbyQueue
-            .add('playMusic', lobbyMusic.lobby.code, {
+        if (!skipped) {
+            // If the user doesn't skip, work as usual and wait 5s before playing next music
+            // otherwise, play music right when the buffering is done (see ffmpeg process below)
+            await this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
                 delay: 5 * 1000,
                 jobId: `lobby${lobby.code}playMusic-${Date.now()}`,
             })
-            .catch((reason) => {
-                this.logger.debug(`playMusic couldn't be called, reason: ${reason}`)
-            })
-        this.logger.debug(`playMusic should start in 5s for lobby ${lobby.code}`)
+            this.logger.debug(`playMusic should start in 5s for lobby ${lobby.code}`)
+        }
         if (lobby.status === LobbyStatuses.Buffering) {
             await this.lobbyGateway.sendUpdateToRoom(lobby.code)
         }
@@ -211,15 +217,25 @@ export class LobbyProcessor {
                         return
                     }
 
-                    lobbyUsers = lobbyUsers.map((lobbyUser) =>
-                        Object.assign(lobbyUser, {
-                            ...lobbyUser,
+                    const lobbyUsersUpdatePromises = lobbyUsers.map((lobbyUser) => {
+                        const updates = {
                             status: LobbyUserStatus.Buffering,
-                        }),
-                    )
-                    void this.lobbyUserRepository.save(lobbyUsers).then(() => {
-                        void this.lobbyGateway.sendLobbyUsers(lobby!, lobbyUsers).then(() => {
+                        }
+                        Object.assign(lobbyUser, updates)
+
+                        return this.lobbyUserRepository.update(lobbyUser.id, updates)
+                    })
+                    void Promise.all(lobbyUsersUpdatePromises).then(() => {
+                        void this.lobbyGateway.sendLobbyUsers(lobby!).then(() => {
                             this.lobbyGateway.sendCurrentLobbyMusicToLoad(lobby)
+                            if (skipped) {
+                                void this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
+                                    jobId: `lobby${lobby.code}playMusicASAP-${Date.now()}`,
+                                })
+                                this.logger.debug(
+                                    `playMusic NOW since this was skipped for lobby ${lobby.code}`,
+                                )
+                            }
                         })
                     })
                     this.logger.debug(`nevermind! bufferMusic for ${lobby!.code} resolved`)
@@ -251,8 +267,8 @@ export class LobbyProcessor {
     }
 
     @Process('playMusic')
-    async playMusic(job: Job<string>): Promise<void> {
-        const lobbyCode = job.data
+    async playMusic(job: Job): Promise<void> {
+        const { lobbyCode } = this.getJobData(job)
         this.logger.debug(`Start playing music to lobby ${lobbyCode}`)
         let lobby = await this.lobbyRepository.findOne({
             relations: ['lobbyMusics'],
@@ -263,13 +279,12 @@ export class LobbyProcessor {
         })
         if (lobby === null) {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
-            this.logger.debug('ok,lobby not found, but what was its status then?')
-            const hihiLobby = await this.lobbyRepository.findOne({
-                where: {
-                    code: lobbyCode,
-                },
-            })
-            this.logger.debug(`lobby ${lobbyCode} status was ${hihiLobby?.status}`)
+            return
+        }
+        if (lobby.isPaused) {
+            this.logger.debug(
+                `Job ${job.name} aborted for lobby ${lobbyCode} because it is paused.`,
+            )
             return
         }
 
@@ -333,6 +348,7 @@ export class LobbyProcessor {
             await this.lobbyRepository.save({
                 ...lobby,
                 status: LobbyStatuses.PlayingMusic,
+                voteSkip: 0,
             }),
         )
         this.logger.debug(`set lobby ${lobby.code} to status play_music`)
@@ -367,6 +383,7 @@ export class LobbyProcessor {
                 ...(lobbyUser.status === LobbyUserStatus.ReadyToPlayMusic && { status: null }),
                 hintMode: lobby!.hintMode === LobbyHintMode.Always || lobbyUser.keepHintMode, // why do I have to use '!' here ??
                 answer: null,
+                voteSkip: false,
             }),
         )
         await Promise.all(updatePromises)
@@ -402,7 +419,7 @@ export class LobbyProcessor {
 
     @Process('revealAnswer')
     async revealAnswer(job: Job<string>): Promise<void> {
-        const lobbyCode = job.data
+        const { lobbyCode } = this.getJobData(job)
         this.logger.debug(`Start answer reveal to lobby ${lobbyCode}`)
 
         let lobby = await this.lobbyRepository.findOne({
@@ -415,11 +432,18 @@ export class LobbyProcessor {
             this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
+        if (lobby.isPaused) {
+            this.logger.debug(
+                `Job ${job.name} aborted for lobby ${lobbyCode} because it is paused.`,
+            )
+            return
+        }
 
         lobby = this.lobbyRepository.create(
             await this.lobbyRepository.save({
                 ...lobby,
                 status: LobbyStatuses.AnswerReveal,
+                voteSkip: 0,
             }),
         )
         const currentLobbyMusic = await this.lobbyMusicRepository.findOne({
@@ -486,6 +510,7 @@ export class LobbyProcessor {
 
             await this.lobbyUserRepository.update(lobbyUser.id, {
                 playedTheGame: !!userPlayedTheGame,
+                voteSkip: false,
             })
         }
         await this.lobbyGateway.sendLobbyUsers(lobby)
@@ -546,8 +571,8 @@ export class LobbyProcessor {
     }
 
     @Process('result')
-    async result(job: Job<string>): Promise<void> {
-        const lobbyCode = job.data
+    async result(job: Job): Promise<void> {
+        const { lobbyCode } = this.getJobData(job)
         this.logger.debug(`Show lobby ${lobbyCode} results`)
 
         let lobby = await this.lobbyRepository.findOne({
@@ -576,8 +601,8 @@ export class LobbyProcessor {
     }
 
     @Process('restart')
-    async restart(job: Job<string>): Promise<void> {
-        const lobbyCode = job.data
+    async restart(job: Job): Promise<void> {
+        const { lobbyCode } = this.getJobData(job)
         this.logger.debug(`Set lobby ${lobbyCode} back to waiting `)
 
         await this.resetLobby(lobbyCode)
@@ -599,6 +624,10 @@ export class LobbyProcessor {
                 status: LobbyStatuses.Waiting,
                 loopsWithNoUsers: 0,
                 currentLobbyMusicPosition: null,
+                voteSkip: 0,
+                isPaused: false,
+                pausedJobName: null,
+                pausedJobRemainingDelay: null,
             }),
         )
         await this.lobbyQueue.removeJobs(`*${lobbyCode}*`)
@@ -632,6 +661,7 @@ export class LobbyProcessor {
                 tries: 0,
                 hintMode: false,
                 keepHintMode: false,
+                voteSkip: false,
             })),
         )
     }
@@ -692,6 +722,13 @@ export class LobbyProcessor {
         }
         await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
         await this.lobbyGateway.sendLobbyUsers(lobbyUser.lobby)
+    }
+
+    private getJobData(job: Job): { lobbyCode: string; skipped: boolean } {
+        if (typeof job.data === 'string') {
+            return { lobbyCode: job.data, skipped: false }
+        }
+        return { lobbyCode: job.data.lobbyCode, skipped: job.data.skipped }
     }
 
     @OnQueueStalled()

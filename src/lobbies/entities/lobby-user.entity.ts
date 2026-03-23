@@ -123,6 +123,10 @@ export class LobbyUser {
     @Column({ type: 'datetime', nullable: true })
     lastAnswerAt: Date | null
 
+    @Column({ type: 'boolean', default: false })
+    @Expose({ groups: ['wsLobby'] })
+    voteSkip: boolean
+
     @OneToOne(() => User, (user) => user.currentLobby, { onDelete: 'CASCADE' })
     @Expose({ groups: ['wsLobby'] })
     @JoinColumn()
