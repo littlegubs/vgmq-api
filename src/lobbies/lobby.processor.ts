@@ -260,7 +260,16 @@ export class LobbyProcessor {
                             lobby!.code
                         } rejected, but could still be stuck`,
                     )
+
                     reject('the server could not encode the music')
+                    if (skipped) {
+                        void this.lobbyQueue.add('playMusic', lobbyMusic.lobby.code, {
+                            jobId: `lobby${lobby.code}playMusicASAP-${Date.now()}`,
+                        })
+                        this.logger.debug(
+                            `playMusic NOW since this was skipped for lobby ${lobby.code}`,
+                        )
+                    }
                 }
             })
         }).catch(async (err: string) => {
