@@ -173,20 +173,37 @@ export class LobbyProcessor {
             throw new Error('FFMPEG_PATH could not be found.')
         }
         const ffmpegArgs = this.configService.get<string>('FFMPEG_ARGS') ?? ''
-        const command = `${ffmpegArgs} -i "${url}" -ss ${
-            lobbyMusic.startAt > 0 ? `${lobbyMusic.startAt}` : '0.001' // for some reason, the file is broken if I start at 0 on chrome???
-        } -t ${
-            lobbyMusic.lobby.playMusicOnAnswerReveal
-                ? lobbyMusic.lobby.guessTime + 10
-                : lobbyMusic.lobby.guessTime
-        } -map 0:a -map_metadata -1 -f mp3 -`
-        const ffmpegProcess = spawn(ffmpegPath, command.split(' '), {
+        const resolvedFfmpegArgs = ffmpegArgs.replace('$PWD', process.cwd())
+        const args = [
+            ...resolvedFfmpegArgs.split(' '), // Splitting the basic docker config is fine
+            '-loglevel',
+            'error',
+            '-i',
+            url.startsWith('./') ? url.substring(1) : `"${url}"`,
+            '-vn',
+            '-ss',
+            lobbyMusic.startAt > 0 ? `${lobbyMusic.startAt}` : '0.001',
+            '-t',
+            `${lobbyMusic.lobby.playMusicOnAnswerReveal ? lobbyMusic.lobby.guessTime + 10 : lobbyMusic.lobby.guessTime}`,
+            '-map',
+            '0:a',
+            '-af',
+            'aresample',
+            '-map_metadata',
+            '-1',
+            '-f',
+            'mp3',
+            '-',
+        ]
+
+        console.log('args', args)
+        const ffmpegProcess = spawn(ffmpegPath, args, {
             env: process.env,
             shell: true,
         })
-        let output: Buffer[] = []
+        const output: Buffer[] = []
         ffmpegProcess.stdout.on('data', (data: Buffer) => {
-            output = [...output, data]
+            output.push(data)
         })
 
         ffmpegProcess.stderr.on('data', () => {
