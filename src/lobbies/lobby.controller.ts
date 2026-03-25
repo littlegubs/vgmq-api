@@ -4,6 +4,7 @@ import {
     Controller,
     ForbiddenException,
     Get,
+    Inject,
     NotFoundException,
     Param,
     Post,
@@ -31,9 +32,10 @@ import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyService } from './services/lobby.service'
-import fs from 'node:fs'
 import path from 'node:path'
 import { LobbyMusic } from './entities/lobby-music.entity'
+import { PRIVATE_STORAGE } from '../storage/storage.constants'
+import { StorageService } from '../storage/storage.interface'
 
 @Controller('lobbies')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,6 +47,7 @@ export class LobbyController {
         @InjectRepository(Game) private gameRepository: Repository<Game>,
         @InjectRepository(LobbyMusic) private lobbyMusicRepository: Repository<LobbyMusic>,
         private lobbyGateway: LobbyGateway,
+        @Inject(PRIVATE_STORAGE) private privateStorageService: StorageService,
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
@@ -131,10 +134,9 @@ export class LobbyController {
         if (!lobbyMusic) {
             throw new NotFoundException()
         }
-        const clipsDir = path.join('.', 'upload', 'private', 'clips')
         const clipFilename = `lobby-${lobbyUser.lobby.code}-round-${lobbyMusic.position}.mp3`
-        const clipPath = path.join(clipsDir, clipFilename)
-        const buffer = fs.readFileSync(clipPath)
+        const clipPath = path.join('clips', clipFilename)
+        const buffer = await this.privateStorageService.getObject(clipPath)
 
         return new StreamableFile(buffer)
     }
