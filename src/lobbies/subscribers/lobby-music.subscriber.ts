@@ -2,12 +2,16 @@ import { DataSource, EntitySubscriberInterface, EventSubscriber, RemoveEvent } f
 
 import { LobbyMusic } from '../entities/lobby-music.entity'
 import path from 'node:path'
-import fs from 'node:fs'
-import { Logger } from '@nestjs/common'
+import { Inject, Logger } from '@nestjs/common'
+import { PRIVATE_STORAGE } from '../../storage/storage.constants'
+import { StorageService } from '../../storage/storage.interface'
 
 @EventSubscriber()
 export class LobbyMusicSubscriber implements EntitySubscriberInterface<LobbyMusic> {
-    constructor(dataSource: DataSource) {
+    constructor(
+        dataSource: DataSource,
+        @Inject(PRIVATE_STORAGE) private privateStorageService: StorageService,
+    ) {
         dataSource.subscribers.push(this)
     }
     private readonly logger = new Logger(LobbyMusicSubscriber.name)
@@ -28,16 +32,15 @@ export class LobbyMusicSubscriber implements EntitySubscriberInterface<LobbyMusi
                 },
             })
             .then((lobbyMusic) => {
-                if (lobbyMusic === null) {
+                if (lobbyMusic === null || lobbyMusic.loaded) {
                     return
                 }
                 const lobby = lobbyMusic.lobby
-                const clipsDir = path.join('.', 'upload', 'private', 'clips')
                 const clipFilename = `lobby-${lobby.code}-round-${lobbyMusic.position}.mp3`
-                const clipPath = path.join(clipsDir, clipFilename)
-                fs.promises.rm(clipPath).catch((err) => {
-                    if (err.code !== 'ENOENT') {
-                        this.logger.error(`Could not remove clip file ${clipPath}:`, err)
+                const clipPath = path.join('clips', clipFilename)
+                this.privateStorageService.deleteObject(clipPath).catch((err) => {
+                    if (err.code !== 404) {
+                        throw err
                     }
                 })
             })

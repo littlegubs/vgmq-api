@@ -199,14 +199,11 @@ export class LobbyProcessor {
                 if (code === 0) {
                     const finalBuffer = Buffer.concat(output)
 
-                    const clipsDir = path.join('.', 'upload', 'private', 'clips')
                     const clipFilename = `lobby-${lobby!.code}-round-${lobbyMusic.position}.mp3`
-                    const clipPath = path.join(clipsDir, clipFilename)
+                    const clipPath = path.join('clips', clipFilename)
 
                     try {
-                        const dir = path.dirname(clipPath)
-                        fs.mkdirSync(dir, { recursive: true })
-                        fs.writeFileSync(clipPath, finalBuffer)
+                        await this.privateStorageService.putObject(clipPath, finalBuffer)
                         lobbyMusic!.loaded = true
                         await this.lobbyMusicRepository.save(lobbyMusic)
                         this.logger.debug(`clip written: ${clipPath}`)
