@@ -32,7 +32,7 @@ export class LobbyMusicSubscriber implements EntitySubscriberInterface<LobbyMusi
                 },
             })
             .then((lobbyMusic) => {
-                if (lobbyMusic === null || lobbyMusic.loaded) {
+                if (lobbyMusic === null || !lobbyMusic.loaded) {
                     return
                 }
                 const lobby = lobbyMusic.lobby
