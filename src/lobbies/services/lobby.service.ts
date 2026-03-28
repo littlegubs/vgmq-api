@@ -1,6 +1,6 @@
 import { forwardRef, Inject, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm'
+import { Repository } from 'typeorm'
 
 import { Collection } from '../../games/entity/collection.entity'
 import { GameToMusic } from '../../games/entity/game-to-music.entity'
@@ -12,7 +12,7 @@ import { LobbyCollectionFilter } from '../entities/lobby-collection-filter.entit
 import { LobbyGenreFilter } from '../entities/lobby-genre-filter.entity'
 import { LobbyThemeFilter } from '../entities/lobby-theme-filter.entity'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
-import { Lobby } from '../entities/lobby.entity'
+import { Lobby, LobbyDifficulties } from '../entities/lobby.entity'
 import { LobbyGateway } from '../lobby.gateway'
 
 @Injectable()
@@ -47,6 +47,7 @@ export class LobbyService {
             code: await this.generateCode(),
             ...data,
             premium: user.premium,
+            difficulty: this.handleDifficulties(data.difficulty),
             collectionFilters: await this.handleCollectionFilter(data.collectionFilters),
             genreFilters: await this.handleGenreFilter(data.genreFilters),
             themeFilters: await this.handleThemeFilter(data.themeFilters),
@@ -65,12 +66,20 @@ export class LobbyService {
         await this.lobbyRepository.save({
             ...lobby,
             ...data,
+            difficulty: this.handleDifficulties(data.difficulty),
             collectionFilters: await this.handleCollectionFilter(data.collectionFilters),
             genreFilters: await this.handleGenreFilter(data.genreFilters),
             themeFilters: await this.handleThemeFilter(data.themeFilters),
         })
 
         await this.lobbyGateway.sendUpdateToRoom(lobby.code)
+    }
+
+    private handleDifficulties(data: LobbyCreateDto['difficulty']): LobbyDifficulties[] {
+        if (data.length === 0) {
+            return [LobbyDifficulties.Easy, LobbyDifficulties.Medium, LobbyDifficulties.Hard]
+        }
+        return data
     }
 
     private async handleCollectionFilter(

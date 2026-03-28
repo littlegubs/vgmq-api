@@ -85,6 +85,9 @@ export class LobbyUserService {
             },
         })
         await this.lobbyUserRepository.remove(lobbyUsers)
+        for (const lobbyUser of lobbyUsers) {
+            await this.handlePlayerDisconnected(lobbyUser)
+        }
     }
 
     async handlePlayerDisconnected(lobbyUser: LobbyUser) {
