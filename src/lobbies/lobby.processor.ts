@@ -410,10 +410,7 @@ export class LobbyProcessor {
             }),
         )
         await Promise.all(updatePromises)
-        const lobbyUsersHintMode = lobbyUsers.filter((lobbyUser) => lobbyUser.hintMode)
-        if (lobbyUsersHintMode.length > 0) {
-            this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobbyUsersHintMode)
-        }
+        await this.lobbyGateway.showHintModeGamesToHintModeUsers(lobbyMusic, lobby.id)
 
         await this.lobbyGateway.sendLobbyUsers(lobby)
         this.lobbyGateway.playMusic(lobbyMusic)

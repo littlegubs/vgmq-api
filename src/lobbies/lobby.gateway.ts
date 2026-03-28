@@ -706,10 +706,23 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
     }
 
-    public showHintModeGamesToHintModeUsers(lobbyMusic: LobbyMusic, lobbyUsers: LobbyUser[]): void {
-        this.server
-            .to(lobbyUsers.map((lobbyUser) => `lobbyUser${lobbyUser.id}`))
-            .emit('hintModeGames', getHintModeGameNames(lobbyMusic))
+    public async showHintModeGamesToHintModeUsers(
+        lobbyMusic: LobbyMusic,
+        lobbyId: number,
+    ): Promise<void> {
+        const lobbyUsers = await this.lobbyUserRepository.find({
+            where: {
+                lobby: {
+                    id: lobbyId,
+                },
+                hintMode: true,
+            },
+        })
+        if (lobbyUsers.length > 0) {
+            this.server
+                .to(lobbyUsers.map((lobbyUser) => `lobbyUser${lobbyUser.id}`))
+                .emit('hintModeGames', getHintModeGameNames(lobbyMusic))
+        }
     }
 
     @SubscribeMessage('toggleKeepHintMode')
