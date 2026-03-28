@@ -345,7 +345,7 @@ export class GamesService {
         await this.elasticsearchService.indices.create({
             index: 'game_name',
             settings: {
-                max_ngram_diff: 20,
+                max_ngram_diff: 30,
                 analysis: {
                     normalizer: {
                         lobby_autocomplete_normalizer: {
@@ -383,7 +383,7 @@ export class GamesService {
                         lobby_autocomplete_tokenizer: {
                             type: 'ngram',
                             min_gram: 1,
-                            max_gram: 20,
+                            max_gram: 30,
                             token_chars: [],
                         },
                     },
