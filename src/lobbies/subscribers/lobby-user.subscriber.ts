@@ -1,22 +1,16 @@
-import {
-    DataSource,
-    EntitySubscriberInterface,
-    EventSubscriber,
-    InsertEvent,
-    RemoveEvent,
-    UpdateEvent,
-} from 'typeorm'
+import { DataSource, EntitySubscriberInterface, EventSubscriber, InsertEvent } from 'typeorm'
 
-import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
+import { LobbyUser } from '../entities/lobby-user.entity'
 import { Lobby } from '../entities/lobby.entity'
 import { LobbyGateway } from '../lobby.gateway'
-import { LobbyMusic } from '../entities/lobby-music.entity'
+import { LobbyUserService } from '../services/lobby-user.service'
 
 @EventSubscriber()
 export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser> {
     constructor(
         connection: DataSource,
         private lobbyGateway: LobbyGateway,
+        private lobbyUserService: LobbyUserService,
     ) {
         connection.subscribers.push(this)
     }
@@ -36,6 +30,7 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
         })
         if (lobbyUser) {
             await event.manager.remove(LobbyUser, lobbyUser)
+            await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
             await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby)
         }
 
@@ -43,7 +38,7 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
             const lobby = await event.manager.findOne(Lobby, {
                 where: { id: event.entity.lobby.id },
             })
-            if (lobby !== null && lobby.premium === false) {
+            if (lobby !== null && !lobby.premium) {
                 await event.manager.update(Lobby, lobby.id, { premium: true })
                 await this.lobbyGateway.sendUpdateToRoom(lobby.code)
                 this.lobbyGateway.emitChat(

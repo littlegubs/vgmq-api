@@ -62,7 +62,7 @@ export class LobbyProcessor {
             },
         })
         if (lobby === null) {
-            this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
+            this.logger.warn(`Music buffer: lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
         if (lobby.isPaused) {
@@ -175,7 +175,7 @@ export class LobbyProcessor {
         const ffmpegArgs = this.configService.get<string>('FFMPEG_ARGS') ?? ''
         const resolvedFfmpegArgs = ffmpegArgs.replace('$PWD', process.cwd())
         const args = [
-            ...resolvedFfmpegArgs.split(' '), // Splitting the basic docker config is fine
+            ...resolvedFfmpegArgs.split(' '),
             '-loglevel',
             'error',
             '-i',
@@ -196,7 +196,6 @@ export class LobbyProcessor {
             '-',
         ]
 
-        console.log('args', args)
         const ffmpegProcess = spawn(ffmpegPath, args, {
             env: process.env,
             shell: true,
@@ -301,7 +300,7 @@ export class LobbyProcessor {
             },
         })
         if (lobby === null) {
-            this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
+            this.logger.warn(`Play music: lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
         if (lobby.isPaused) {
@@ -449,7 +448,7 @@ export class LobbyProcessor {
             where: { code: lobbyCode, status: LobbyStatuses.PlayingMusic },
         })
         if (lobby === null) {
-            this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
+            this.logger.warn(`Reveal Answer: lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
         if (lobby.isPaused) {
@@ -605,7 +604,7 @@ export class LobbyProcessor {
             where: { code: lobbyCode, status: LobbyStatuses.AnswerReveal },
         })
         if (lobby === null) {
-            this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
+            this.logger.warn(`Result: lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
         lobby = this.lobbyRepository.create(
@@ -634,7 +633,7 @@ export class LobbyProcessor {
             where: { code: lobbyCode },
         })
         if (lobby === null) {
-            this.logger.warn(`lobby ${lobbyCode} ERROR: Lobby has been deleted`)
+            this.logger.warn(`Reset lobby: lobby ${lobbyCode} ERROR: Lobby has been deleted`)
             return
         }
         await this.lobbyMusicRepository.remove(lobby.lobbyMusics)
@@ -698,6 +697,9 @@ export class LobbyProcessor {
         if (lobby.gameMode !== LobbyGameModes.LocalCouch) {
             // remove disconnected users
             await this.lobbyUserRepository.remove(disconnectedLobbyUsers)
+            for (const disconnectedLobbyUser of disconnectedLobbyUsers) {
+                await this.lobbyUserService.handlePlayerDisconnected(disconnectedLobbyUser)
+            }
         } else {
             await this.lobbyUserRepository.save(
                 disconnectedLobbyUsers.map((lobbyUser) => ({ ...lobbyUser, disconnected: false })),
