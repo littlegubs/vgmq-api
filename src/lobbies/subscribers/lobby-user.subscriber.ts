@@ -3,14 +3,12 @@ import { DataSource, EntitySubscriberInterface, EventSubscriber, InsertEvent } f
 import { LobbyUser } from '../entities/lobby-user.entity'
 import { Lobby } from '../entities/lobby.entity'
 import { LobbyGateway } from '../lobby.gateway'
-import { LobbyUserService } from '../services/lobby-user.service'
 
 @EventSubscriber()
 export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser> {
     constructor(
         connection: DataSource,
         private lobbyGateway: LobbyGateway,
-        private lobbyUserService: LobbyUserService,
     ) {
         connection.subscribers.push(this)
     }
@@ -20,20 +18,6 @@ export class LobbyUserSubscriber implements EntitySubscriberInterface<LobbyUser>
     }
 
     async beforeInsert(event: InsertEvent<LobbyUser>): Promise<void> {
-        const lobbyUser = await event.manager.findOne(LobbyUser, {
-            relations: { user: { patreonAccount: true }, lobby: true },
-            where: {
-                user: {
-                    id: event.entity.user.id,
-                },
-            },
-        })
-        if (lobbyUser) {
-            await event.manager.remove(LobbyUser, lobbyUser)
-            await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
-            await this.lobbyGateway.sendLobbyUsers(event.entity?.lobby)
-        }
-
         if (event.entity.user.premium) {
             const lobby = await event.manager.findOne(Lobby, {
                 where: { id: event.entity.lobby.id },
