@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     ClassSerializerInterceptor,
     Controller,
@@ -36,6 +37,7 @@ import path from 'node:path'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { PRIVATE_STORAGE } from '../storage/storage.constants'
 import { StorageService } from '../storage/storage.interface'
+import { ModerationService } from '../utils/moderation.service'
 
 @Controller('lobbies')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -48,6 +50,7 @@ export class LobbyController {
         @InjectRepository(LobbyMusic) private lobbyMusicRepository: Repository<LobbyMusic>,
         private lobbyGateway: LobbyGateway,
         @Inject(PRIVATE_STORAGE) private privateStorageService: StorageService,
+        private moderationService: ModerationService,
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
@@ -91,7 +94,11 @@ export class LobbyController {
     }
 
     @Post('/create')
-    create(@Body() data: LobbyCreateDto, @Req() request: Request): Promise<Lobby> {
+    async create(@Body() data: LobbyCreateDto, @Req() request: Request): Promise<Lobby> {
+        const isToxic = await this.moderationService.isToxic(data.name)
+        if (isToxic) {
+            throw new BadRequestException('HARMFUL_LOBBY_NAME')
+        }
         return this.lobbyService.create(data, request.user as User)
     }
 
@@ -152,6 +159,11 @@ export class LobbyController {
         })
         if (lobby === null) {
             throw new NotFoundException()
+        }
+
+        const isToxic = await this.moderationService.isToxic(data.name)
+        if (isToxic) {
+            throw new BadRequestException('HARMFUL_LOBBY_NAME')
         }
 
         const player = await this.lobbyUserRepository.findOne({
