@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common'
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { InjectRepository } from '@nestjs/typeorm'
 import { FindManyOptions, LessThan, Not, Repository } from 'typeorm'
@@ -19,6 +19,7 @@ export class LobbyUserService {
         @Inject(forwardRef(() => LobbyGateway))
         private lobbyGateway: LobbyGateway,
     ) {}
+    private readonly logger = new Logger(LobbyUserService.name)
 
     async areAllUsersReadyToPlay(lobby: Lobby): Promise<boolean> {
         const countOptions: FindManyOptions<LobbyUser> = {
@@ -105,6 +106,10 @@ export class LobbyUserService {
                 id: lobbyUser.lobby.id,
             },
         })
+        if (!lobby) {
+            this.logger.warn(`Lobby not found for disconnecting lobbyUser ${lobbyUser.id}`)
+            return
+        }
         if (
             lobby?.premium &&
             !lobbyUsers.some((lobbyUser) => {
@@ -123,7 +128,7 @@ export class LobbyUserService {
                 .andWhere('lobbyUser.lobby = :lobby')
                 .andWhere('lobbyUser.role = :role')
                 .andWhere('lobbyUser.disconnected = 0')
-                .setParameter('lobby', lobby!.id)
+                .setParameter('lobby', lobby.id)
                 .setParameter('role', LobbyUserRole.Player)
                 .orderBy('RAND()')
                 .getOne()

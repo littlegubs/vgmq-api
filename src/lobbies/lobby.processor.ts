@@ -30,7 +30,6 @@ import { LobbyStatService } from './services/lobby-stat.service'
 import { StorageService } from '../storage/storage.interface'
 import { PRIVATE_STORAGE } from '../storage/storage.constants'
 import path from 'node:path'
-import * as fs from 'node:fs'
 
 @Processor('lobby')
 export class LobbyProcessor {

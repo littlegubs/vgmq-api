@@ -90,12 +90,11 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 user: {
                     id: client.user.id,
                 },
-                lobby: {
-                    id: lobby?.id,
-                },
             },
         })
-        if (lobbyUser === null) {
+
+        // if user was not connected or connected in another lobby, create a lobby user
+        if (lobbyUser === null || lobbyUser.lobby.id !== lobby.id) {
             if (lobby.hasPassword) {
                 if (body.password === null) {
                     throw new MissingPasswordException()
@@ -104,6 +103,12 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                     throw new InvalidPasswordException()
                 }
             }
+            if (lobbyUser) {
+                // remove user from previous lobby
+                await this.lobbyUserRepository.remove(lobbyUser)
+                await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
+            }
+
             lobbyUser = this.lobbyUserRepository.create(
                 await this.lobbyUserRepository.save({
                     lobby: lobby,
@@ -116,12 +121,14 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
                 }),
             )
         } else {
-            // if user was previously in lobby, set them connected
-            await this.lobbyUserRepository.save({
-                ...lobbyUser,
-                disconnected: false,
-                isReconnecting: false,
-            })
+            // if user was previously in this lobby, set them connected
+            if (lobbyUser.lobby.id === lobby.id) {
+                await this.lobbyUserRepository.save({
+                    ...lobbyUser,
+                    disconnected: false,
+                    isReconnecting: false,
+                })
+            }
         }
         // refresh lobby as it might be premium now
         lobby = (await this.lobbyRepository.findOne({

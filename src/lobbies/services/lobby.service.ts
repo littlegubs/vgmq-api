@@ -14,6 +14,7 @@ import { LobbyThemeFilter } from '../entities/lobby-theme-filter.entity'
 import { LobbyUser, LobbyUserRole } from '../entities/lobby-user.entity'
 import { Lobby, LobbyDifficulties } from '../entities/lobby.entity'
 import { LobbyGateway } from '../lobby.gateway'
+import { LobbyUserService } from './lobby-user.service'
 
 @Injectable()
 export class LobbyService {
@@ -31,6 +32,7 @@ export class LobbyService {
         @InjectRepository(LobbyThemeFilter)
         private themeFilterRepository: Repository<LobbyThemeFilter>,
         @Inject(forwardRef(() => LobbyGateway)) private lobbyGateway: LobbyGateway,
+        private lobbyUserService: LobbyUserService,
     ) {}
     async findByName(query: string): Promise<Lobby[]> {
         const qb = this.lobbyRepository
@@ -52,6 +54,20 @@ export class LobbyService {
             genreFilters: await this.handleGenreFilter(data.genreFilters),
             themeFilters: await this.handleThemeFilter(data.themeFilters),
         })
+
+        // upon lobby connection, check if user is already in another lobby
+        const lobbyUser = await this.lobbyUserRepository.findOne({
+            relations: { user: { patreonAccount: true }, lobby: true },
+            where: {
+                user: {
+                    id: user.id,
+                },
+            },
+        })
+        if (lobbyUser) {
+            await this.lobbyUserRepository.remove(lobbyUser)
+            await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
+        }
         await this.lobbyUserRepository.save({
             lobby,
             user,
