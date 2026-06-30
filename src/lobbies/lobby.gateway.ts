@@ -420,6 +420,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         if (!lobbyUser) {
             throw new WsException('Not found')
         }
+        this.emitChat(lobbyHost.lobby.code, null, `${username} has been kicked from lobby`)
         this.server.in(`lobbyUser${lobbyUser.id}`).socketsLeave(lobbyHost.lobby.code)
         await this.lobbyUserRepository.remove(lobbyUser)
         await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
@@ -457,6 +458,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
             }
         }
 
+        this.emitChat(lobbyHost.lobby.code, null, `${username} has been banned from lobby`)
         this.server.in(`lobbyUser${lobbyUser.id}`).socketsLeave(lobbyHost.lobby.code)
         await this.lobbyUserRepository.remove(lobbyUser)
         await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
