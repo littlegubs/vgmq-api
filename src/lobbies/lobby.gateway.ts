@@ -1,5 +1,12 @@
 import { InjectQueue } from '@nestjs/bull'
-import { forwardRef, Inject, Logger, NotFoundException, UseFilters } from '@nestjs/common'
+import {
+    forwardRef,
+    Inject,
+    Logger,
+    NotFoundException,
+    UnauthorizedException,
+    UseFilters,
+} from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import {
@@ -73,13 +80,16 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         @MessageBody() body: { code: string; password: string | null },
     ): Promise<undefined> {
         let lobby = await this.lobbyRepository.findOne({
-            relations: { lobbyUsers: { user: true } },
+            relations: { lobbyUsers: { user: true }, bannedUsers: true },
             where: {
                 code: body.code,
             },
         })
         if (lobby === null) {
             throw new NotFoundException()
+        }
+        if (lobby.bannedUsers?.some((user) => user.id === client.user.id)) {
+            throw new UnauthorizedException('Banned')
         }
         let lobbyUser = await this.lobbyUserRepository.findOne({
             relations: {
@@ -418,6 +428,44 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
         await this.lobbyUserRepository.remove(lobbyUser)
         await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
+        this.emitChat(lobbyHost.lobby.code, null, `${username} has been kicked.`)
+    }
+
+    @SubscribeMessage('ban')
+    async ban(
+        @ConnectedSocket() client: AuthenticatedSocket,
+        @MessageBody() username: string,
+    ): Promise<void> {
+        const lobbyHost = await this.lobbyUserService.getLobbyHostByUser(client.user)
+        if (lobbyHost === null) {
+            return
+        }
+        const lobbyUser = await this.lobbyUserService.getLobbyUserByUsername(
+            username,
+            lobbyHost.lobby,
+        )
+        if (!lobbyUser) {
+            throw new WsException('Not found')
+        }
+
+        const lobby = await this.lobbyRepository.findOne({
+            relations: { bannedUsers: true },
+            where: { id: lobbyHost.lobby.id },
+        })
+
+        if (lobby) {
+            if (!lobby.bannedUsers) {
+                lobby.bannedUsers = []
+            }
+            if (!lobby.bannedUsers.some((u) => u.id === lobbyUser.user.id)) {
+                lobby.bannedUsers.push(lobbyUser.user)
+                await this.lobbyRepository.save(lobby)
+            }
+        }
+
+        await this.lobbyUserRepository.remove(lobbyUser)
+        await this.lobbyUserService.handlePlayerDisconnected(lobbyUser)
+        this.emitChat(lobbyHost.lobby.code, null, `${username} has been banned.`)
     }
 
     @SubscribeMessage('leave')

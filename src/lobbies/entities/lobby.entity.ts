@@ -15,6 +15,7 @@ import { LobbyGenreFilter } from './lobby-genre-filter.entity'
 import { LobbyMusic } from './lobby-music.entity'
 import { LobbyThemeFilter } from './lobby-theme-filter.entity'
 import { LobbyUser } from './lobby-user.entity'
+import { User } from '../../users/user.entity'
 
 export enum LobbyStatuses {
     Waiting = 'waiting',
@@ -236,6 +237,10 @@ export class Lobby {
     })
     @JoinTable({ name: 'lobby_lobby_theme_filters' })
     themeFilters: LobbyThemeFilter[]
+
+    @ManyToMany(() => User)
+    @JoinTable({ name: 'lobby_banned_users' })
+    bannedUsers: User[]
 
     @Column()
     @CreateDateColumn()
