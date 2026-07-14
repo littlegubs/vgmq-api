@@ -7,6 +7,7 @@ import {
     NotFoundException,
     Param,
     Put,
+    Query,
     Req,
     UseGuards,
 } from '@nestjs/common'
@@ -31,8 +32,14 @@ export class AdminController {
 
     @Roles(Role.Admin, Role.SuperAdmin)
     @Get('')
-    async getAllUsers(): Promise<User[]> {
-        return this.userRepository
+    async getAllUsers(
+        @Query('page') page: string = '0',
+        @Query('limit') limit: string = '25',
+        @Query('search') search?: string,
+        @Query('sort') sort?: string,
+        @Query('order') order: 'ASC' | 'DESC' = 'DESC',
+    ): Promise<{ items: User[]; total: number }> {
+        const query = this.userRepository
             .createQueryBuilder('user')
             .leftJoinAndSelect('user.bannedBy', 'bannedBy')
             .select([
@@ -43,7 +50,45 @@ export class AdminController {
                 'user.banReason',
                 'user.createdAt',
             ])
-            .getMany()
+
+        if (search) {
+            query.where('user.username LIKE :search', { search: `%${search}%` })
+        }
+
+        if (sort) {
+            query.orderBy(`user.${sort}`, order)
+        } else {
+            query.orderBy('user.createdAt', 'DESC')
+        }
+
+        const [items, total] = await query
+            .skip(Number(page) * Number(limit))
+            .take(Number(limit))
+            .getManyAndCount()
+
+        return { items, total }
+    }
+
+    @Roles(Role.Admin, Role.SuperAdmin)
+    @Get('/stats')
+    async getUserStats(): Promise<{ date: string; count: number }[]> {
+        const stats = await this.userRepository
+            .createQueryBuilder('user')
+            .select('DATE(user.createdAt)', 'date')
+            .addSelect('COUNT(*)', 'count')
+            .where('user.enabled = :enabled', { enabled: true })
+            .groupBy('DATE(user.createdAt)')
+            .orderBy('date', 'ASC')
+            .getRawMany()
+
+        let cumulative = 0
+        return stats.map((row) => {
+            cumulative += Number(row.count)
+            return {
+                date: new Date(row.date).toISOString(),
+                count: cumulative,
+            }
+        })
     }
 
     @Roles(Role.Admin, Role.SuperAdmin)
