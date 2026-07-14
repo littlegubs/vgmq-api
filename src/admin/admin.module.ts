@@ -9,11 +9,22 @@ import { Lobby } from '../lobbies/entities/lobby.entity'
 import { User } from '../users/user.entity'
 import { SystemController } from './system.controller'
 import { AdminController } from './admin.controller'
+import { ReportsController } from './reports.controller'
+import { LobbyReport } from '../lobbies/entities/lobby-report.entity'
+import { LobbyMessage } from '../lobbies/entities/lobby-message.entity'
 
 @Module({
-    controllers: [AdminController, SystemController],
+    controllers: [AdminController, SystemController, ReportsController],
     imports: [
-        TypeOrmModule.forFeature([File, User, Lobby, LobbyMusic, LobbyUser]),
+        TypeOrmModule.forFeature([
+            File,
+            User,
+            Lobby,
+            LobbyMusic,
+            LobbyUser,
+            LobbyReport,
+            LobbyMessage,
+        ]),
         BullModule.registerQueue({
             name: 'lobby',
         }),

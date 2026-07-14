@@ -20,7 +20,9 @@ import { User } from '../users/user.entity'
 import { UsersService } from '../users/users.service'
 import { LobbyCollectionFilter } from './entities/lobby-collection-filter.entity'
 import { LobbyGenreFilter } from './entities/lobby-genre-filter.entity'
+import { LobbyMessage } from './entities/lobby-message.entity'
 import { LobbyMusic } from './entities/lobby-music.entity'
+import { LobbyReport } from './entities/lobby-report.entity'
 import { LobbyThemeFilter } from './entities/lobby-theme-filter.entity'
 import { LobbyUser } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
@@ -43,6 +45,8 @@ import { ModerationService } from '../utils/moderation.service'
     imports: [
         TypeOrmModule.forFeature([
             Lobby,
+            LobbyMessage,
+            LobbyReport,
             LobbyMusic,
             LobbyUser,
             Game,

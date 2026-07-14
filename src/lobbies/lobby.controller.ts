@@ -38,6 +38,7 @@ import { LobbyMusic } from './entities/lobby-music.entity'
 import { PRIVATE_STORAGE } from '../storage/storage.constants'
 import { StorageService } from '../storage/storage.interface'
 import { ModerationService } from '../utils/moderation.service'
+import { LobbyReport } from './entities/lobby-report.entity'
 
 @Controller('lobbies')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -51,6 +52,8 @@ export class LobbyController {
         private lobbyGateway: LobbyGateway,
         @Inject(PRIVATE_STORAGE) private privateStorageService: StorageService,
         private moderationService: ModerationService,
+        @InjectRepository(LobbyReport) private lobbyReportRepository: Repository<LobbyReport>,
+        @InjectRepository(User) private userRepository: Repository<User>,
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
@@ -110,6 +113,32 @@ export class LobbyController {
         for (const lobby of lobbies) {
             this.lobbyGateway.emitChat(lobby.code, null, data.message)
         }
+    }
+
+    @Post(':code/report')
+    async reportUser(
+        @Param('code') code: string,
+        @Body() data: { reportedUsername: string },
+        @Req() request: Request,
+    ): Promise<void> {
+        const reporter = request.user as User
+        const reported = await this.userRepository.findOneBy({ username: data.reportedUsername })
+        if (!reported) {
+            throw new NotFoundException('Reported user not found')
+        }
+
+        const lobby = await this.lobbyRepository.findOneBy({ code })
+        if (!lobby) {
+            throw new NotFoundException('Lobby not found')
+        }
+
+        await this.lobbyReportRepository.save(
+            this.lobbyReportRepository.create({
+                reporter,
+                reported,
+                lobbyId: lobby.id,
+            }),
+        )
     }
 
     @Get('/music/current')

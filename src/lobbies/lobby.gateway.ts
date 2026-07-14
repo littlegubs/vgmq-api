@@ -40,6 +40,7 @@ import { AuthenticatedSocket, WSAuthMiddleware } from './socket-middleware'
 import { LobbyStatService } from './services/lobby-stat.service'
 import { OauthPatreon } from '../oauth/entities/oauth-patreon.entity'
 import { GameToMusic } from '../games/entity/game-to-music.entity'
+import { LobbyMessage } from './entities/lobby-message.entity'
 
 export function getHintModeGameNames(lobbyMusic: LobbyMusic): string[] {
     return shuffle(lobbyMusic.hintModeGames.map((game) => game.name))
@@ -59,6 +60,7 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         @InjectRepository(Lobby) private lobbyRepository: Repository<Lobby>,
         @InjectRepository(LobbyMusic) private lobbyMusicRepository: Repository<LobbyMusic>,
         @InjectRepository(LobbyUser) private lobbyUserRepository: Repository<LobbyUser>,
+        @InjectRepository(LobbyMessage) private lobbyMessageRepository: Repository<LobbyMessage>,
         @InjectQueue('lobby') private lobbyQueue: Queue,
         @Inject(forwardRef(() => LobbyMusicLoaderService))
         private lobbyMusicLoaderService: LobbyMusicLoaderService,
@@ -239,6 +241,13 @@ export class LobbyGateway implements NestGateway, OnGatewayConnection {
         }
         message = message.trim()
         if (message !== '') {
+            void this.lobbyMessageRepository.save(
+                this.lobbyMessageRepository.create({
+                    content: message,
+                    user: lobbyUser.user,
+                    lobbyId: lobbyUser.lobby.id,
+                }),
+            )
             this.emitChat(lobbyUser.lobby.code, lobbyUser.user.username, message)
         }
     }
