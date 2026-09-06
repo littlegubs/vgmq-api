@@ -38,7 +38,7 @@ import { LobbyMusic } from './entities/lobby-music.entity'
 import { PRIVATE_STORAGE } from '../storage/storage.constants'
 import { StorageService } from '../storage/storage.interface'
 import { ModerationService } from '../utils/moderation.service'
-import { LobbyReport } from './entities/lobby-report.entity'
+import { LobbyReport, ReportStatus } from './entities/lobby-report.entity'
 
 @Controller('lobbies')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -130,6 +130,18 @@ export class LobbyController {
         const lobby = await this.lobbyRepository.findOneBy({ code })
         if (!lobby) {
             throw new NotFoundException('Lobby not found')
+        }
+
+        const existingReport = await this.lobbyReportRepository.findOne({
+            where: {
+                reporter: { id: reporter.id },
+                reported: { id: reported.id },
+                status: ReportStatus.Pending,
+            },
+        })
+
+        if (existingReport) {
+            throw new BadRequestException('A pending report already exists for this user')
         }
 
         await this.lobbyReportRepository.save(
