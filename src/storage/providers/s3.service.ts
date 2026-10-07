@@ -19,17 +19,19 @@ export class S3StorageService implements StorageService {
 
     constructor(
         private configService: ConfigService,
-        type: 'PRIVATE' | 'PUBLIC',
+        type: 'PRIVATE' | 'PUBLIC' | 'CLIPS',
     ) {
         const accessId = this.configService.get(`${type}_S3_ID`)
         const secretKey = this.configService.get(`${type}_S3_SECRET`)
         const region = this.configService.get(`${type}_S3_REGION`)
+        const endpoint = this.configService.get<string>(`${type}_S3_ENDPOINT`)
         this.bucketName = this.configService.get(`${type}_S3_BUCKET`)
         if (!accessId || !secretKey || !region || !this.bucketName) {
             throw new InternalServerErrorException(`missing ${type} amazon credentials`)
         }
         this.client = new S3Client({
             region,
+            ...(endpoint && { endpoint }),
             credentials: {
                 accessKeyId: accessId,
                 secretAccessKey: secretKey,

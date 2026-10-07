@@ -3,13 +3,13 @@ import * as process from 'node:process'
 
 import {
     InjectQueue,
+    OnQueueCompleted,
+    OnQueueError,
+    OnQueueFailed,
     OnQueueStalled,
+    OnQueueWaiting,
     Process,
     Processor,
-    OnQueueError,
-    OnQueueWaiting,
-    OnQueueCompleted,
-    OnQueueFailed,
 } from '@nestjs/bull'
 import { Inject, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -28,8 +28,8 @@ import { LobbyMusicLoaderService } from './services/lobby-music-loader.service'
 import { LobbyUserService } from './services/lobby-user.service'
 import { LobbyStatService } from './services/lobby-stat.service'
 import { StorageService } from '../storage/storage.interface'
-import { PRIVATE_STORAGE } from '../storage/storage.constants'
-import path from 'node:path'
+import { CLIPS_STORAGE, PRIVATE_STORAGE } from '../storage/storage.constants'
+import { randomUUID } from 'node:crypto'
 
 @Processor('lobby')
 export class LobbyProcessor {
@@ -43,6 +43,7 @@ export class LobbyProcessor {
         private lobbyUserService: LobbyUserService,
         private userService: UsersService,
         @Inject(PRIVATE_STORAGE) private privateStorageService: StorageService,
+        @Inject(CLIPS_STORAGE) private clipsStorageService: StorageService,
         private lobbyMusicLoaderService: LobbyMusicLoaderService,
         private configService: ConfigService,
         private lobbyStatService: LobbyStatService,
@@ -214,12 +215,12 @@ export class LobbyProcessor {
                 if (code === 0) {
                     const finalBuffer = Buffer.concat(output)
 
-                    const clipFilename = `lobby-${lobby!.code}-round-${lobbyMusic.position}.mp3`
-                    const clipPath = path.join('clips', clipFilename)
+                    const clipPath = `${randomUUID()}.mp3`
 
                     try {
-                        await this.privateStorageService.putObject(clipPath, finalBuffer)
+                        await this.clipsStorageService.putObject(clipPath, finalBuffer)
                         lobbyMusic!.loaded = true
+                        lobbyMusic!.clipPath = clipPath
                         await this.lobbyMusicRepository.save(lobbyMusic)
                         this.logger.debug(`clip written: ${clipPath}`)
                     } catch (error) {
