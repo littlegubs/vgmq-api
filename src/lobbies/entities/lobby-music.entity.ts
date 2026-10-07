@@ -33,6 +33,9 @@ export class LobbyMusic {
     @Column({ type: 'boolean' })
     loaded = false
 
+    @Column({ type: 'varchar', nullable: true })
+    clipPath: string | null = null
+
     @Column({ type: 'boolean' })
     @Expose({ groups: ['lobby-answer-reveal'] })
     contributeToMissingData = false

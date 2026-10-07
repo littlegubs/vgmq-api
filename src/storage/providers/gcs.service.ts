@@ -12,7 +12,7 @@ export class GcsStorageService implements StorageService {
 
     constructor(
         private configService: ConfigService,
-        type: 'PRIVATE' | 'PUBLIC',
+        type: 'PRIVATE' | 'PUBLIC' | 'CLIPS',
     ) {
         this.bucketName = this.configService.get(`${type}_GCS_BUCKET`)
         const projectId = this.configService.get(`${type}_GCS_PROJECT_ID`)

@@ -13,7 +13,6 @@ import {
     Query,
     Req,
     SerializeOptions,
-    StreamableFile,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common'
@@ -33,12 +32,13 @@ import { LobbyUser, LobbyUserRole } from './entities/lobby-user.entity'
 import { Lobby } from './entities/lobby.entity'
 import { LobbyGateway } from './lobby.gateway'
 import { LobbyService } from './services/lobby.service'
-import path from 'node:path'
 import { LobbyMusic } from './entities/lobby-music.entity'
 import { PRIVATE_STORAGE } from '../storage/storage.constants'
 import { StorageService } from '../storage/storage.interface'
 import { ModerationService } from '../utils/moderation.service'
 import { LobbyReport, ReportStatus } from './entities/lobby-report.entity'
+
+import { ConfigService } from '@nestjs/config'
 
 @Controller('lobbies')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -54,6 +54,7 @@ export class LobbyController {
         private moderationService: ModerationService,
         @InjectRepository(LobbyReport) private lobbyReportRepository: Repository<LobbyReport>,
         @InjectRepository(User) private userRepository: Repository<User>,
+        private configService: ConfigService,
     ) {}
 
     @UseInterceptors(ClassSerializerInterceptor)
@@ -154,7 +155,7 @@ export class LobbyController {
     }
 
     @Get('/music/current')
-    async getCurrentRoundMusic(@Req() request: Request): Promise<StreamableFile> {
+    async getCurrentRoundMusic(@Req() request: Request): Promise<{ url: string }> {
         const lobbyUser = await this.lobbyUserRepository.findOne({
             relations: {
                 user: true,
@@ -182,11 +183,13 @@ export class LobbyController {
         if (!lobbyMusic) {
             throw new NotFoundException()
         }
-        const clipFilename = `lobby-${lobbyUser.lobby.code}-round-${lobbyMusic.position}.mp3`
-        const clipPath = path.join('clips', clipFilename)
-        const buffer = await this.privateStorageService.getObject(clipPath)
+        if (!lobbyMusic.clipPath) {
+            throw new NotFoundException()
+        }
+        const cdnBaseUrl = this.configService.get<string>('CLIPS_CDN_URL')
+        const url = `${cdnBaseUrl}/${lobbyMusic.clipPath}`
 
-        return new StreamableFile(buffer)
+        return { url }
     }
 
     @Put(':code')

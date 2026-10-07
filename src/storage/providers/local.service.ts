@@ -11,7 +11,7 @@ export class LocalStorageService implements StorageService {
 
     constructor(
         private configService: ConfigService,
-        type: 'PRIVATE' | 'PUBLIC',
+        type: 'PRIVATE' | 'PUBLIC' | 'CLIPS',
     ) {
         this.storagePath = this.configService.get<string>(`${type}_LOCAL_STORAGE_PATH`)
 
